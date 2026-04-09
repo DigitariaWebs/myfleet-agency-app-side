@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "my-fleet",
+    "name": "My Fleet",
     "slug": "my-fleet",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,11 +8,21 @@
     "scheme": "myfleet",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.digitariawebs.myfleet",
+      "buildNumber": "2",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "My Fleet needs camera access for vehicle inspections.",
+        "NSPhotoLibraryUsageDescription": "My Fleet needs photo library access to save inspection photos.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.digitariawebs.myfleet",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#7C3AED",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,17 +38,28 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#7C3AED",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-localization",
+      "expo-image",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6011ec8a-296d-4356-b958-9ecad2764c95"
+      },
+      "router": {}
+    },
+    "owner": "achrefdev"
   }
 }

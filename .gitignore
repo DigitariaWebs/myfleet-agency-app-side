@@ -41,3 +41,9 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Large video files (67-359MB each) — too large for GitHub
+# Store separately via Git LFS or cloud storage
+*.MOV
+*.mov
+*.mp4

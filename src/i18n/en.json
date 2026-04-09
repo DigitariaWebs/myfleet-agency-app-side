@@ -1,0 +1,362 @@
+{
+  "common": {
+    "appName": "My Fleet",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "or": "or",
+    "comingSoon": "Coming soon"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "continueWith": "or continue with email",
+    "registerWith": "or register with email",
+    "onboarding": {
+      "skip": "Skip",
+      "next": "Next",
+      "getStarted": "Get Started",
+      "screen1": {
+        "title": "Your Fleet, Under Control",
+        "subtitle": "Manage your entire vehicle fleet in real-time. Availability, bookings, and maintenance — all in one place."
+      },
+      "screen2": {
+        "title": "AI-Powered Inspections",
+        "subtitle": "Detect scratches, dents, and damages automatically. Before and after — every detail captured."
+      },
+      "screen3": {
+        "title": "Ready to Transform Your Agency?",
+        "subtitle": "Join hundreds of agencies already using My Fleet to streamline their operations."
+      }
+    },
+    "welcome": {
+      "title": "MY FLEET",
+      "tagline": "Smart Fleet Management",
+      "getStarted": "Get Started",
+      "signIn": "Sign In",
+      "haveAccount": "I already have an account"
+    },
+    "loginScreen": {
+      "title": "Welcome Back",
+      "subtitle": "Sign in to your agency",
+      "emailPlaceholder": "email@example.com",
+      "passwordPlaceholder": "Your password",
+      "forgotPassword": "Forgot password?",
+      "signIn": "Sign In",
+      "noAccount": "Don't have an account?",
+      "register": "Register"
+    },
+    "registerScreen": {
+      "title": "Create Account",
+      "subtitle": "Set up your agency profile",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Your full name",
+      "emailPlaceholder": "email@example.com",
+      "phone": "Phone",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "agencyName": "Agency Name",
+      "agencyNamePlaceholder": "My agency",
+      "passwordPlaceholder": "Create a password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "createAccount": "Create Account",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign In"
+    },
+    "forgotScreen": {
+      "title": "Reset Password",
+      "subtitle": "Enter your email and we'll send you a reset link",
+      "emailPlaceholder": "email@example.com",
+      "sendLink": "Send Reset Link",
+      "emailSent": "Email Sent!",
+      "emailSentMessage": "Check your inbox for the reset link.",
+      "backToLogin": "Back to login"
+    },
+    "validation": {
+      "emailRequired": "Email is required",
+      "emailInvalid": "Invalid email format",
+      "passwordRequired": "Password is required",
+      "passwordMinLength": "Password must be at least 6 characters",
+      "passwordMismatch": "Passwords don't match",
+      "nameRequired": "Name is required",
+      "phoneRequired": "Phone is required",
+      "agencyRequired": "Agency name is required",
+      "fillAllFields": "Please fill in all fields"
+    }
+  },
+  "fleet": {
+    "title": "Fleet",
+    "vehicles": "Vehicles",
+    "addVehicle": "Add a vehicle",
+    "status": {
+      "available": "Available",
+      "rented": "Rented",
+      "maintenance": "Under maintenance",
+      "reserved": "Reserved",
+      "outOfService": "Out of service"
+    },
+    "categories": {
+      "sedan": "Sedan",
+      "suv": "SUV",
+      "compact": "Compact",
+      "luxury": "Luxury",
+      "van": "Van",
+      "convertible": "Convertible",
+      "truck": "Truck"
+    },
+    "filters": {
+      "all": "All",
+      "byStatus": "By status",
+      "byCategory": "By category",
+      "byBrand": "By brand"
+    },
+    "media": {
+      "photos": "Photos",
+      "video": "Interior Video",
+      "noVideo": "No video available"
+    }
+  },
+  "booking": {
+    "title": "Bookings",
+    "newBooking": "New booking",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "pickup": "Pickup location",
+    "return": "Return location",
+    "payment": {
+      "linkSent": "Payment link sent to client",
+      "copyLink": "Copy Link",
+      "sendWhatsApp": "Send via WhatsApp",
+      "sendSMS": "Send via SMS",
+      "sendEmail": "Send via Email",
+      "resend": "Resend Payment Link",
+      "expired": "Payment link expired",
+      "paid": "Payment received",
+      "pending": "Payment pending",
+      "status": {
+        "pending": "Pending",
+        "link_sent": "Link Sent",
+        "paid": "Paid",
+        "expired": "Expired",
+        "failed": "Failed"
+      }
+    },
+    "autoCancelIn": "Auto-cancels in {{time}}"
+  },
+  "inspection": {
+    "title": "Inspections",
+    "newInspection": "New inspection",
+    "preRental": "Pre-rental",
+    "postRental": "Post-rental",
+    "damages": "Damages",
+    "photos": "Photos",
+    "fuelLevel": "Fuel level",
+    "mileage": "Mileage",
+    "confidence": {
+      "confirmed": "Confirmed Damage",
+      "review": "Requires Review",
+      "uncertain": "Uncertain",
+      "showUncertain": "Show uncertain detections",
+      "confirm": "Confirm Damage",
+      "dismiss": "Dismiss"
+    }
+  },
+  "contract": {
+    "title": "Contracts",
+    "newContract": "New contract",
+    "sign": "Sign",
+    "signed": "Signed",
+    "pending": "Pending",
+    "terms": "Terms and conditions"
+  },
+  "client": {
+    "title": "Clients",
+    "addClient": "Add a client",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "driverLicense": "Driver's license",
+    "totalBookings": "Total bookings",
+    "totalSpent": "Total spent"
+  },
+  "clients": {
+    "quickRegister": {
+      "title": "Quick Registration",
+      "scanId": "Scan ID Document",
+      "scanLicense": "Scan Driver's License",
+      "scanCard": "Scan Credit Card",
+      "front": "Front",
+      "back": "Back",
+      "retake": "Retake",
+      "privacyNotice": "Card image stored securely for deposit verification only",
+      "register": "Register Client",
+      "success": "Client Registered!",
+      "walkIn": "Walk-in Client",
+      "basicInfo": "Basic Info",
+      "idDocument": "Identity Document",
+      "driverLicense": "Driver's License",
+      "creditCard": "Credit Card"
+    }
+  },
+  "violation": {
+    "title": "Violations",
+    "addViolation": "Add a violation",
+    "speeding": "Speeding",
+    "parking": "Parking",
+    "redlight": "Red light",
+    "amount": "Amount",
+    "date": "Date",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "contested": "Contested"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "revenue": "Revenue",
+    "activeRentals": "Active Rentals",
+    "availableVehicles": "Available vehicles",
+    "pendingInspections": "Pending inspections",
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "stats": {
+      "totalFleet": "Vehicles",
+      "inRental": "In Rental",
+      "available": "Available",
+      "inRepair": "In Repair"
+    },
+    "returningToday": "Returning Today",
+    "quickActions": "Quick Actions",
+    "recentActivity": "Recent Activity",
+    "newInspection": "New Inspection",
+    "newBooking": "New Booking",
+    "addClient": "Add Client",
+    "registerClient": "Register Client",
+    "violations": "Violations",
+    "seeAll": "See All",
+    "viewAll": "View All",
+    "noReturns": "No returns scheduled today",
+    "returnAt": "Return at",
+    "overdue": "Overdue",
+    "dueIn": "Due in {{hours}}h",
+    "dueSoon": "Due soon"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "darkMode": "Dark mode",
+    "notifications": "Notifications",
+    "about": "About",
+    "policies": {
+      "title": "Booking Policies",
+      "autoCancel": "Auto-cancel unpaid bookings",
+      "cancelAfter": "Cancel after",
+      "hours24": "24 hours",
+      "hours48": "48 hours",
+      "days3": "3 days",
+      "days7": "7 days"
+    }
+  },
+  "agency": {
+    "qrCode": {
+      "title": "Agency QR Code",
+      "scanText": "Scan to visit our agency",
+      "share": "Share",
+      "download": "Download",
+      "print": "Print"
+    }
+  },
+  "insurance": {
+    "title": "Insurance",
+    "basic": {
+      "title": "Basic Insurance",
+      "included": "Included",
+      "description": "Covers third-party liability. Excess: CHF 1,500"
+    },
+    "allInclusive": {
+      "title": "All-Inclusive",
+      "price": "+CHF {{price}}/day",
+      "description": "Zero excess. Covers all damages including glass, tires, and personal effects.",
+      "recommended": "RECOMMENDED"
+    }
+  },
+  "pickup": {
+    "title": "Vehicle Pickup",
+    "step": {
+      "reservation": "Reservation",
+      "inspection": "Inspection",
+      "contract": "Contract"
+    },
+    "checklist": {
+      "identity": "Client identity verified",
+      "payment": "Payment received",
+      "keys": "Vehicle keys prepared"
+    },
+    "continueInspection": "Continue to Inspection",
+    "continueContract": "Continue to Contract",
+    "signComplete": "Sign & Complete",
+    "success": "Vehicle Departed!"
+  },
+  "return": {
+    "title": "Vehicle Return",
+    "step": {
+      "checklist": "Checklist",
+      "inspection": "Inspection",
+      "comparison": "Comparison",
+      "signoff": "Sign-Off"
+    },
+    "checklist": {
+      "fuel": "Fuel level checked",
+      "mileage": "Mileage recorded",
+      "keys": "Keys returned"
+    },
+    "success": "Return Complete!"
+  },
+  "more": {
+    "title": "More",
+    "contracts": "Contracts",
+    "violations": "Violations",
+    "clients": "Clients",
+    "billing": "Billing",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "qrCode": "My QR Code",
+    "logout": "Log out"
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "fleet": "Fleet",
+    "bookings": "Bookings",
+    "clients": "Clients",
+    "more": "More"
+  }
+}

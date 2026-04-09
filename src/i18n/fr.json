@@ -1,0 +1,362 @@
+{
+  "common": {
+    "appName": "My Fleet",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "close": "Fermer",
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "or": "ou",
+    "comingSoon": "Bientôt disponible"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "email": "Email",
+    "password": "Mot de passe",
+    "continueWith": "ou continuer avec email",
+    "registerWith": "ou s'inscrire par email",
+    "onboarding": {
+      "skip": "Passer",
+      "next": "Suivant",
+      "getStarted": "Commencer",
+      "screen1": {
+        "title": "Votre Flotte, Sous Contrôle",
+        "subtitle": "Gérez toute votre flotte en temps réel. Disponibilité, réservations et maintenance — tout en un seul endroit."
+      },
+      "screen2": {
+        "title": "Inspections Intelligentes",
+        "subtitle": "Détectez rayures, bosses et dommages automatiquement. Avant et après — chaque détail capturé."
+      },
+      "screen3": {
+        "title": "Prêt à Transformer Votre Agence ?",
+        "subtitle": "Rejoignez des centaines d'agences qui utilisent déjà My Fleet pour optimiser leurs opérations."
+      }
+    },
+    "welcome": {
+      "title": "MY FLEET",
+      "tagline": "Gestion de flotte intelligente",
+      "getStarted": "Commencer",
+      "signIn": "Se connecter",
+      "haveAccount": "J'ai déjà un compte"
+    },
+    "loginScreen": {
+      "title": "Bon retour",
+      "subtitle": "Connectez-vous à votre agence",
+      "emailPlaceholder": "email@exemple.com",
+      "passwordPlaceholder": "Votre mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "signIn": "Se connecter",
+      "noAccount": "Pas encore de compte ?",
+      "register": "S'inscrire"
+    },
+    "registerScreen": {
+      "title": "Créer un compte",
+      "subtitle": "Configurez votre profil d'agence",
+      "fullName": "Nom complet",
+      "fullNamePlaceholder": "Votre nom complet",
+      "emailPlaceholder": "email@exemple.com",
+      "phone": "Téléphone",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "agencyName": "Nom de l'agence",
+      "agencyNamePlaceholder": "Mon agence",
+      "passwordPlaceholder": "Créez un mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "confirmPasswordPlaceholder": "Confirmez votre mot de passe",
+      "createAccount": "Créer un compte",
+      "hasAccount": "Déjà un compte ?",
+      "signIn": "Se connecter"
+    },
+    "forgotScreen": {
+      "title": "Réinitialiser le mot de passe",
+      "subtitle": "Entrez votre email et nous vous enverrons un lien de réinitialisation",
+      "emailPlaceholder": "email@exemple.com",
+      "sendLink": "Envoyer le lien",
+      "emailSent": "Email envoyé !",
+      "emailSentMessage": "Vérifiez votre boîte de réception pour le lien de réinitialisation.",
+      "backToLogin": "Retour à la connexion"
+    },
+    "validation": {
+      "emailRequired": "L'email est requis",
+      "emailInvalid": "Format d'email invalide",
+      "passwordRequired": "Le mot de passe est requis",
+      "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+      "passwordMismatch": "Les mots de passe ne correspondent pas",
+      "nameRequired": "Le nom est requis",
+      "phoneRequired": "Le téléphone est requis",
+      "agencyRequired": "Le nom de l'agence est requis",
+      "fillAllFields": "Veuillez remplir tous les champs"
+    }
+  },
+  "fleet": {
+    "title": "Flotte",
+    "vehicles": "Véhicules",
+    "addVehicle": "Ajouter un véhicule",
+    "status": {
+      "available": "Disponible",
+      "rented": "En location",
+      "maintenance": "En maintenance",
+      "reserved": "Réservé",
+      "outOfService": "Hors service"
+    },
+    "categories": {
+      "sedan": "Berline",
+      "suv": "SUV",
+      "compact": "Compacte",
+      "luxury": "Luxe",
+      "van": "Utilitaire",
+      "convertible": "Cabriolet",
+      "truck": "Camion"
+    },
+    "filters": {
+      "all": "Tous",
+      "byStatus": "Par statut",
+      "byCategory": "Par catégorie",
+      "byBrand": "Par marque"
+    },
+    "media": {
+      "photos": "Photos",
+      "video": "Vidéo Intérieur",
+      "noVideo": "Aucune vidéo disponible"
+    }
+  },
+  "booking": {
+    "title": "Réservations",
+    "newBooking": "Nouvelle réservation",
+    "startDate": "Date de début",
+    "endDate": "Date de fin",
+    "status": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "active": "En cours",
+      "completed": "Terminée",
+      "cancelled": "Annulée"
+    },
+    "pickup": "Lieu de prise en charge",
+    "return": "Lieu de retour",
+    "payment": {
+      "linkSent": "Lien de paiement envoyé au client",
+      "copyLink": "Copier le lien",
+      "sendWhatsApp": "Envoyer par WhatsApp",
+      "sendSMS": "Envoyer par SMS",
+      "sendEmail": "Envoyer par Email",
+      "resend": "Renvoyer le lien de paiement",
+      "expired": "Lien de paiement expiré",
+      "paid": "Paiement reçu",
+      "pending": "Paiement en attente",
+      "status": {
+        "pending": "En attente",
+        "link_sent": "Lien envoyé",
+        "paid": "Payé",
+        "expired": "Expiré",
+        "failed": "Échoué"
+      }
+    },
+    "autoCancelIn": "Annulation auto dans {{time}}"
+  },
+  "inspection": {
+    "title": "Inspections",
+    "newInspection": "Nouvelle inspection",
+    "preRental": "Pré-location",
+    "postRental": "Post-location",
+    "damages": "Dommages",
+    "photos": "Photos",
+    "fuelLevel": "Niveau de carburant",
+    "mileage": "Kilométrage",
+    "confidence": {
+      "confirmed": "Dommage Confirmé",
+      "review": "À Vérifier",
+      "uncertain": "Incertain",
+      "showUncertain": "Afficher les détections incertaines",
+      "confirm": "Confirmer le Dommage",
+      "dismiss": "Ignorer"
+    }
+  },
+  "contract": {
+    "title": "Contrats",
+    "newContract": "Nouveau contrat",
+    "sign": "Signer",
+    "signed": "Signé",
+    "pending": "En attente",
+    "terms": "Conditions générales"
+  },
+  "client": {
+    "title": "Clients",
+    "addClient": "Ajouter un client",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "driverLicense": "Permis de conduire",
+    "totalBookings": "Total des réservations",
+    "totalSpent": "Total dépensé"
+  },
+  "clients": {
+    "quickRegister": {
+      "title": "Enregistrement Rapide",
+      "scanId": "Scanner Pièce d'Identité",
+      "scanLicense": "Scanner Permis de Conduire",
+      "scanCard": "Scanner Carte de Crédit",
+      "front": "Recto",
+      "back": "Verso",
+      "retake": "Reprendre",
+      "privacyNotice": "Image de carte stockée de manière sécurisée uniquement pour la vérification du dépôt",
+      "register": "Enregistrer Client",
+      "success": "Client Enregistré !",
+      "walkIn": "Client sans réservation",
+      "basicInfo": "Informations de base",
+      "idDocument": "Pièce d'Identité",
+      "driverLicense": "Permis de Conduire",
+      "creditCard": "Carte de Crédit"
+    }
+  },
+  "violation": {
+    "title": "Infractions",
+    "addViolation": "Ajouter une infraction",
+    "speeding": "Excès de vitesse",
+    "parking": "Stationnement",
+    "redlight": "Feu rouge",
+    "amount": "Montant",
+    "date": "Date",
+    "status": {
+      "pending": "En attente",
+      "paid": "Payée",
+      "contested": "Contestée"
+    }
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "revenue": "Chiffre d'affaires",
+    "activeRentals": "Locations actives",
+    "availableVehicles": "Véhicules disponibles",
+    "pendingInspections": "Inspections en attente",
+    "greeting": {
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir"
+    },
+    "stats": {
+      "totalFleet": "Véhicules",
+      "inRental": "En location",
+      "available": "Disponibles",
+      "inRepair": "En réparation"
+    },
+    "returningToday": "Retours aujourd'hui",
+    "quickActions": "Actions rapides",
+    "recentActivity": "Activité récente",
+    "newInspection": "Nouvelle inspection",
+    "newBooking": "Nouvelle réservation",
+    "addClient": "Ajouter client",
+    "registerClient": "Enregistrer client",
+    "violations": "Infractions",
+    "seeAll": "Voir tout",
+    "viewAll": "Tout voir",
+    "noReturns": "Aucun retour prévu aujourd'hui",
+    "returnAt": "Retour à",
+    "overdue": "En retard",
+    "dueIn": "Dans {{hours}}h",
+    "dueSoon": "Bientôt"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "theme": "Thème",
+    "darkMode": "Mode sombre",
+    "notifications": "Notifications",
+    "about": "À propos",
+    "policies": {
+      "title": "Politiques de Réservation",
+      "autoCancel": "Annulation auto des réservations impayées",
+      "cancelAfter": "Annuler après",
+      "hours24": "24 heures",
+      "hours48": "48 heures",
+      "days3": "3 jours",
+      "days7": "7 jours"
+    }
+  },
+  "agency": {
+    "qrCode": {
+      "title": "QR Code Agence",
+      "scanText": "Scannez pour visiter notre agence",
+      "share": "Partager",
+      "download": "Télécharger",
+      "print": "Imprimer"
+    }
+  },
+  "insurance": {
+    "title": "Assurance",
+    "basic": {
+      "title": "Assurance de Base",
+      "included": "Incluse",
+      "description": "Couvre la responsabilité civile. Franchise : CHF 1 500"
+    },
+    "allInclusive": {
+      "title": "Tous Risques",
+      "price": "+CHF {{price}}/jour",
+      "description": "Franchise zéro. Couvre tous les dommages y compris vitrage, pneumatiques et effets personnels.",
+      "recommended": "RECOMMANDÉ"
+    }
+  },
+  "pickup": {
+    "title": "Remise du Véhicule",
+    "step": {
+      "reservation": "Réservation",
+      "inspection": "Inspection",
+      "contract": "Contrat"
+    },
+    "checklist": {
+      "identity": "Identité client vérifiée",
+      "payment": "Paiement reçu",
+      "keys": "Clés du véhicule préparées"
+    },
+    "continueInspection": "Continuer vers l'Inspection",
+    "continueContract": "Continuer vers le Contrat",
+    "signComplete": "Signer et Terminer",
+    "success": "Véhicule Parti !"
+  },
+  "return": {
+    "title": "Retour du Véhicule",
+    "step": {
+      "checklist": "Checklist",
+      "inspection": "Inspection",
+      "comparison": "Comparaison",
+      "signoff": "Validation"
+    },
+    "checklist": {
+      "fuel": "Niveau de carburant vérifié",
+      "mileage": "Kilométrage relevé",
+      "keys": "Clés rendues"
+    },
+    "success": "Retour Terminé !"
+  },
+  "more": {
+    "title": "Plus",
+    "contracts": "Contrats",
+    "violations": "Infractions",
+    "clients": "Clients",
+    "billing": "Facturation",
+    "analytics": "Analytique",
+    "settings": "Paramètres",
+    "notifications": "Notifications",
+    "qrCode": "Mon QR Code",
+    "logout": "Déconnexion"
+  },
+  "tabs": {
+    "dashboard": "Tableau de bord",
+    "fleet": "Flotte",
+    "bookings": "Réservations",
+    "clients": "Clients",
+    "more": "Plus"
+  }
+}
