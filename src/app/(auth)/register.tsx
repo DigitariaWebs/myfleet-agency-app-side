@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
+import * as DocumentPicker from "expo-document-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeIn,
@@ -41,6 +42,11 @@ import { Input } from "@/components/ui/Input";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useToastStore } from "@/components/ui/Toast";
+import { signUpAgency } from "@/services/authService";
+import {
+  uploadSignupDocument,
+  type UploadedSignupDocument,
+} from "@/services/storage";
 import { fontFamilies } from "@/theme/typography";
 
 const ACCENT = "#7C3AED";
@@ -52,6 +58,7 @@ const isValidEmail = (email: string): boolean =>
 
 type FleetSize = "s" | "m" | "l" | "xl";
 type DocKey = "kbis" | "license" | "insurance";
+type UploadedDocsMap = Record<DocKey, UploadedSignupDocument | null>;
 
 interface FormErrors {
   name?: string;
@@ -81,8 +88,8 @@ export default function RegisterWizardScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const loginAction = useAuthStore((s) => s.login);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const setLoading = useAuthStore((s) => s.setLoading);
   const showToast = useToastStore((s) => s.show);
 
   const [step, setStep] = useState(1);
@@ -95,11 +102,12 @@ export default function RegisterWizardScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [cguAccepted, setCguAccepted] = useState(false);
-  const [docsUploaded, setDocsUploaded] = useState<Record<DocKey, boolean>>({
-    kbis: false,
-    license: false,
-    insurance: false,
+  const [docsUploaded, setDocsUploaded] = useState<UploadedDocsMap>({
+    kbis: null,
+    license: null,
+    insurance: null,
   });
+  const [uploadingDoc, setUploadingDoc] = useState<DocKey | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
   const clearError = (field: keyof FormErrors) => {
@@ -170,15 +178,77 @@ export default function RegisterWizardScreen() {
   };
 
   const handleFinalize = async () => {
-    // Instead of creating the account immediately, collect a phone OTP first.
-    router.push({
-      pathname: "/(auth)/otp",
-      params: {
+    try {
+      setLoading(true);
+      await signUpAgency({
+        fullName: name.trim(),
         phone: phone.trim(),
-        email: email.trim(),
-        flow: "signup",
-      },
-    });
+        email: email.trim().toLowerCase(),
+        agency: agency.trim(),
+        city: city.trim(),
+        fleetSize,
+        docsUploaded,
+        cguAccepted,
+        password,
+      });
+
+      showToast({
+        variant: "success",
+        title: t("common.success"),
+        message: t("auth.registerScreen.step4.finalize"),
+      });
+      router.replace("/(auth)/login");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("common.error");
+      showToast({
+        variant: "error",
+        title: t("common.error"),
+        message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadDoc = async (docKey: DocKey) => {
+    try {
+      setUploadingDoc(docKey);
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (picked.canceled || picked.assets.length === 0) {
+        return;
+      }
+
+      const asset = picked.assets[0];
+      const uploaded = await uploadSignupDocument({
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType ?? "application/octet-stream",
+      });
+
+      setDocsUploaded((current) => ({
+        ...current,
+        [docKey]: uploaded,
+      }));
+      showToast({
+        variant: "success",
+        title: t("common.success"),
+        message: t("auth.registerScreen.step4.uploaded"),
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t("common.error");
+      showToast({
+        variant: "error",
+        title: t("common.error"),
+        message,
+      });
+    } finally {
+      setUploadingDoc(null);
+    }
   };
 
   const progressBarStyle = useAnimatedStyle(() => ({
@@ -385,9 +455,8 @@ export default function RegisterWizardScreen() {
                   theme={theme}
                   t={t}
                   docsUploaded={docsUploaded}
-                  toggleDoc={(k) =>
-                    setDocsUploaded((d) => ({ ...d, [k]: !d[k] }))
-                  }
+                  onUploadDoc={handleUploadDoc}
+                  uploadingDoc={uploadingDoc}
                 />
               )}
             </Animated.View>
@@ -862,11 +931,18 @@ function Step3({
 interface Step4Props {
   theme: ReturnType<typeof useTheme>;
   t: ReturnType<typeof useTranslation>["t"];
-  docsUploaded: Record<DocKey, boolean>;
-  toggleDoc: (k: DocKey) => void;
+  docsUploaded: UploadedDocsMap;
+  onUploadDoc: (k: DocKey) => void;
+  uploadingDoc: DocKey | null;
 }
 
-function Step4({ theme, t, docsUploaded, toggleDoc }: Step4Props) {
+function Step4({
+  theme,
+  t,
+  docsUploaded,
+  onUploadDoc,
+  uploadingDoc,
+}: Step4Props) {
   const DOCS: {
     key: DocKey;
     icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>;
@@ -901,15 +977,17 @@ function Step4({ theme, t, docsUploaded, toggleDoc }: Step4Props) {
 
       <View style={{ gap: 10 }}>
         {DOCS.map((doc) => {
-          const uploaded = docsUploaded[doc.key];
+          const uploaded = docsUploaded[doc.key] !== null;
+          const isUploading = uploadingDoc === doc.key;
           const Icon = doc.icon;
           return (
             <Pressable
               key={doc.key}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                toggleDoc(doc.key);
+                onUploadDoc(doc.key);
               }}
+              disabled={isUploading}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -975,7 +1053,9 @@ function Step4({ theme, t, docsUploaded, toggleDoc }: Step4Props) {
                     letterSpacing: 0.3,
                   }}
                 >
-                  {uploaded
+                  {isUploading
+                    ? "..."
+                    : uploaded
                     ? t("auth.registerScreen.step4.uploaded")
                     : t("auth.registerScreen.step4.upload")}
                 </Text>

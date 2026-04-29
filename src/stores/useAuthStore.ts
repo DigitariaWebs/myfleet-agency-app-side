@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loginWithEmail } from '@/services/authService';
 import {
   signInWithApple,
   signInWithGoogle,
   signInWithFacebook,
   type SocialProvider,
-} from '@/services/auth/socialAuth';
+} from '@/services/authService';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,8 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   authProvider: AuthProvider;
+  accessToken?: string;
+  refreshToken?: string;
   socialProfile?: {
     providerId: string;
     photoUrl?: string;
@@ -51,28 +54,36 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       isLoading: false,
       authProvider: 'email',
+      accessToken: undefined,
+      refreshToken: undefined,
       socialProfile: undefined,
 
-      login: async (email: string, _password: string) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true });
 
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        try {
+          const result = await loginWithEmail(email.trim().toLowerCase(), password);
+          const user: AuthUser = {
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            role: result.user.role,
+            agencyId: result.user.agencyId,
+            avatar: result.user.avatar,
+          };
 
-        // Mock: emails containing "admin" get admin role, others get employee
-        const isAdmin = email.toLowerCase().includes('admin');
-        const role: UserRole = isAdmin ? 'admin' : 'employee';
-        const name = isAdmin ? 'Admin User' : 'Agent Fleet';
-
-        const user: AuthUser = {
-          id: `user-${Date.now()}`,
-          name,
-          email,
-          role,
-          agencyId: 'agency-001',
-        };
-
-        set({ user, isAuthenticated: true, isLoading: false, authProvider: 'email' });
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            authProvider: 'email',
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+          });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       loginWithSocial: async (provider: SocialProvider) => {
@@ -106,6 +117,8 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
             authProvider: provider,
+            accessToken: undefined,
+            refreshToken: undefined,
             socialProfile: {
               providerId: result.providerId,
               photoUrl: result.photoUrl,
@@ -123,6 +136,8 @@ export const useAuthStore = create<AuthStore>()(
           isAuthenticated: false,
           isLoading: false,
           authProvider: 'email',
+          accessToken: undefined,
+          refreshToken: undefined,
           socialProfile: undefined,
         }),
 
@@ -135,6 +150,8 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         authProvider: state.authProvider,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
         socialProfile: state.socialProfile,
       }),
     },
