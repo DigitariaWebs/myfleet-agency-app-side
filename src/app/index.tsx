@@ -15,19 +15,21 @@ const SPLASH_DURATION_MS = 1600;
 
 export default function Index() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const initialize = useAuthStore((s) => s.initialize);
   const hasSeenOnboarding = useSettingsStore((s) => s.hasSeenOnboarding);
   const [splashDone, setSplashDone] = useState(false);
 
   const opacity = useSharedValue(0);
 
   useEffect(() => {
+    initialize();
     opacity.value = withTiming(1, {
       duration: 700,
       easing: Easing.out(Easing.quad),
     });
     const timer = setTimeout(() => setSplashDone(true), SPLASH_DURATION_MS);
     return () => clearTimeout(timer);
-  }, []);
+  }, [initialize]);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

@@ -27,7 +27,7 @@ export default function ProfileScreen() {
   const [lastName, setLastName] = useState(
     user?.name?.split(' ').slice(1).join(' ') ?? '',
   );
-  const [phone, setPhone] = useState('+33 6 12 34 56 78');
+  const [phone, setPhone] = useState(user?.phone ?? '');
 
   const handleSave = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

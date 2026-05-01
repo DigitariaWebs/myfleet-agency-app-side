@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/Input";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useToastStore } from "@/components/ui/Toast";
-import { isAppleSignInAvailable } from "@/services/authService";
+import { isAppleSignInAvailable, EmailNotConfirmedError } from "@/services/authService";
 import { fontFamilies } from "@/theme/typography";
 
 const ACCENT = "#7C3AED";
@@ -142,6 +142,13 @@ export default function LoginScreen() {
       await login(email.trim(), password);
       router.replace("/(app)/(home)");
     } catch (err: unknown) {
+      if (err instanceof EmailNotConfirmedError) {
+        router.push({
+          pathname: "/(auth)/verify-email",
+          params: { email: err.email },
+        });
+        return;
+      }
       const message = err instanceof Error ? err.message : t("common.error");
       showToast({ variant: "error", title: t("common.error"), message });
     }

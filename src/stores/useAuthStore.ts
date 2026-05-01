@@ -1,13 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginWithEmail } from '@/services/authService';
 import {
+  signInWithEmail,
+  signInWithSocial,
+  validateSession,
+  logout as supabaseSignOut,
   signInWithApple,
   signInWithGoogle,
   signInWithFacebook,
   type SocialProvider,
 } from '@/services/authService';
+import { supabase } from '@/lib/supabase';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +22,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: UserRole;
   agencyId: string;
   avatar?: string;
@@ -39,8 +44,10 @@ interface AuthState {
 interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
   loginWithSocial: (provider: SocialProvider) => Promise<void>;
-  logout: () => void;
+  loginWithSession: (accessToken: string, refreshToken: string) => Promise<void>;
+  logout: () => Promise<void>;
   setLoading: (loading: boolean) => void;
+  initialize: () => Promise<void>;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -58,27 +65,53 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: undefined,
       socialProfile: undefined,
 
+      initialize: async () => {
+        set({ isLoading: true });
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error || !data.session) {
+            set({ isLoading: false });
+            return;
+          }
+
+          const user = await validateSession(data.session.access_token);
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+          });
+        } catch {
+          await supabase.auth.signOut();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            accessToken: undefined,
+            refreshToken: undefined,
+            socialProfile: undefined,
+          });
+        }
+      },
+
       login: async (email: string, password: string) => {
         set({ isLoading: true });
 
         try {
-          const result = await loginWithEmail(email.trim().toLowerCase(), password);
-          const user: AuthUser = {
-            id: result.user.id,
-            name: result.user.name,
-            email: result.user.email,
-            role: result.user.role,
-            agencyId: result.user.agencyId,
-            avatar: result.user.avatar,
-          };
+          const session = await signInWithEmail(
+            email.trim().toLowerCase(),
+            password,
+          );
+          const user = await validateSession(session.accessToken);
 
           set({
             user,
             isAuthenticated: true,
             isLoading: false,
             authProvider: 'email',
-            accessToken: result.accessToken,
-            refreshToken: result.refreshToken,
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
           });
         } catch (error) {
           set({ isLoading: false });
@@ -90,47 +123,72 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true });
 
         try {
-          let result;
-          switch (provider) {
-            case 'apple':
-              result = await signInWithApple();
-              break;
-            case 'google':
-              result = await signInWithGoogle();
-              break;
-            case 'facebook':
-              result = await signInWithFacebook();
-              break;
+          if (provider === 'facebook') {
+            throw new Error('Facebook login not yet implemented on mobile');
           }
 
-          const user: AuthUser = {
-            id: `user-${provider}-${Date.now()}`,
-            name: result.name,
-            email: result.email,
-            role: 'employee',
-            agencyId: 'agency-001',
-            avatar: result.photoUrl,
-          };
+          let socialResult;
+          if (provider === 'apple') {
+            socialResult = await signInWithApple();
+          } else {
+            socialResult = await signInWithGoogle();
+          }
+
+          if (!socialResult.idToken) {
+            throw new Error(`${provider} login failed: No ID Token received`);
+          }
+
+          const session = await signInWithSocial(
+            provider,
+            socialResult.idToken,
+          );
+
+          let user: AuthUser;
+          try {
+            user = await validateSession(session.accessToken);
+          } catch (validationError) {
+            await supabaseSignOut();
+            throw validationError;
+          }
 
           set({
             user,
             isAuthenticated: true,
             isLoading: false,
             authProvider: provider,
-            accessToken: undefined,
-            refreshToken: undefined,
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
             socialProfile: {
-              providerId: result.providerId,
-              photoUrl: result.photoUrl,
+              providerId: socialResult.providerId,
+              photoUrl: socialResult.photoUrl,
             },
           });
-        } catch {
+        } catch (error) {
           set({ isLoading: false });
-          throw new Error(`${provider} sign-in failed`);
+          throw error;
         }
       },
 
-      logout: () =>
+      loginWithSession: async (accessToken: string, refreshToken: string) => {
+        set({ isLoading: true });
+        try {
+          const user = await validateSession(accessToken);
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            authProvider: 'email',
+            accessToken,
+            refreshToken,
+          });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      logout: async () => {
+        await supabaseSignOut();
         set({
           user: null,
           isAuthenticated: false,
@@ -139,7 +197,8 @@ export const useAuthStore = create<AuthStore>()(
           accessToken: undefined,
           refreshToken: undefined,
           socialProfile: undefined,
-        }),
+        });
+      },
 
       setLoading: (loading) => set({ isLoading: loading }),
     }),
@@ -150,8 +209,6 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         authProvider: state.authProvider,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         socialProfile: state.socialProfile,
       }),
     },

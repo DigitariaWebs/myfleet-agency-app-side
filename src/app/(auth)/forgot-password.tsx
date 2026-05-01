@@ -279,9 +279,9 @@ export default function ForgotPasswordScreen() {
             >
               <Input
                 label={t("auth.otpScreen.code", { defaultValue: "Code de réinitialisation" })}
-                placeholder="123456"
+                placeholder="12345678"
                 keyboardType="number-pad"
-                maxLength={6}
+                maxLength={8}
                 value={otp}
                 onChangeText={(v) => {
                   setOtp(v);
