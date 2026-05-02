@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -7,12 +7,12 @@ import {
   RefreshControl,
   TextInput,
   type ListRenderItemInfo,
-} from 'react-native';
-import { Image } from 'expo-image';
-import { useTranslation } from 'react-i18next';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+} from "react-native";
+import { Image } from "expo-image";
+import { useTranslation } from "react-i18next";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import {
   Car,
   Plus,
@@ -22,27 +22,32 @@ import {
   SearchX,
   Search,
   X,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { useVehicles } from '@/hooks/useFleet';
-import { getVehicleImage } from '@/data/vehicleImages';
-import { matchesVehicleQuery } from '@/utils/vehicleSearch';
-import { fontFamilies } from '@/theme/typography';
-import type { Vehicle, VehicleStatus, VehicleBrand } from '@/types/vehicle';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useTheme } from "@/hooks/useTheme";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useVehicles } from "@/hooks/useFleet";
+import { matchesVehicleQuery } from "@/utils/vehicleSearch";
+import { fontFamilies } from "@/theme/typography";
+import type { Vehicle, VehicleStatus, VehicleBrand } from "@/types/vehicle";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getAllBrands(vehicles: Vehicle[]): VehicleBrand[] {
-  return Array.from(new Set(vehicles.map((v) => v.brand))).sort() as VehicleBrand[];
+  return Array.from(
+    new Set(vehicles.map((v) => v.brand)),
+  ).sort() as VehicleBrand[];
 }
 
-function countByStatus(vehicles: Vehicle[], status: VehicleStatus | null): number {
+function countByStatus(
+  vehicles: Vehicle[],
+  status: VehicleStatus | null,
+): number {
   if (status === null) return vehicles.length;
   return vehicles.filter((v) => v.status === status).length;
 }
@@ -59,19 +64,24 @@ export default function FleetScreen() {
   const theme = useTheme();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === "admin";
   const params = useLocalSearchParams<{ status?: string }>();
 
   const { data: vehicles = [], isLoading, refetch } = useVehicles();
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | null>(null);
   const [brandFilter, setBrandFilter] = useState<VehicleBrand | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const valid: VehicleStatus[] = ['available', 'rented', 'maintenance', 'reserved'];
+    const valid: VehicleStatus[] = [
+      "available",
+      "rented",
+      "maintenance",
+      "reserved",
+    ];
     if (params.status && (valid as string[]).includes(params.status)) {
       setStatusFilter(params.status as VehicleStatus);
     }
@@ -93,12 +103,13 @@ export default function FleetScreen() {
 
   const handleToggleView = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'));
+    setViewMode((prev) => (prev === "grid" ? "list" : "grid"));
   }, []);
 
   const handleAddVehicle = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
+    router.push("/(app)/(fleet)/add");
+  }, [router]);
 
   const navigateToVehicle = useCallback(
     (id: string) => {
@@ -108,15 +119,19 @@ export default function FleetScreen() {
     [router],
   );
 
-  const statusOptions: { label: string; value: VehicleStatus | null }[] = useMemo(
-    () => [
-      { label: t('fleet.filter.all', 'All'), value: null },
-      { label: t('fleet.filter.available', 'Available'), value: 'available' },
-      { label: t('fleet.filter.rented', 'Rented'), value: 'rented' },
-      { label: t('fleet.filter.maintenance', 'Maintenance'), value: 'maintenance' },
-    ],
-    [t],
-  );
+  const statusOptions: { label: string; value: VehicleStatus | null }[] =
+    useMemo(
+      () => [
+        { label: t("fleet.filter.all", "All"), value: null },
+        { label: t("fleet.filter.available", "Available"), value: "available" },
+        { label: t("fleet.filter.rented", "Rented"), value: "rented" },
+        {
+          label: t("fleet.filter.maintenance", "Maintenance"),
+          value: "maintenance",
+        },
+      ],
+      [t],
+    );
 
   // ── Grid Card ──────────────────────────────────────────────────────────────
 
@@ -133,7 +148,7 @@ export default function FleetScreen() {
             borderRadius: 20,
             borderWidth: 1,
             borderColor: theme.borderLight,
-            overflow: 'hidden',
+            overflow: "hidden",
             transform: [{ scale: pressed ? 0.98 : 1 }],
           })}
         >
@@ -143,10 +158,10 @@ export default function FleetScreen() {
               backgroundColor: theme.surfaceTertiary,
             }}
           >
-            {getVehicleImage(item.id) ? (
+            {item.thumbnailUrl ? (
               <Image
-                source={getVehicleImage(item.id)!}
-                style={{ width: '100%', height: '100%' }}
+                source={{ uri: item.thumbnailUrl }}
+                style={{ width: "100%", height: "100%" }}
                 contentFit="cover"
                 transition={200}
               />
@@ -197,13 +212,15 @@ export default function FleetScreen() {
                 marginTop: 8,
               }}
             >
-              {'\u20AC'}{item.dailyRate}
+              {"\u20AC"}
+              {item.dailyRate}
               <Text
                 variant="caption"
                 color={theme.textTertiary}
                 style={{ fontFamily: fontFamilies.medium, fontSize: 10 }}
               >
-                {' '}/ {t('bookings.detail.perDay', 'day')}
+                {" "}
+                / {t("bookings.detail.perDay", "day")}
               </Text>
             </Text>
           </View>
@@ -225,10 +242,10 @@ export default function FleetScreen() {
             borderRadius: 18,
             borderWidth: 1,
             borderColor: theme.borderLight,
-            flexDirection: 'row',
+            flexDirection: "row",
             padding: 10,
             marginBottom: 10,
-            alignItems: 'center',
+            alignItems: "center",
             transform: [{ scale: pressed ? 0.99 : 1 }],
           })}
         >
@@ -238,13 +255,13 @@ export default function FleetScreen() {
               height: 56,
               borderRadius: 12,
               backgroundColor: theme.surfaceTertiary,
-              overflow: 'hidden',
+              overflow: "hidden",
             }}
           >
-            {getVehicleImage(item.id) ? (
+            {item.thumbnailUrl ? (
               <Image
-                source={getVehicleImage(item.id)!}
-                style={{ width: '100%', height: '100%' }}
+                source={{ uri: item.thumbnailUrl }}
+                style={{ width: "100%", height: "100%" }}
                 contentFit="cover"
                 transition={200}
               />
@@ -269,7 +286,7 @@ export default function FleetScreen() {
               style={{ fontSize: 12, marginTop: 1 }}
               numberOfLines={1}
             >
-              {item.brand} {'\u00B7'} {item.category}
+              {item.brand} {"\u00B7"} {item.category}
             </Text>
             <Text
               variant="caption"
@@ -285,13 +302,14 @@ export default function FleetScreen() {
             </Text>
           </View>
 
-          <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+          <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
             <Text
               variant="bodySmall"
               color={theme.accent}
               style={{ fontFamily: fontFamilies.bold, fontSize: 13 }}
             >
-              {'\u20AC'}{item.dailyRate}
+              {"\u20AC"}
+              {item.dailyRate}
             </Text>
             <View style={{ marginTop: 4 }}>
               <StatusBadge status={item.status} size="sm" />
@@ -307,8 +325,6 @@ export default function FleetScreen() {
     ),
     [navigateToVehicle, theme],
   );
-
-  const keyExtractor = useCallback((item: Vehicle) => item.id, []);
 
   // ── Header ─────────────────────────────────────────────────────────────────
 
@@ -326,7 +342,7 @@ export default function FleetScreen() {
               variant="headlineLarge"
               style={{ fontFamily: fontFamilies.bold, fontSize: 22 }}
             >
-              {t('fleet.title', 'Flotte')}
+              {t("fleet.title", "Flotte")}
             </Text>
             <View
               style={{
@@ -357,14 +373,18 @@ export default function FleetScreen() {
                 backgroundColor: theme.surface,
                 borderWidth: 1,
                 borderColor: theme.borderLight,
-                alignItems: 'center',
-                justifyContent: 'center',
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              {viewMode === 'grid' ? (
+              {viewMode === "grid" ? (
                 <List size={18} color={theme.textPrimary} strokeWidth={2} />
               ) : (
-                <LayoutGrid size={18} color={theme.textPrimary} strokeWidth={2} />
+                <LayoutGrid
+                  size={18}
+                  color={theme.textPrimary}
+                  strokeWidth={2}
+                />
               )}
             </Pressable>
             {isAdmin && (
@@ -376,8 +396,8 @@ export default function FleetScreen() {
                   height: 40,
                   borderRadius: 20,
                   backgroundColor: theme.accent,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <Plus size={18} color="#FFFFFF" strokeWidth={2.4} />
@@ -390,8 +410,8 @@ export default function FleetScreen() {
         <Animated.View
           entering={FadeInDown.delay(60).duration(350)}
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: "row",
+            alignItems: "center",
             paddingHorizontal: 14,
             paddingVertical: 10,
             borderRadius: 9999,
@@ -405,8 +425,8 @@ export default function FleetScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder={t(
-              'fleet.searchPlaceholder',
-              'Search by name, model or plate',
+              "fleet.searchPlaceholder",
+              "Search by name, model or plate",
             )}
             placeholderTextColor={theme.textTertiary}
             style={{
@@ -419,7 +439,7 @@ export default function FleetScreen() {
             }}
           />
           {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Pressable onPress={() => setSearch("")} hitSlop={8}>
               <X size={14} color={theme.textTertiary} />
             </Pressable>
           )}
@@ -454,38 +474,40 @@ export default function FleetScreen() {
         </Animated.View>
 
         {/* Brand rail */}
-        <Animated.View
-          entering={FadeInDown.delay(140).duration(350)}
-          style={{ marginTop: 10 }}
-        >
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+        {getAllBrands(vehicles).length > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(140).duration(350)}
+            style={{ marginTop: 10 }}
           >
-            <FilterPill
-              label={`${t('fleet.filter.all', 'All')} (${countByBrand(vehicles, null)})`}
-              selected={brandFilter === null}
-              onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setBrandFilter(null);
-              }}
-              theme={theme}
-            />
-            {getAllBrands(vehicles).map((brand) => (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+            >
               <FilterPill
-                key={brand}
-                label={`${brand} (${countByBrand(vehicles, brand)})`}
-                selected={brandFilter === brand}
+                label={`${t("fleet.filter.all", "All")} (${countByBrand(vehicles, null)})`}
+                selected={brandFilter === null}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setBrandFilter(brand);
+                  setBrandFilter(null);
                 }}
                 theme={theme}
               />
-            ))}
-          </ScrollView>
-        </Animated.View>
+              {getAllBrands(vehicles).map((brand) => (
+                <FilterPill
+                  key={brand}
+                  label={`${brand} (${countByBrand(vehicles, brand)})`}
+                  selected={brandFilter === brand}
+                  onPress={() => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setBrandFilter(brand);
+                  }}
+                  theme={theme}
+                />
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
 
         <View style={{ height: 14 }} />
       </View>
@@ -509,10 +531,10 @@ export default function FleetScreen() {
       <View className="flex-1 pt-16">
         <EmptyState
           icon={SearchX}
-          title={t('fleet.noVehicles', 'No vehicles found')}
+          title={t("fleet.noVehicles", "No vehicles found")}
           subtitle={t(
-            'fleet.noVehiclesSubtitle',
-            'Try adjusting your search or filters',
+            "fleet.noVehiclesSubtitle",
+            "Try adjusting your search or filters",
           )}
         />
       </View>
@@ -520,16 +542,46 @@ export default function FleetScreen() {
     [t],
   );
 
+  // Initial loading: show skeletons matching the current view mode.
+  const showSkeletons = isLoading && vehicles.length === 0;
+  const skeletonCount = 6;
+  const skeletonData = useMemo(
+    () =>
+      Array.from({ length: skeletonCount }, (_, i) => ({
+        id: `__skel_${i}`,
+      })) as { id: string }[],
+    [skeletonCount],
+  );
+
+  const renderSkeleton = useCallback(
+    () =>
+      viewMode === "grid" ? (
+        <View style={{ flex: 1 }}>
+          <VehicleGridSkeleton theme={theme} />
+        </View>
+      ) : (
+        <VehicleRowSkeleton theme={theme} />
+      ),
+    [viewMode, theme],
+  );
+
   return (
     <ScreenWrapper padded={false}>
-      <FlatList
-        data={filtered}
-        renderItem={viewMode === 'grid' ? renderGridCard : renderListRow}
-        keyExtractor={keyExtractor}
-        numColumns={viewMode === 'grid' ? 2 : 1}
+      <FlatList<Vehicle | { id: string }>
+        data={showSkeletons ? skeletonData : filtered}
+        renderItem={
+          showSkeletons
+            ? renderSkeleton
+            : (info) =>
+                viewMode === "grid"
+                  ? renderGridCard(info as ListRenderItemInfo<Vehicle>)
+                  : renderListRow(info as ListRenderItemInfo<Vehicle>)
+        }
+        keyExtractor={(item) => (item as { id: string }).id}
+        numColumns={viewMode === "grid" ? 2 : 1}
         key={viewMode}
         ListHeaderComponent={ListHeader}
-        ListEmptyComponent={ListEmpty}
+        ListEmptyComponent={showSkeletons ? null : ListEmpty}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 16,
@@ -537,7 +589,7 @@ export default function FleetScreen() {
           flexGrow: 1,
         }}
         columnWrapperStyle={
-          viewMode === 'grid' ? { gap: 12, marginBottom: 12 } : undefined
+          viewMode === "grid" ? { gap: 12, marginBottom: 12 } : undefined
         }
         refreshControl={
           <RefreshControl
@@ -548,6 +600,69 @@ export default function FleetScreen() {
         }
       />
     </ScreenWrapper>
+  );
+}
+
+// ── Skeleton primitives ──────────────────────────────────────────────────────
+
+function VehicleGridSkeleton({
+  theme,
+}: {
+  theme: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.surface,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: theme.borderLight,
+        overflow: "hidden",
+      }}
+    >
+      <Skeleton height={120} radius={0} width={"100%"} />
+      <View style={{ padding: 12, gap: 6 }}>
+        <Skeleton height={14} width={"70%"} />
+        <Skeleton height={11} width={"45%"} />
+        <Skeleton height={11} width={"55%"} />
+        <Skeleton
+          height={18}
+          width={64}
+          radius={9999}
+          style={{ marginTop: 4 }}
+        />
+        <Skeleton height={13} width={"40%"} style={{ marginTop: 4 }} />
+      </View>
+    </View>
+  );
+}
+
+function VehicleRowSkeleton({ theme }: { theme: ReturnType<typeof useTheme> }) {
+  return (
+    <View
+      style={{
+        backgroundColor: theme.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: theme.borderLight,
+        flexDirection: "row",
+        padding: 10,
+        marginBottom: 10,
+        alignItems: "center",
+      }}
+    >
+      <Skeleton width={76} height={56} radius={12} />
+      <View style={{ flex: 1, marginLeft: 12, gap: 6 }}>
+        <Skeleton height={14} width={"60%"} />
+        <Skeleton height={12} width={"75%"} />
+        <Skeleton height={11} width={"40%"} />
+      </View>
+      <View style={{ alignItems: "flex-end", marginLeft: 8, gap: 6 }}>
+        <Skeleton height={13} width={48} />
+        <Skeleton height={18} width={64} radius={9999} />
+      </View>
+    </View>
   );
 }
 
@@ -576,7 +691,7 @@ function FilterPill({ label, selected, onPress, theme }: FilterPillProps) {
     >
       <Text
         variant="labelSmall"
-        color={selected ? '#FFFFFF' : theme.textSecondary}
+        color={selected ? "#FFFFFF" : theme.textSecondary}
         style={{ fontFamily: fontFamilies.semiBold, fontSize: 12 }}
       >
         {label}

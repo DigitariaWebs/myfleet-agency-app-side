@@ -13,7 +13,7 @@
       "buildNumber": "4",
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "My Fleet needs camera access for vehicle inspections.",
+        "NSCameraUsageDescription": "Used to capture photos of your fleet vehicles.",
         "NSPhotoLibraryUsageDescription": "My Fleet needs photo library access to save inspection photos.",
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -21,6 +21,7 @@
     "android": {
       "package": "com.digitariawebs.myfleet",
       "versionCode": 1,
+      "permissions": ["CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#7C3AED",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -50,7 +51,13 @@
       "expo-image",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Used to capture photos of your fleet vehicles."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

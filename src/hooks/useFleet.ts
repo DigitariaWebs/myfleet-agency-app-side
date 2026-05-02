@@ -8,12 +8,12 @@ import {
   type CreateVehicleInput,
   type UpdateVehicleInput,
 } from "@/services/fleetService";
-import type { Vehicle } from "@/types/vehicle";
 
 export const fleetKeys = {
   all: ["fleet"] as const,
   lists: () => [...fleetKeys.all, "list"] as const,
-  list: (filters: Record<string, unknown>) => [...fleetKeys.lists(), filters] as const,
+  list: (filters: Record<string, unknown>) =>
+    [...fleetKeys.lists(), filters] as const,
   details: () => [...fleetKeys.all, "detail"] as const,
   detail: (id: string) => [...fleetKeys.details(), id] as const,
 };
@@ -49,7 +49,9 @@ export function useUpdateVehicle() {
     mutationFn: ({ id, data }: { id: string; data: UpdateVehicleInput }) =>
       updateVehicle(id, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: fleetKeys.detail(variables.id) });
+      queryClient.invalidateQueries({
+        queryKey: fleetKeys.detail(variables.id),
+      });
       queryClient.invalidateQueries({ queryKey: fleetKeys.lists() });
     },
   });

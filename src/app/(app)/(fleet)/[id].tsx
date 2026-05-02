@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
-import { Dimensions, FlatList, View, Pressable, ScrollView } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { useTranslation } from 'react-i18next';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState } from "react";
+import {
+  Dimensions,
+  FlatList,
+  View,
+  Pressable,
+  ScrollView,
+} from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { useTranslation } from "react-i18next";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Heart,
@@ -20,30 +29,31 @@ import {
   ClipboardList,
   ImageIcon,
   Film,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { Text } from '@/components/ui/Text';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { VideoPlayer } from '@/components/vehicle/VideoPlayer';
-import { useTheme } from '@/hooks/useTheme';
-import { useVehicle } from '@/hooks/useFleet';
-import { getVehicleImage } from '@/data/vehicleImages';
-import { fontFamilies } from '@/theme/typography';
-import type { Vehicle, FuelType, DamageRecord } from '@/types/vehicle';
+import { Text } from "@/components/ui/Text";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Avatar } from "@/components/ui/Avatar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { VideoPlayer } from "@/components/vehicle/VideoPlayer";
+import { useTheme } from "@/hooks/useTheme";
+import { useVehicle } from "@/hooks/useFleet";
+import { useAgency } from "@/hooks/useAgency";
+import { fontFamilies } from "@/theme/typography";
+import type { Vehicle, FuelType, DamageRecord } from "@/types/vehicle";
 
-type TabKey = 'overview' | 'damages' | 'rentals' | 'documents';
-type MediaTab = 'photos' | 'video';
+type TabKey = "overview" | "damages" | "rentals" | "documents";
+type MediaTab = "photos" | "video";
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 const HERO_HEIGHT = Math.round(SCREEN_WIDTH * 0.75);
 
 function formatMileage(km: number): string {
-  return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' km';
+  return km.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " km";
 }
 
 function capitalize(value: string): string {
@@ -52,22 +62,22 @@ function capitalize(value: string): string {
 
 function fuelLabel(fuel: FuelType): string {
   const map: Record<FuelType, string> = {
-    gasoline: 'Essence',
-    diesel: 'Diesel',
-    electric: 'Electric',
-    hybrid: 'Hybrid',
-    'plug-in-hybrid': 'Plug-in Hybrid',
+    gasoline: "Essence",
+    diesel: "Diesel",
+    electric: "Electric",
+    hybrid: "Hybrid",
+    "plug-in-hybrid": "Plug-in Hybrid",
   };
   return map[fuel];
 }
 
 function severityVariant(
-  severity: DamageRecord['severity'],
-): 'info' | 'warning' | 'danger' {
-  const map: Record<DamageRecord['severity'], 'info' | 'warning' | 'danger'> = {
-    minor: 'info',
-    moderate: 'warning',
-    severe: 'danger',
+  severity: DamageRecord["severity"],
+): "info" | "warning" | "danger" {
+  const map: Record<DamageRecord["severity"], "info" | "warning" | "danger"> = {
+    minor: "info",
+    moderate: "warning",
+    severe: "danger",
   };
   return map[severity];
 }
@@ -96,44 +106,46 @@ function PhotoCarousel({
   height: number;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const hasLocalPhotos = vehicle.media.photos.length > 0;
+  const images = vehicle.images ?? [];
 
-  if (hasLocalPhotos) {
+  if (images.length > 0) {
     return (
       <View>
         <FlatList
-          data={vehicle.media.photos}
+          data={images}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={(e) => {
-            const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+            const idx = Math.round(
+              e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
+            );
             setActiveIndex(idx);
           }}
           renderItem={({ item }) => (
             <Image
-              source={item as string}
+              source={{ uri: item.url }}
               style={{ width: SCREEN_WIDTH, height }}
               contentFit="cover"
               transition={300}
             />
           )}
-          keyExtractor={(_, i) => `photo-${i}`}
+          keyExtractor={(item) => item.angle}
         />
-        {vehicle.media.photos.length > 1 && (
+        {images.length > 1 && (
           <View
             pointerEvents="none"
             style={{
-              position: 'absolute',
+              position: "absolute",
               bottom: 44,
               left: 0,
               right: 0,
-              flexDirection: 'row',
-              justifyContent: 'center',
+              flexDirection: "row",
+              justifyContent: "center",
               gap: 6,
             }}
           >
-            {vehicle.media.photos.map((_, i) => (
+            {images.map((_, i) => (
               <View
                 key={i}
                 style={{
@@ -141,25 +153,13 @@ function PhotoCarousel({
                   height: 6,
                   borderRadius: 3,
                   backgroundColor:
-                    i === activeIndex ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
+                    i === activeIndex ? "#FFFFFF" : "rgba(255,255,255,0.55)",
                 }}
               />
             ))}
           </View>
         )}
       </View>
-    );
-  }
-
-  const fallbackImage = getVehicleImage(vehicle.id);
-  if (fallbackImage) {
-    return (
-      <Image
-        source={fallbackImage}
-        style={{ width: '100%', height }}
-        contentFit="cover"
-        transition={300}
-      />
     );
   }
 
@@ -185,16 +185,18 @@ export default function VehicleDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: vehicle, isLoading } = useVehicle(id);
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
-  const [mediaTab, setMediaTab] = useState<MediaTab>('photos');
+  const { data: agency } = useAgency();
+  const currency = agency?.currency ?? "EUR";
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [mediaTab, setMediaTab] = useState<MediaTab>("photos");
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-        <View className="flex-1 items-center justify-center px-4 py-20">
-          <Text color={theme.textSecondary}>{t('common.loading', 'Loading...')}</Text>
-        </View>
-      </SafeAreaView>
+      <VehicleDetailSkeleton
+        theme={theme}
+        insets={insets}
+        onBack={() => router.back()}
+      />
     );
   }
 
@@ -204,12 +206,12 @@ export default function VehicleDetailScreen() {
         <View className="flex-1 items-center justify-center px-4 py-20">
           <EmptyState
             icon={Car}
-            title={t('fleet.detail.notFound', 'Vehicle not found')}
+            title={t("fleet.detail.notFound", "Vehicle not found")}
             subtitle={t(
-              'fleet.detail.notFoundDesc',
-              'The vehicle you are looking for does not exist.',
+              "fleet.detail.notFoundDesc",
+              "The vehicle you are looking for does not exist.",
             )}
-            actionLabel={t('common.back', 'Back')}
+            actionLabel={t("common.back", "Back")}
             onAction={() => router.back()}
           />
         </View>
@@ -217,25 +219,27 @@ export default function VehicleDetailScreen() {
     );
   }
 
-  const hasVideo = vehicle.media.hasVideo;
+  const rentalHistory = vehicle.rentalHistory ?? [];
+  const media = vehicle.media;
+  const hasVideo = !!media?.hasVideo;
   const currentRental =
-    vehicle.status === 'rented' && vehicle.rentalHistory.length > 0
-      ? vehicle.rentalHistory[0]
+    vehicle.status === "rented" && rentalHistory.length > 0
+      ? rentalHistory[0]
       : null;
 
-  const photoCount = vehicle.media.photos.length || 1;
-  const videoCount = vehicle.media.videos.length;
+  const photoCount = vehicle.images?.length || media?.photos.length || 0;
+  const videoCount = media?.videos.length ?? 0;
   const mediaBadgeText = hasVideo
-    ? `${photoCount} Photos \u00B7 ${videoCount} Video`
-    : `${photoCount} Photos`;
+    ? `${photoCount || 1} Photos \u00B7 ${videoCount} Video`
+    : `${photoCount || 1} Photos`;
 
   const heroTotalHeight = HERO_HEIGHT + insets.top;
 
   const TABS: { key: TabKey; label: string }[] = [
-    { key: 'overview', label: t('fleet.detail.tabs.overview', 'Overview') },
-    { key: 'damages', label: t('fleet.detail.tabs.damages', 'Damages') },
-    { key: 'rentals', label: t('fleet.detail.tabs.rentals', 'Rentals') },
-    { key: 'documents', label: t('fleet.detail.tabs.documents', 'Documents') },
+    { key: "overview", label: t("fleet.detail.tabs.overview", "Overview") },
+    { key: "damages", label: t("fleet.detail.tabs.damages", "Damages") },
+    { key: "rentals", label: t("fleet.detail.tabs.rentals", "Rentals") },
+    { key: "documents", label: t("fleet.detail.tabs.documents", "Documents") },
   ];
 
   return (
@@ -255,24 +259,24 @@ export default function VehicleDetailScreen() {
               backgroundColor: theme.surfaceTertiary,
             }}
           >
-            {mediaTab === 'photos' ? (
+            {mediaTab === "photos" ? (
               <PhotoCarousel
                 vehicle={vehicle}
                 theme={theme}
                 height={heroTotalHeight}
               />
-            ) : (
+            ) : media ? (
               <VideoPlayer
-                source={vehicle.media.videos[0]}
-                posterSource={vehicle.media.thumbnail ?? undefined}
+                source={media.videos[0]}
+                posterSource={media.thumbnail ?? undefined}
               />
-            )}
+            ) : null}
 
             {/* Top gradient for legibility under notch */}
             <LinearGradient
-              colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
+              colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"]}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 0,
                 left: 0,
                 right: 0,
@@ -289,15 +293,15 @@ export default function VehicleDetailScreen() {
               }}
               hitSlop={10}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: insets.top + 8,
                 left: 16,
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: 'rgba(255,255,255,0.92)',
-                alignItems: 'center',
-                justifyContent: 'center',
+                backgroundColor: "rgba(255,255,255,0.92)",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <ChevronLeft size={22} color="#111" strokeWidth={2.2} />
@@ -310,15 +314,15 @@ export default function VehicleDetailScreen() {
               }}
               hitSlop={10}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: insets.top + 8,
                 right: 16,
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: 'rgba(255,255,255,0.92)',
-                alignItems: 'center',
-                justifyContent: 'center',
+                backgroundColor: "rgba(255,255,255,0.92)",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <Heart size={18} color="#111" strokeWidth={2} />
@@ -327,13 +331,13 @@ export default function VehicleDetailScreen() {
             {/* Media badge centered near bottom */}
             <View
               style={{
-                position: 'absolute',
+                position: "absolute",
                 bottom: 14,
-                alignSelf: 'center',
+                alignSelf: "center",
                 paddingHorizontal: 12,
                 paddingVertical: 5,
                 borderRadius: 9999,
-                backgroundColor: 'rgba(124, 58, 237, 0.92)',
+                backgroundColor: "rgba(124, 58, 237, 0.92)",
               }}
             >
               <Text
@@ -355,30 +359,30 @@ export default function VehicleDetailScreen() {
           >
             <View
               style={{
-                flexDirection: 'row',
+                flexDirection: "row",
                 padding: 4,
                 borderRadius: 9999,
                 backgroundColor: theme.surfaceTertiary,
               }}
             >
               <MediaTabPill
-                active={mediaTab === 'photos'}
+                active={mediaTab === "photos"}
                 icon={ImageIcon}
-                label={t('fleet.detail.photos', 'Photos')}
+                label={t("fleet.detail.photos", "Photos")}
                 theme={theme}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setMediaTab('photos');
+                  setMediaTab("photos");
                 }}
               />
               <MediaTabPill
-                active={mediaTab === 'video'}
+                active={mediaTab === "video"}
                 icon={Film}
-                label={t('fleet.detail.interiorVideo', 'Interior Video')}
+                label={t("fleet.detail.interiorVideo", "Interior Video")}
                 theme={theme}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setMediaTab('video');
+                  setMediaTab("video");
                 }}
               />
             </View>
@@ -396,7 +400,7 @@ export default function VehicleDetailScreen() {
             padding: 18,
             borderWidth: 1,
             borderColor: theme.borderLight,
-            shadowColor: '#000',
+            shadowColor: "#000",
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.08,
             shadowRadius: 16,
@@ -422,13 +426,13 @@ export default function VehicleDetailScreen() {
                 style={{ marginTop: 4, fontSize: 12 }}
                 numberOfLines={1}
               >
-                {vehicle.brand} {'\u00B7'} {vehicle.year}
+                {vehicle.brand} {"\u00B7"} {vehicle.year}
               </Text>
-              <View style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+              <View style={{ marginTop: 10, alignSelf: "flex-start" }}>
                 <StatusBadge status={vehicle.status} size="sm" />
               </View>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
+            <View style={{ alignItems: "flex-end" }}>
               <Text
                 variant="headlineMedium"
                 color={theme.accent}
@@ -438,14 +442,14 @@ export default function VehicleDetailScreen() {
                   lineHeight: 24,
                 }}
               >
-                CHF {vehicle.dailyRate}
+                {currency} {vehicle.dailyRate}
               </Text>
               <Text
                 variant="caption"
                 color={theme.textTertiary}
                 style={{ fontSize: 11, marginTop: 2 }}
               >
-                / {t('bookings.detail.perDay', 'day')}
+                / {t("bookings.detail.perDay", "day")}
               </Text>
             </View>
           </View>
@@ -459,10 +463,26 @@ export default function VehicleDetailScreen() {
           <View className="flex-row" style={{ gap: 10 }}>
             {(
               [
-                { icon: Users, value: String(vehicle.seats), label: t('fleet.detail.seats', 'Seats') },
-                { icon: Cog, value: capitalize(vehicle.transmission), label: t('fleet.detail.gearbox', 'Gearbox') },
-                { icon: Fuel, value: fuelLabel(vehicle.fuelType), label: t('fleet.detail.fuel', 'Fuel') },
-                { icon: Car, value: vehicle.category, label: t('fleet.detail.type', 'Type') },
+                {
+                  icon: Users,
+                  value: String(vehicle.seats),
+                  label: t("fleet.detail.seats", "Seats"),
+                },
+                {
+                  icon: Cog,
+                  value: capitalize(vehicle.transmission),
+                  label: t("fleet.detail.gearbox", "Gearbox"),
+                },
+                {
+                  icon: Fuel,
+                  value: fuelLabel(vehicle.fuelType),
+                  label: t("fleet.detail.fuel", "Fuel"),
+                },
+                {
+                  icon: Car,
+                  value: vehicle.category,
+                  label: t("fleet.detail.type", "Type"),
+                },
               ] as const
             ).map((spec) => {
               const Icon = spec.icon;
@@ -477,7 +497,7 @@ export default function VehicleDetailScreen() {
                     paddingHorizontal: 8,
                     borderWidth: 1,
                     borderColor: theme.borderLight,
-                    alignItems: 'center',
+                    alignItems: "center",
                   }}
                 >
                   <View
@@ -486,8 +506,8 @@ export default function VehicleDetailScreen() {
                       height: 28,
                       borderRadius: 14,
                       backgroundColor: theme.accentSoft,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <Icon size={14} color={theme.accent} strokeWidth={2} />
@@ -523,21 +543,21 @@ export default function VehicleDetailScreen() {
           entering={FadeInDown.duration(400).delay(220)}
           style={{ marginTop: 18, marginHorizontal: 16 }}
         >
-          {vehicle.status === 'available' && (
+          {vehicle.status === "available" && (
             <View className="flex-row" style={{ gap: 10 }}>
               <Button variant="primary" className="flex-1">
-                {t('fleet.detail.bookNow', 'Book Now')}
+                {t("fleet.detail.bookNow", "Book Now")}
               </Button>
               <Button variant="secondary" className="flex-1">
-                {t('fleet.detail.inspect', 'Inspect')}
+                {t("fleet.detail.inspect", "Inspect")}
               </Button>
             </View>
           )}
 
-          {vehicle.status === 'rented' && (
+          {vehicle.status === "rented" && (
             <>
               <Button variant="primary" disabled fullWidth>
-                {t('fleet.detail.currentlyRented', 'Currently Rented')}
+                {t("fleet.detail.currentlyRented", "Currently Rented")}
               </Button>
               {currentRental && (
                 <View
@@ -567,7 +587,7 @@ export default function VehicleDetailScreen() {
                         color={theme.textSecondary}
                         style={{ fontSize: 12, marginTop: 2 }}
                       >
-                        {currentRental.startDate} {'\u2192'}{' '}
+                        {currentRental.startDate} {"\u2192"}{" "}
                         {currentRental.endDate}
                       </Text>
                     </View>
@@ -592,15 +612,15 @@ export default function VehicleDetailScreen() {
             </>
           )}
 
-          {vehicle.status === 'maintenance' && (
+          {vehicle.status === "maintenance" && (
             <Button variant="danger" disabled fullWidth>
-              {t('fleet.detail.inMaintenance', 'In Maintenance')}
+              {t("fleet.detail.inMaintenance", "In Maintenance")}
             </Button>
           )}
 
-          {vehicle.status === 'reserved' && (
+          {vehicle.status === "reserved" && (
             <Button variant="secondary" disabled fullWidth>
-              {t('fleet.detail.reserved', 'Reserved')}
+              {t("fleet.detail.reserved", "Reserved")}
             </Button>
           )}
         </Animated.View>
@@ -636,7 +656,7 @@ export default function VehicleDetailScreen() {
                 >
                   <Text
                     variant="labelSmall"
-                    color={isActive ? '#FFFFFF' : theme.textSecondary}
+                    color={isActive ? "#FFFFFF" : theme.textSecondary}
                     style={{
                       fontFamily: fontFamilies.semiBold,
                       fontSize: 12,
@@ -655,16 +675,31 @@ export default function VehicleDetailScreen() {
           entering={FadeInDown.duration(400).delay(340)}
           style={{ marginTop: 14, marginHorizontal: 16 }}
         >
-          {activeTab === 'overview' && (
-            <OverviewTab vehicle={vehicle} theme={theme} t={t} />
+          {activeTab === "overview" && (
+            <OverviewTab
+              vehicle={vehicle}
+              theme={theme}
+              t={t}
+              currency={currency}
+            />
           )}
-          {activeTab === 'damages' && (
-            <DamagesTab vehicle={vehicle} theme={theme} t={t} />
+          {activeTab === "damages" && (
+            <DamagesTab
+              vehicle={vehicle}
+              theme={theme}
+              t={t}
+              currency={currency}
+            />
           )}
-          {activeTab === 'rentals' && (
-            <RentalsTab vehicle={vehicle} theme={theme} t={t} />
+          {activeTab === "rentals" && (
+            <RentalsTab
+              vehicle={vehicle}
+              theme={theme}
+              t={t}
+              currency={currency}
+            />
           )}
-          {activeTab === 'documents' && <DocumentsTab t={t} />}
+          {activeTab === "documents" && <DocumentsTab t={t} />}
         </Animated.View>
       </ScrollView>
     </View>
@@ -681,7 +716,11 @@ function MediaTabPill({
   onPress,
 }: {
   active: boolean;
-  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   label: string;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
@@ -691,12 +730,12 @@ function MediaTabPill({
       onPress={onPress}
       style={({ pressed }) => ({
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         paddingVertical: 9,
         borderRadius: 9999,
-        backgroundColor: active ? theme.surface : 'transparent',
+        backgroundColor: active ? theme.surface : "transparent",
         gap: 6,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
@@ -733,7 +772,7 @@ function SectionLabel({
       style={{
         fontFamily: fontFamilies.medium,
         fontSize: 11,
-        textTransform: 'uppercase',
+        textTransform: "uppercase",
         letterSpacing: 1,
         marginBottom: 8,
         marginLeft: 4,
@@ -750,19 +789,32 @@ function SectionLabel({
 interface TabProps {
   vehicle: Vehicle;
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
+  currency: string;
 }
 
 function OverviewTab({ vehicle, theme, t }: TabProps) {
   const specs: { label: string; value: string }[] = [
-    { label: t('fleet.detail.licensePlate', 'License Plate'), value: vehicle.licensePlate },
-    { label: t('fleet.detail.color', 'Color'), value: vehicle.color },
-    { label: t('fleet.detail.year', 'Year'), value: String(vehicle.year) },
-    { label: t('fleet.detail.mileage', 'Mileage'), value: formatMileage(vehicle.mileage) },
-    { label: t('fleet.detail.fuel', 'Fuel'), value: fuelLabel(vehicle.fuelType) },
-    { label: t('fleet.detail.transmission', 'Transmission'), value: capitalize(vehicle.transmission) },
-    { label: t('fleet.detail.seats', 'Seats'), value: String(vehicle.seats) },
-    { label: t('fleet.detail.category', 'Category'), value: vehicle.category },
+    {
+      label: t("fleet.detail.licensePlate", "License Plate"),
+      value: vehicle.licensePlate,
+    },
+    { label: t("fleet.detail.color", "Color"), value: vehicle.color },
+    { label: t("fleet.detail.year", "Year"), value: String(vehicle.year) },
+    {
+      label: t("fleet.detail.mileage", "Mileage"),
+      value: formatMileage(vehicle.mileage),
+    },
+    {
+      label: t("fleet.detail.fuel", "Fuel"),
+      value: fuelLabel(vehicle.fuelType),
+    },
+    {
+      label: t("fleet.detail.transmission", "Transmission"),
+      value: capitalize(vehicle.transmission),
+    },
+    { label: t("fleet.detail.seats", "Seats"), value: String(vehicle.seats) },
+    { label: t("fleet.detail.category", "Category"), value: vehicle.category },
   ];
 
   return (
@@ -814,7 +866,7 @@ function OverviewTab({ vehicle, theme, t }: TabProps) {
       {vehicle.features.length > 0 && (
         <View style={{ marginTop: 18 }}>
           <SectionLabel theme={theme}>
-            {t('fleet.detail.features', 'Features')}
+            {t("fleet.detail.features", "Features")}
           </SectionLabel>
           <View className="flex-row flex-wrap" style={{ gap: 8 }}>
             {vehicle.features.map((feature) => (
@@ -850,15 +902,16 @@ function OverviewTab({ vehicle, theme, t }: TabProps) {
    DAMAGES TAB
    ==================================================================== */
 function DamagesTab({ vehicle, theme, t }: TabProps) {
-  if (vehicle.damageRecords.length === 0) {
+  const damageRecords = vehicle.damageRecords ?? [];
+  if (damageRecords.length === 0) {
     return (
       <View className="py-12">
         <EmptyState
           icon={CheckCircle}
-          title={t('fleet.detail.noDamage', 'No damage recorded')}
+          title={t("fleet.detail.noDamage", "No damage recorded")}
           subtitle={t(
-            'fleet.detail.noDamageDesc',
-            'This vehicle has no reported damages.',
+            "fleet.detail.noDamageDesc",
+            "This vehicle has no reported damages.",
           )}
         />
       </View>
@@ -867,7 +920,7 @@ function DamagesTab({ vehicle, theme, t }: TabProps) {
 
   return (
     <View style={{ gap: 10 }}>
-      {vehicle.damageRecords.map((damage) => (
+      {damageRecords.map((damage) => (
         <View
           key={damage.id}
           style={{
@@ -916,7 +969,7 @@ function DamagesTab({ vehicle, theme, t }: TabProps) {
                   color={theme.success}
                   style={{ marginLeft: 6, fontSize: 12 }}
                 >
-                  {t('fleet.detail.resolved', 'Resolved')}
+                  {t("fleet.detail.resolved", "Resolved")}
                 </Text>
               </>
             ) : (
@@ -934,7 +987,7 @@ function DamagesTab({ vehicle, theme, t }: TabProps) {
                   color={theme.danger}
                   style={{ marginLeft: 6, fontSize: 12 }}
                 >
-                  {t('fleet.detail.unresolved', 'Unresolved')}
+                  {t("fleet.detail.unresolved", "Unresolved")}
                 </Text>
               </>
             )}
@@ -948,21 +1001,19 @@ function DamagesTab({ vehicle, theme, t }: TabProps) {
 /* ====================================================================
    RENTALS TAB
    ==================================================================== */
-function RentalsTab({ vehicle, theme, t }: TabProps) {
-  const totalRevenue = vehicle.rentalHistory.reduce(
-    (sum, r) => sum + r.revenue,
-    0,
-  );
+function RentalsTab({ vehicle, theme, t, currency }: TabProps) {
+  const rentalHistory = vehicle.rentalHistory ?? [];
+  const totalRevenue = rentalHistory.reduce((sum, r) => sum + r.revenue, 0);
 
-  if (vehicle.rentalHistory.length === 0) {
+  if (rentalHistory.length === 0) {
     return (
       <View className="py-12">
         <EmptyState
           icon={ClipboardList}
-          title={t('fleet.detail.noRentals', 'No rental history')}
+          title={t("fleet.detail.noRentals", "No rental history")}
           subtitle={t(
-            'fleet.detail.noRentalsDesc',
-            'This vehicle has not been rented yet.',
+            "fleet.detail.noRentalsDesc",
+            "This vehicle has not been rented yet.",
           )}
         />
       </View>
@@ -976,9 +1027,9 @@ function RentalsTab({ vehicle, theme, t }: TabProps) {
           backgroundColor: theme.accentSoft,
           borderRadius: 16,
           padding: 14,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
         <View>
@@ -987,7 +1038,7 @@ function RentalsTab({ vehicle, theme, t }: TabProps) {
             color={theme.accent}
             style={{ fontSize: 11, fontFamily: fontFamilies.medium }}
           >
-            {t('fleet.detail.totalRentals', 'Total Rentals')}
+            {t("fleet.detail.totalRentals", "Total Rentals")}
           </Text>
           <Text
             variant="headlineSmall"
@@ -998,16 +1049,16 @@ function RentalsTab({ vehicle, theme, t }: TabProps) {
               marginTop: 2,
             }}
           >
-            {vehicle.rentalHistory.length}
+            {rentalHistory.length}
           </Text>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ alignItems: "flex-end" }}>
           <Text
             variant="caption"
             color={theme.accent}
             style={{ fontSize: 11, fontFamily: fontFamilies.medium }}
           >
-            {t('fleet.detail.revenue', 'Revenue')}
+            {t("fleet.detail.revenue", "Revenue")}
           </Text>
           <Text
             variant="headlineSmall"
@@ -1018,12 +1069,12 @@ function RentalsTab({ vehicle, theme, t }: TabProps) {
               marginTop: 2,
             }}
           >
-            CHF {totalRevenue.toLocaleString('fr-FR')}
+            {currency} {totalRevenue.toLocaleString("fr-FR")}
           </Text>
         </View>
       </View>
 
-      {vehicle.rentalHistory.map((rental) => (
+      {rentalHistory.map((rental) => (
         <View
           key={rental.id}
           style={{
@@ -1047,23 +1098,26 @@ function RentalsTab({ vehicle, theme, t }: TabProps) {
               color={theme.accent}
               style={{ fontFamily: fontFamilies.bold, fontSize: 14 }}
             >
-              CHF {rental.revenue}
+              {currency} {rental.revenue}
             </Text>
           </View>
-          <View className="flex-row items-center justify-between" style={{ marginTop: 4 }}>
+          <View
+            className="flex-row items-center justify-between"
+            style={{ marginTop: 4 }}
+          >
             <Text
               variant="bodySmall"
               color={theme.textSecondary}
               style={{ fontSize: 12 }}
             >
-              {rental.startDate} {'\u2192'} {rental.endDate}
+              {rental.startDate} {"\u2192"} {rental.endDate}
             </Text>
             <Text
               variant="bodySmall"
               color={theme.textTertiary}
               style={{ fontSize: 12 }}
             >
-              {rental.duration} {t('bookings.detail.days', 'days')}
+              {rental.duration} {t("bookings.detail.days", "days")}
             </Text>
           </View>
         </View>
@@ -1073,17 +1127,174 @@ function RentalsTab({ vehicle, theme, t }: TabProps) {
 }
 
 /* ====================================================================
+   DETAIL SKELETON
+   ==================================================================== */
+function VehicleDetailSkeleton({
+  theme,
+  insets,
+  onBack,
+}: {
+  theme: ReturnType<typeof useTheme>;
+  insets: { top: number; bottom: number; left: number; right: number };
+  onBack: () => void;
+}) {
+  const heroTotalHeight = HERO_HEIGHT + insets.top;
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <StatusBar style="light" />
+      <ScrollView
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
+      >
+        {/* Hero placeholder */}
+        <View
+          style={{
+            width: SCREEN_WIDTH,
+            height: heroTotalHeight,
+            backgroundColor: theme.surfaceTertiary,
+          }}
+        >
+          <Skeleton width={"100%"} height={heroTotalHeight} radius={0} />
+          {/* Back button stays visible so user can leave */}
+          <Pressable
+            onPress={onBack}
+            hitSlop={10}
+            style={{
+              position: "absolute",
+              top: insets.top + 8,
+              left: 16,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: "rgba(255,255,255,0.92)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ChevronLeft size={22} color="#111" strokeWidth={2.2} />
+          </Pressable>
+        </View>
+
+        {/* Floating info card */}
+        <View
+          style={{
+            marginTop: -28,
+            marginHorizontal: 16,
+            backgroundColor: theme.surface,
+            borderRadius: 24,
+            padding: 18,
+            borderWidth: 1,
+            borderColor: theme.borderLight,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
+            elevation: 6,
+          }}
+        >
+          <View className="flex-row items-start">
+            <View style={{ flex: 1, gap: 8, paddingRight: 12 }}>
+              <Skeleton height={22} width={"75%"} />
+              <Skeleton height={12} width={"45%"} />
+              <Skeleton
+                height={20}
+                width={80}
+                radius={9999}
+                style={{ marginTop: 4 }}
+              />
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 6 }}>
+              <Skeleton height={20} width={84} />
+              <Skeleton height={11} width={48} />
+            </View>
+          </View>
+        </View>
+
+        {/* Quick specs */}
+        <View
+          style={{ marginTop: 14, marginHorizontal: 16 }}
+          className="flex-row"
+        >
+          <View className="flex-row" style={{ gap: 10, flex: 1 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.surface,
+                  borderRadius: 16,
+                  paddingVertical: 12,
+                  paddingHorizontal: 8,
+                  borderWidth: 1,
+                  borderColor: theme.borderLight,
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Skeleton width={28} height={28} radius={14} />
+                <Skeleton height={12} width={"70%"} />
+                <Skeleton height={10} width={"50%"} />
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Action button */}
+        <View style={{ marginTop: 18, marginHorizontal: 16 }}>
+          <Skeleton height={48} width={"100%"} radius={9999} />
+        </View>
+
+        {/* Tab pills */}
+        <View
+          style={{ marginTop: 22, marginHorizontal: 16 }}
+          className="flex-row"
+        >
+          <View className="flex-row" style={{ gap: 8 }}>
+            {[64, 80, 72, 92].map((w, i) => (
+              <Skeleton key={i} height={34} width={w} radius={9999} />
+            ))}
+          </View>
+        </View>
+
+        {/* Tab content rows */}
+        <View style={{ marginTop: 14, marginHorizontal: 16, gap: 8 }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View
+              key={i}
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                backgroundColor: theme.surface,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.borderLight,
+              }}
+            >
+              <Skeleton height={13} width={"30%"} />
+              <Skeleton height={13} width={"40%"} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+/* ====================================================================
    DOCUMENTS TAB
    ==================================================================== */
-function DocumentsTab({ t }: { t: ReturnType<typeof useTranslation>['t'] }) {
+function DocumentsTab({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
   return (
     <View className="py-12">
       <EmptyState
         icon={FileText}
-        title={t('fleet.detail.noDocuments', 'No documents uploaded')}
+        title={t("fleet.detail.noDocuments", "No documents uploaded")}
         subtitle={t(
-          'fleet.detail.noDocumentsDesc',
-          'Vehicle documents will appear here.',
+          "fleet.detail.noDocumentsDesc",
+          "Vehicle documents will appear here.",
         )}
       />
     </View>

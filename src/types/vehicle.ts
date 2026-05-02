@@ -1,38 +1,43 @@
 export type VehicleCategory =
-  | 'SUV'
-  | 'SUV Compact'
-  | 'Sedan Compact'
-  | 'Sedan Luxury'
-  | 'Van / Minivan'
-  | 'City Car'
-  | 'SUV Coupé'
-  | 'Hatchback'
-  | 'SUV / 7 Places'
-  | 'SUV Luxury'
-  | 'Van / Utilitaire'
-  | 'Coupe / Sedan Sport';
+  | "SUV"
+  | "SUV Compact"
+  | "Sedan Compact"
+  | "Sedan Luxury"
+  | "Van / Minivan"
+  | "City Car"
+  | "SUV Coupé"
+  | "Hatchback"
+  | "SUV / 7 Places"
+  | "SUV Luxury"
+  | "Van / Utilitaire"
+  | "Coupe / Sedan Sport";
 
 export type VehicleBrand =
-  | 'Audi'
-  | 'BMW'
-  | 'Mercedes-Benz'
-  | 'Škoda'
-  | 'Volkswagen'
-  | 'Mini'
-  | 'Land Rover';
+  | "Audi"
+  | "BMW"
+  | "Mercedes-Benz"
+  | "Škoda"
+  | "Volkswagen"
+  | "Mini"
+  | "Land Rover";
 
-export type VehicleStatus = 'available' | 'rented' | 'maintenance' | 'reserved';
+export type VehicleStatus = "available" | "rented" | "maintenance" | "reserved";
 
-export type FuelType = 'gasoline' | 'diesel' | 'electric' | 'hybrid' | 'plug-in-hybrid';
+export type FuelType =
+  | "gasoline"
+  | "diesel"
+  | "electric"
+  | "hybrid"
+  | "plug-in-hybrid";
 
-export type Transmission = 'manual' | 'automatic';
+export type Transmission = "manual" | "automatic";
 
 export interface DamageRecord {
   id: string;
   date: string;
   inspectorName: string;
-  type: 'scratch' | 'dent' | 'crack' | 'stain' | 'other';
-  severity: 'minor' | 'moderate' | 'severe';
+  type: "scratch" | "dent" | "crack" | "stain" | "other";
+  severity: "minor" | "moderate" | "severe";
   description: string;
   resolved: boolean;
 }
@@ -47,6 +52,7 @@ export interface RentalHistoryEntry {
   revenue: number;
 }
 
+// legacy: bundled mock media — superseded by Vehicle.images (server-driven).
 export interface VehicleMedia {
   photos: ReturnType<typeof require>[];
   videos: ReturnType<typeof require>[];
@@ -56,6 +62,21 @@ export interface VehicleMedia {
   videoPaths?: string[];
   /** Fallback URLs for vehicles without local assets */
   placeholderImages?: string[];
+}
+
+export type AngleKey =
+  | "front"
+  | "front-right"
+  | "right"
+  | "rear-right"
+  | "rear"
+  | "rear-left"
+  | "left"
+  | "front-left";
+
+export interface VehicleImage {
+  angle: AngleKey;
+  url: string;
 }
 
 export interface Vehicle {
@@ -70,15 +91,18 @@ export interface Vehicle {
   licensePlate: string;
   /** In cents (smallest currency unit). */
   dailyRate: number;
-  images: string[];
   fuelType: FuelType;
   transmission: Transmission;
   seats: number;
   color: string;
   features: string[];
-  rentalHistory: RentalHistoryEntry[];
-  damageRecords: DamageRecord[];
-  media: VehicleMedia;
+  /** Populated on list responses. */
+  thumbnailUrl?: string | null;
+  /** Populated on detail responses. */
+  images?: VehicleImage[];
+  rentalHistory?: RentalHistoryEntry[];
+  damageRecords?: DamageRecord[];
+  media?: VehicleMedia;
   quantity: number;
   /** Default km included per rental — copied onto Booking at creation. */
   includedKm?: number;
