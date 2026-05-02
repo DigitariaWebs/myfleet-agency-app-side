@@ -108,31 +108,26 @@ export async function signInWithApple(): Promise<SocialAuthResult> {
 }
 
 export async function signInWithGoogle(): Promise<SocialAuthResult> {
-  try {
-    await GoogleSignin.hasPlayServices();
-    const response = await GoogleSignin.signIn();
+  await GoogleSignin.hasPlayServices();
+  const response = await GoogleSignin.signIn();
 
-    // In newer versions of @react-native-google-signin/google-signin,
-    // the response structure might be { data: { ... } } or just { ... }.
-    // We'll handle the common structure.
-    const userInfo = (response as any).data || response;
+  // In newer versions of @react-native-google-signin/google-signin,
+  // the response structure might be { data: { ... } } or just { ... }.
+  // We'll handle the common structure.
+  const userInfo = (response as any).data || response;
 
-    if (!userInfo.idToken) {
-      throw new Error("Google Sign-In failed: No ID Token received");
-    }
-
-    return {
-      provider: "google",
-      email: userInfo.user.email,
-      name: userInfo.user.name ?? "Google User",
-      photoUrl: userInfo.user.photo ?? undefined,
-      providerId: userInfo.user.id,
-      idToken: userInfo.idToken,
-    };
-  } catch (e: any) {
-    console.error("[GoogleSignIn] Error:", e.message ?? e);
-    throw e;
+  if (!userInfo.idToken) {
+    throw new Error("Google Sign-In failed: No ID Token received");
   }
+
+  return {
+    provider: "google",
+    email: userInfo.user.email,
+    name: userInfo.user.name ?? "Google User",
+    photoUrl: userInfo.user.photo ?? undefined,
+    providerId: userInfo.user.id,
+    idToken: userInfo.idToken,
+  };
 }
 
 export async function signInWithFacebook(): Promise<SocialAuthResult> {
