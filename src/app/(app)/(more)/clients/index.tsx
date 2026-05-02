@@ -15,7 +15,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
 import { useTheme } from '@/hooks/useTheme';
-import { useClientStore } from '@/stores/useClientStore';
+import { useClients } from '@/hooks/useClients';
 import type { Client, ClientTag } from '@/types/client';
 
 // ── Sort options ───────────────────────────────────────────────────────────
@@ -144,11 +144,16 @@ export default function ClientsScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const clients = useClientStore((s) => s.clients);
+  const { data: clients = [], isLoading, refetch } = useClients();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('alpha');
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    refetch().finally(() => setRefreshing(false));
+  }, [refetch]);
 
   // Filter by search
   const searchFiltered = useMemo(() => {
@@ -187,12 +192,6 @@ export default function ClientsScreen() {
 
   const handleSortPress = useCallback((key: SortKey) => {
     setSortKey(key);
-  }, []);
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => setRefreshing(false), 800);
   }, []);
 
   const handleCardPress = useCallback(

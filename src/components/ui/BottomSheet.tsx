@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { Dimensions, Pressable, View } from 'react-native';
+import { Dimensions, Modal, Pressable, View } from 'react-native';
 import Animated, {
   interpolate,
   runOnJS,
@@ -125,7 +125,13 @@ export function BottomSheet({
   }, [animateClose]);
 
   return (
-    <>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={animateClose}
+      statusBarTranslucent
+    >
       {/* Backdrop */}
       <AnimatedPressable
         onPress={handleBackdropPress}
@@ -187,6 +193,6 @@ export function BottomSheet({
           <View className="flex-1 mt-3">{children}</View>
         </Animated.View>
       </GestureDetector>
-    </>
+    </Modal>
   );
 }

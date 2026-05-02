@@ -6,13 +6,16 @@ export interface InvoiceLineItem {
   id: string;
   description: string;
   quantity: number;
+  /** In cents (smallest currency unit). */
   unitPrice: number;
+  /** In cents. */
   total: number;
 }
 
 export interface Payment {
   id: string;
   date: string;
+  /** In cents (smallest currency unit). */
   amount: number;
   method: PaymentMethod;
 }
@@ -29,14 +32,22 @@ export interface Invoice {
   issuedDate: string;
   dueDate: string;
   lineItems: InvoiceLineItem[];
+  /** In cents (smallest currency unit). */
   subtotal: number;
+  /** In cents. */
   deposit: number;
+  /** In cents. */
   damageCharges: number;
+  /** In cents. */
   lateReturnFee: number;
+  /** In cents. */
   violationCharges: number;
+  /** In cents. */
   totalDue: number;
   payments: Payment[];
+  /** In cents. */
   amountPaid: number;
+  /** In cents. */
   remainingBalance: number;
   notes: string;
 }

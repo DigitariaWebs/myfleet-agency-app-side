@@ -390,3 +390,9 @@ export function useDraftConflicts(): Booking[] {
     }),
   );
 }
+
+export function useConflictCount(): number {
+  return useBookingStore((s) => 
+    s.bookings.reduce((acc, b) => (b.conflict && b.conflict.withBookingIds.length > 0 ? acc + 1 : acc), 0)
+  );
+}

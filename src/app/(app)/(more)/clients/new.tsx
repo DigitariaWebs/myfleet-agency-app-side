@@ -9,13 +9,14 @@ import { ChevronLeft } from 'lucide-react-native';
 import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
+import { DateInput } from '@/components/ui/DateInput';
 import { Chip, ChipGroup } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
 import { Divider } from '@/components/ui/Divider';
 import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/components/ui/Toast';
-import { useClientStore } from '@/stores/useClientStore';
-import type { Client, ClientTag, IDType } from '@/types/client';
+import { useCreateClient } from '@/hooks/useClients';
+import type { ClientTag, IDType } from '@/types/client';
 
 // ── ID Type options ────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ export default function NewClientScreen() {
   const theme = useTheme();
   const router = useRouter();
   const showToast = useToastStore((s) => s.show);
-  const addClient = useClientStore((s) => s.addClient);
+  const createClient = useCreateClient();
 
   // Personal info
   const [firstName, setFirstName] = useState('');
@@ -100,7 +101,7 @@ export default function NewClientScreen() {
     );
   }, []);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!firstName.trim() || !lastName.trim()) {
       showToast({
         variant: 'error',
@@ -110,37 +111,36 @@ export default function NewClientScreen() {
       return;
     }
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await createClient.mutateAsync({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        dateOfBirth: dateOfBirth.trim(),
+        idType,
+        idNumber: idNumber.trim(),
+        driverLicense: driverLicense.trim(),
+        driverLicenseExpiry: driverLicenseExpiry.trim(),
+        notes: notes.trim(),
+      });
 
-    const newClient: Client = {
-      id: `c-${Date.now()}`,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      address: address.trim(),
-      dateOfBirth: dateOfBirth.trim(),
-      idType,
-      idNumber: idNumber.trim(),
-      driverLicense: driverLicense.trim(),
-      driverLicenseExpiry: driverLicenseExpiry.trim(),
-      tags: selectedTags,
-      flagReason: null,
-      totalBookings: 0,
-      totalSpent: 0,
-      createdAt: new Date().toISOString().slice(0, 10),
-      notes: notes.trim(),
-    };
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({
+        variant: 'success',
+        title: 'Client ajouté',
+        message: `${firstName.trim()} ${lastName.trim()} a été ajouté avec succès.`,
+      });
 
-    addClient(newClient);
-
-    showToast({
-      variant: 'success',
-      title: 'Client ajouté',
-      message: `${newClient.firstName} ${newClient.lastName} a été ajouté avec succès.`,
-    });
-
-    router.back();
+      router.back();
+    } catch {
+      showToast({
+        variant: 'error',
+        title: 'Erreur',
+        message: "Impossible d'ajouter le client.",
+      });
+    }
   }, [
     firstName,
     lastName,
@@ -154,7 +154,7 @@ export default function NewClientScreen() {
     driverLicenseExpiry,
     selectedTags,
     notes,
-    addClient,
+    createClient,
     showToast,
     router,
   ]);
@@ -230,12 +230,11 @@ export default function NewClientScreen() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
-        <Input
+        <DateInput
           label="Date de naissance"
-          placeholder="1990-01-15"
+          placeholder="Sélectionner une date"
           value={dateOfBirth}
-          onChangeText={setDateOfBirth}
-          className="mb-3"
+          onChange={setDateOfBirth}
         />
       </Animated.View>
 
@@ -279,12 +278,11 @@ export default function NewClientScreen() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(480).duration(400).springify()}>
-        <Input
+        <DateInput
           label="Expiration du permis"
-          placeholder="2030-01-15"
+          placeholder="Sélectionner une date"
           value={driverLicenseExpiry}
-          onChangeText={setDriverLicenseExpiry}
-          className="mb-3"
+          onChange={setDriverLicenseExpiry}
         />
       </Animated.View>
 
@@ -324,7 +322,7 @@ export default function NewClientScreen() {
         entering={FadeInDown.delay(660).duration(400).springify()}
         className="mb-8"
       >
-        <Button variant="primary" fullWidth onPress={handleSubmit}>
+        <Button variant="primary" fullWidth onPress={handleSubmit} loading={createClient.isPending}>
           Ajouter le client
         </Button>
       </Animated.View>

@@ -45,7 +45,7 @@ function getInitials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-export function Avatar({
+export const Avatar = React.memo(function Avatar({
   source,
   name,
   size = 'md',
@@ -68,7 +68,7 @@ export function Avatar({
   const ringWidth = 2;
   const outerDimension = showRing ? dimension + ringWidth * 2 : dimension;
 
-  const showImage = source && !hasError;
+  const showImage = !!(source && !hasError);
 
   return (
     <View
@@ -160,4 +160,4 @@ export function Avatar({
       ) : null}
     </View>
   );
-}
+});

@@ -29,7 +29,7 @@ import { Divider } from '@/components/ui/Divider';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/components/ui/Toast';
-import { useClientStore } from '@/stores/useClientStore';
+import { useClient, useUpdateClient } from '@/hooks/useClients';
 import { useViolationStore } from '@/stores/useViolationStore';
 import { useBillingStore } from '@/stores/useBillingStore';
 import { mockBookings } from '@/data/bookings';
@@ -209,13 +209,10 @@ export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const showToast = useToastStore((s) => s.show);
 
-  const clients = useClientStore((s) => s.clients);
-  const flagClient = useClientStore((s) => s.flagClient);
-  const unflagClient = useClientStore((s) => s.unflagClient);
+  const { data: client, isLoading } = useClient(id);
+  const updateClient = useUpdateClient();
   const violations = useViolationStore((s) => s.violations);
   const invoices = useBillingStore((s) => s.invoices);
-
-  const client = clients.find((c) => c.id === id);
 
   const [activeTab, setActiveTab] = useState<TabKey>('bookings');
 
@@ -281,22 +278,26 @@ export default function ClientDetailScreen() {
   const handleToggleFlag = useCallback(() => {
     if (!client) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    if (isFlagged) {
-      unflagClient(client.id);
-      showToast({
-        variant: 'success',
-        title: 'Signalement retiré',
-        message: `${client.firstName} ${client.lastName} n'est plus signalé.`,
-      });
-    } else {
-      flagClient(client.id, 'Signalé manuellement');
-      showToast({
-        variant: 'warning',
-        title: 'Client signalé',
-        message: `${client.firstName} ${client.lastName} a été signalé.`,
-      });
-    }
-  }, [client, isFlagged, flagClient, unflagClient, showToast]);
+    const nextTags = isFlagged
+      ? client.tags.filter((t) => t !== 'flagged')
+      : [...client.tags, 'flagged'];
+    const nextFlagReason = isFlagged ? null : 'Signalé manuellement';
+    updateClient.mutate(
+      { id: client.id, data: { tags: nextTags, flagReason: nextFlagReason } },
+      {
+        onSuccess: () => {
+          showToast({
+            variant: isFlagged ? 'success' : 'warning',
+            title: isFlagged ? 'Signalement retiré' : 'Client signalé',
+            message: `${client.firstName} ${client.lastName} ${isFlagged ? "n'est plus signalé" : 'a été signalé'}.`,
+          });
+        },
+        onError: () => {
+          showToast({ variant: 'error', title: 'Erreur', message: 'Impossible de mettre à jour le client.' });
+        },
+      }
+    );
+  }, [client, isFlagged, updateClient, showToast]);
 
   // ── Not found ────────────────────────────────────────────────────────
 

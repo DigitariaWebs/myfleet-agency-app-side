@@ -244,6 +244,29 @@ export default function InspectionDetailScreen() {
   const [compareMode, setCompareMode] = useState(false);
   const [fullscreen, setFullscreen] = useState<FullscreenTarget | null>(null);
 
+  const damages = useMemo(() => {
+    if (!inspection) return [];
+    return collectDamages(inspection);
+  }, [inspection]);
+
+  const severityCounts = useMemo(() => {
+    const counts: Record<DamageSeverity, number> = {
+      minor: 0,
+      moderate: 0,
+      severe: 0,
+    };
+    if (!inspection) return counts;
+    for (const d of damages) counts[d.severity]++;
+    return counts;
+  }, [damages, inspection]);
+
+  const photoByAngle = useMemo(() => {
+    const map = new Map<string, CapturedPhoto>();
+    if (!inspection) return map;
+    for (const p of inspection.photos) map.set(p.angle, p);
+    return map;
+  }, [inspection]);
+
   if (!inspection) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -264,23 +287,6 @@ export default function InspectionDetailScreen() {
   }
 
   const totalDamages = inspection.totalDamagesAI + inspection.totalDamagesManual;
-  const damages = useMemo(() => collectDamages(inspection), [inspection]);
-  const severityCounts = useMemo(() => {
-    const counts: Record<DamageSeverity, number> = {
-      minor: 0,
-      moderate: 0,
-      severe: 0,
-    };
-    for (const d of damages) counts[d.severity]++;
-    return counts;
-  }, [damages]);
-
-  const photoByAngle = useMemo(() => {
-    const map = new Map<string, CapturedPhoto>();
-    for (const p of inspection.photos) map.set(p.angle, p);
-    return map;
-  }, [inspection.photos]);
-
   const vehicleImageUri = getVehicleImage(inspection.vehicleId);
   const heroTotalHeight = HERO_HEIGHT + insets.top;
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text as RNText, type TextStyle } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
@@ -14,7 +14,7 @@ export interface TextProps {
   style?: TextStyle;
 }
 
-export function Text({
+export const Text = React.memo(function Text({
   variant = 'bodyMedium',
   color,
   align,
@@ -32,7 +32,7 @@ export function Text({
     readonly textTransform?: 'uppercase' | 'lowercase' | 'capitalize' | 'none';
   };
 
-  const inlineStyle: TextStyle = {
+  const inlineStyle = useMemo((): TextStyle => ({
     fontFamily: base.fontFamily,
     fontSize: base.fontSize,
     lineHeight: base.lineHeight,
@@ -41,7 +41,7 @@ export function Text({
     ...(base.textTransform != null && { textTransform: base.textTransform }),
     ...(align != null && { textAlign: align }),
     ...styleProp,
-  };
+  }), [base, color, theme.textPrimary, align, styleProp]);
 
   return (
     <RNText
@@ -52,4 +52,4 @@ export function Text({
       {children}
     </RNText>
   );
-}
+});

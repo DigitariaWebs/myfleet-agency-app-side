@@ -48,8 +48,11 @@ export interface Contract {
   createdAt: string;
   startDate: string;
   endDate: string;
+  /** In cents (smallest currency unit). */
   dailyRate: number;
+  /** In cents. */
   totalAmount: number;
+  /** In cents. */
   deposit: number;
   pickupLocation: string;
   returnLocation: string;

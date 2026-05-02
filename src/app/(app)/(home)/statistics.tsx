@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -13,6 +13,7 @@ import {
 } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { useShallow } from 'zustand/react/shallow';
 import type { LucideIcon } from "lucide-react-native";
 
 import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
@@ -27,17 +28,49 @@ export default function StatisticsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const bookings = useBookingStore((s) => s.bookings);
-  const active = bookings.filter((b) => b.status === "active").length;
-  const upcoming = bookings.filter(
-    (b) => b.status === "confirmed" || b.status === "pending",
-  ).length;
-  const completed = bookings.filter((b) => b.status === "completed").length;
+  const { active, upcoming, completed } = useBookingStore(
+    useShallow((s) => ({
+      active: s.bookings.filter((b) => b.status === "active").length,
+      upcoming: s.bookings.filter(
+        (b) => b.status === "confirmed" || b.status === "pending"
+      ).length,
+      completed: s.bookings.filter((b) => b.status === "completed").length,
+    }))
+  );
 
-  const total = fleetStats.total || 1;
-  const rentedPct = Math.round((fleetStats.rented / total) * 100);
-  const availablePct = Math.round((fleetStats.available / total) * 100);
-  const maintenancePct = Math.round((fleetStats.maintenance / total) * 100);
+  const { rentedPct, availablePct, maintenancePct } = useMemo(() => {
+    const total = fleetStats.total || 1;
+    return {
+      rentedPct: Math.round((fleetStats.rented / total) * 100),
+      availablePct: Math.round((fleetStats.available / total) * 100),
+      maintenancePct: Math.round((fleetStats.maintenance / total) * 100),
+    };
+  }, []);
+
+  const handleBack = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  }, [router]);
+
+  const goToFleet = useCallback(() => router.push("/(app)/(fleet)"), [router]);
+  
+  const goToFleetRented = useCallback(() => 
+    router.push({ pathname: "/(app)/(fleet)", params: { status: "rented" } }), [router]);
+
+  const goToFleetAvailable = useCallback(() => 
+    router.push({ pathname: "/(app)/(fleet)", params: { status: "available" } }), [router]);
+
+  const goToFleetMaintenance = useCallback(() => 
+    router.push({ pathname: "/(app)/(fleet)", params: { status: "maintenance" } }), [router]);
+
+  const goToBookingsActive = useCallback(() => 
+    router.push({ pathname: "/(app)/(bookings)", params: { filter: "active" } }), [router]);
+
+  const goToBookingsUpcoming = useCallback(() => 
+    router.push({ pathname: "/(app)/(bookings)", params: { filter: "upcoming" } }), [router]);
+
+  const goToBookingsCompleted = useCallback(() => 
+    router.push({ pathname: "/(app)/(bookings)", params: { filter: "completed" } }), [router]);
 
   return (
     <ScreenWrapper scroll padded={false}>
@@ -47,10 +80,7 @@ export default function StatisticsScreen() {
         className="flex-row items-center px-4 pt-3 pb-4"
       >
         <Pressable
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
-          }}
+          onPress={handleBack}
           hitSlop={10}
           style={{
             width: 40,
@@ -95,7 +125,7 @@ export default function StatisticsScreen() {
             color={theme.accent}
             bg={theme.accentSoft}
             theme={theme}
-            onPress={() => router.push("/(app)/(fleet)")}
+            onPress={goToFleet}
           />
           <Tile
             icon={KeyRound}
@@ -104,12 +134,7 @@ export default function StatisticsScreen() {
             color={theme.success}
             bg={theme.successSoft}
             theme={theme}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(fleet)",
-                params: { status: "rented" },
-              })
-            }
+            onPress={goToFleetRented}
           />
         </View>
         <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
@@ -120,12 +145,7 @@ export default function StatisticsScreen() {
             color={theme.info}
             bg={theme.infoSoft}
             theme={theme}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(fleet)",
-                params: { status: "available" },
-              })
-            }
+            onPress={goToFleetAvailable}
           />
           <Tile
             icon={Wrench}
@@ -134,12 +154,7 @@ export default function StatisticsScreen() {
             color={theme.warning}
             bg={theme.warningSoft}
             theme={theme}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(fleet)",
-                params: { status: "maintenance" },
-              })
-            }
+            onPress={goToFleetMaintenance}
           />
         </View>
       </Animated.View>
@@ -257,12 +272,7 @@ export default function StatisticsScreen() {
             color={theme.success}
             bg={theme.successSoft}
             theme={theme}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(bookings)",
-                params: { filter: "active" },
-              })
-            }
+            onPress={goToBookingsActive}
           />
           <Tile
             icon={CircleCheck}
@@ -271,12 +281,7 @@ export default function StatisticsScreen() {
             color={theme.info}
             bg={theme.infoSoft}
             theme={theme}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(bookings)",
-                params: { filter: "upcoming" },
-              })
-            }
+            onPress={goToBookingsUpcoming}
           />
           <Tile
             icon={CheckCircle}
@@ -285,12 +290,7 @@ export default function StatisticsScreen() {
             color={theme.textTertiary}
             bg={theme.surfaceTertiary}
             theme={theme}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(bookings)",
-                params: { filter: "completed" },
-              })
-            }
+            onPress={goToBookingsCompleted}
           />
         </View>
       </Animated.View>
@@ -308,7 +308,7 @@ interface TileProps {
   onPress?: () => void;
 }
 
-function Tile({ icon: Icon, value, label, color, bg, theme, onPress }: TileProps) {
+const Tile = React.memo(function Tile({ icon: Icon, value, label, color, bg, theme, onPress }: TileProps) {
   return (
     <Pressable
       onPress={() => {
@@ -361,7 +361,7 @@ function Tile({ icon: Icon, value, label, color, bg, theme, onPress }: TileProps
       </Text>
     </Pressable>
   );
-}
+});
 
 interface LegendRowProps {
   color: string;
@@ -371,7 +371,7 @@ interface LegendRowProps {
   isLast?: boolean;
 }
 
-function LegendRow({ color, label, value, theme, isLast }: LegendRowProps) {
+const LegendRow = React.memo(function LegendRow({ color, label, value, theme, isLast }: LegendRowProps) {
   return (
     <View
       style={{
@@ -406,4 +406,4 @@ function LegendRow({ color, label, value, theme, isLast }: LegendRowProps) {
       </Text>
     </View>
   );
-}
+});

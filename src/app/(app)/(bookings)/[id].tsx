@@ -1,13 +1,16 @@
-import React from 'react';
-import { View, Pressable, Dimensions, ScrollView } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React from "react";
+import { View, Pressable, Dimensions, ScrollView } from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Car,
@@ -27,23 +30,23 @@ import {
   Send,
   Timer,
   AlertTriangle,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { Divider } from '@/components/ui/Divider';
-import { Avatar } from '@/components/ui/Avatar';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { useToastStore } from '@/components/ui/Toast';
-import { useBookingStore } from '@/stores/useBookingStore';
-import { getVehicleImage } from '@/data/vehicleImages';
-import type { Booking, BookingStatus, TimelineStep } from '@/types/booking';
-import { mockClients } from '@/data/clients';
-import { fontFamilies } from '@/theme/typography';
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { Divider } from "@/components/ui/Divider";
+import { Avatar } from "@/components/ui/Avatar";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/hooks/useTheme";
+import { useToastStore } from "@/components/ui/Toast";
+import { useBookingStore } from "@/stores/useBookingStore";
+import { getVehicleImage } from "@/data/vehicleImages";
+import type { Booking, BookingStatus, TimelineStep } from "@/types/booking";
+import { mockClients } from "@/data/clients";
+import { fontFamilies } from "@/theme/typography";
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 const HERO_HEIGHT = Math.round(SCREEN_WIDTH * 0.72);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -62,22 +65,22 @@ function daysElapsed(start: string): number {
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
-type StatusTone = 'success' | 'info' | 'warning' | 'neutral' | 'danger';
+type StatusTone = "success" | "info" | "warning" | "neutral" | "danger";
 
 function statusTone(status: BookingStatus): StatusTone {
   const map: Record<BookingStatus, StatusTone> = {
-    active: 'success',
-    confirmed: 'info',
-    pending: 'warning',
-    completed: 'neutral',
-    cancelled: 'danger',
+    active: "success",
+    confirmed: "info",
+    pending: "warning",
+    completed: "neutral",
+    cancelled: "danger",
   };
   return map[status];
 }
@@ -98,11 +101,11 @@ function toneColors(
 
 function statusLabel(status: BookingStatus): string {
   const map: Record<BookingStatus, string> = {
-    active: 'Active',
-    confirmed: 'Confirmed',
-    pending: 'Pending',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
+    active: "Active",
+    confirmed: "Confirmed",
+    pending: "Pending",
+    completed: "Completed",
+    cancelled: "Cancelled",
   };
   return map[status];
 }
@@ -111,43 +114,49 @@ function buildTimeline(booking: Booking): TimelineStep[] {
   const { status, createdAt } = booking;
 
   const isConfirmedOrLater =
-    status === 'confirmed' || status === 'active' || status === 'completed';
-  const isActiveOrLater = status === 'active' || status === 'completed';
-  const isCompleted = status === 'completed';
+    status === "confirmed" || status === "active" || status === "completed";
+  const isActiveOrLater = status === "active" || status === "completed";
+  const isCompleted = status === "completed";
 
   return [
-    { key: 'created', label: 'Created', date: createdAt, completed: true, active: false },
     {
-      key: 'confirmed',
-      label: 'Confirmed',
-      date: isConfirmedOrLater ? createdAt : null,
-      completed: isConfirmedOrLater,
-      active: status === 'confirmed',
+      key: "created",
+      label: "Created",
+      date: createdAt,
+      completed: true,
+      active: false,
     },
     {
-      key: 'picked_up',
-      label: 'Vehicle Picked Up',
+      key: "confirmed",
+      label: "Confirmed",
+      date: isConfirmedOrLater ? createdAt : null,
+      completed: isConfirmedOrLater,
+      active: status === "confirmed",
+    },
+    {
+      key: "picked_up",
+      label: "Vehicle Picked Up",
       date: isActiveOrLater ? booking.startDate : null,
       completed: isActiveOrLater,
       active: false,
     },
     {
-      key: 'in_progress',
-      label: 'In Progress',
+      key: "in_progress",
+      label: "In Progress",
       date: isActiveOrLater ? booking.startDate : null,
       completed: isCompleted,
-      active: status === 'active',
+      active: status === "active",
     },
     {
-      key: 'returned',
-      label: 'Returned',
+      key: "returned",
+      label: "Returned",
       date: isCompleted ? booking.endDate : null,
       completed: isCompleted,
       active: false,
     },
     {
-      key: 'closed',
-      label: 'Closed',
+      key: "closed",
+      label: "Closed",
       date: isCompleted ? booking.endDate : null,
       completed: isCompleted,
       active: false,
@@ -174,12 +183,12 @@ export default function BookingDetailScreen() {
         <View className="flex-1 items-center justify-center px-4 py-20">
           <EmptyState
             icon={ClipboardList}
-            title={t('bookings.detail.notFound', 'Booking not found')}
+            title={t("bookings.detail.notFound", "Booking not found")}
             subtitle={t(
-              'bookings.detail.notFoundDesc',
-              'The booking you are looking for does not exist.',
+              "bookings.detail.notFoundDesc",
+              "The booking you are looking for does not exist.",
             )}
-            actionLabel={t('common.back', 'Back')}
+            actionLabel={t("common.back", "Back")}
             onAction={() => router.back()}
           />
         </View>
@@ -194,10 +203,15 @@ export default function BookingDetailScreen() {
   const timeline = buildTimeline(booking);
 
   const enabledOptions = booking.options.filter((o) => o.enabled);
-  const deliveryOption = enabledOptions.find((o) => o.id === 'delivery' && o.deliveryDetails);
-  const perDayOptions = enabledOptions.filter((o) => o.id !== 'delivery');
+  const deliveryOption = enabledOptions.find(
+    (o) => o.id === "delivery" && o.deliveryDetails,
+  );
+  const perDayOptions = enabledOptions.filter((o) => o.id !== "delivery");
   const subtotal = booking.dailyRate * totalDays;
-  const optionsTotal = perDayOptions.reduce((s, o) => s + o.price * totalDays, 0);
+  const optionsTotal = perDayOptions.reduce(
+    (s, o) => s + o.price * totalDays,
+    0,
+  );
   const deliveryFee = deliveryOption?.deliveryDetails?.fee ?? 0;
   const total = subtotal + optionsTotal + deliveryFee;
 
@@ -213,777 +227,378 @@ export default function BookingDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
       >
-      {/* ── Hero ──────────────────────────────────────────────────── */}
-      <Animated.View entering={FadeIn.duration(400)}>
-        <View style={{ width: SCREEN_WIDTH, height: heroTotalHeight, backgroundColor: theme.surfaceTertiary }}>
-          {heroImage ? (
-            <Image
-              source={heroImage}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              transition={300}
-            />
-          ) : (
-            <View className="flex-1 items-center justify-center">
-              <Car size={72} color={theme.textTertiary} strokeWidth={1.3} />
-            </View>
-          )}
-
-          {/* Top gradient for icon legibility under the notch */}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 110 }}
-            pointerEvents="none"
-          />
-
-          {/* Back */}
-          <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            hitSlop={10}
-            style={{
-              position: 'absolute',
-              top: insets.top + 8,
-              left: 16,
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.92)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ChevronLeft size={22} color="#111" strokeWidth={2.2} />
-          </Pressable>
-
-          {/* Status chip */}
+        {/* ── Hero ──────────────────────────────────────────────────── */}
+        <Animated.View entering={FadeIn.duration(400)}>
           <View
             style={{
-              position: 'absolute',
-              top: insets.top + 12,
-              right: 16,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 9999,
-              backgroundColor: tone.bg,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
+              width: SCREEN_WIDTH,
+              height: heroTotalHeight,
+              backgroundColor: theme.surfaceTertiary,
             }}
           >
-            <View
+            {heroImage ? (
+              <Image
+                source={heroImage}
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
+                transition={300}
+              />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <Car size={72} color={theme.textTertiary} strokeWidth={1.3} />
+              </View>
+            )}
+
+            {/* Top gradient for icon legibility under the notch */}
+            <LinearGradient
+              colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"]}
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: tone.fg,
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: insets.top + 110,
               }}
+              pointerEvents="none"
             />
-            <Text
-              variant="labelSmall"
-              color={tone.fg}
-              style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
-            >
-              {statusLabel(booking.status)}
-            </Text>
-          </View>
 
-          {/* Ref chip */}
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 40,
-              alignSelf: 'center',
-              paddingHorizontal: 12,
-              paddingVertical: 4,
-              borderRadius: 9999,
-              backgroundColor: 'rgba(0,0,0,0.55)',
-            }}
-          >
-            <Text
-              variant="labelSmall"
-              color="#FFFFFF"
-              style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
-            >
-              #{booking.id}
-            </Text>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* ── Floating info card ────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(450).delay(80)}
-        style={{
-          marginTop: -28,
-          marginHorizontal: 16,
-          backgroundColor: theme.surface,
-          borderRadius: 24,
-          padding: 18,
-          borderWidth: 1,
-          borderColor: theme.borderLight,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 16,
-          elevation: 6,
-        }}
-      >
-        <View className="flex-row items-start">
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text
-              variant="headlineMedium"
-              style={{ fontFamily: fontFamilies.bold, fontSize: 22, lineHeight: 26 }}
-              numberOfLines={1}
-            >
-              {booking.vehicleName}
-            </Text>
-            <Text
-              variant="bodySmall"
-              color={theme.textTertiary}
-              style={{ marginTop: 4, fontSize: 12 }}
-              numberOfLines={1}
-            >
-              {booking.clientName}
-            </Text>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text
-              variant="headlineMedium"
-              color={theme.accent}
-              style={{ fontFamily: fontFamilies.bold, fontSize: 20, lineHeight: 24 }}
-            >
-              {'\u20AC'}{booking.dailyRate}
-            </Text>
-            <Text
-              variant="caption"
-              color={theme.textTertiary}
-              style={{ fontSize: 11, marginTop: 2 }}
-            >
-              / {t('bookings.detail.perDay', 'day')}
-            </Text>
-          </View>
-        </View>
-
-        {/* Stat chips */}
-        <View className="flex-row" style={{ gap: 8, marginTop: 14 }}>
-          <StatChip
-            icon={Calendar}
-            label={`${totalDays} ${t('bookings.detail.days', 'days')}`}
-            color={theme.accent}
-            bg={theme.accentSoft}
-            theme={theme}
-          />
-          <StatChip
-            icon={Timer}
-            label={
-              booking.status === 'active'
-                ? `${remaining}d ${t('bookings.detail.left', 'left')}`
-                : `${'\u20AC'}${total.toLocaleString('fr-FR')}`
-            }
-            color={theme.success}
-            bg={theme.successSoft}
-            theme={theme}
-          />
-          <StatChip
-            icon={FileText}
-            label={`${'\u20AC'}${booking.deposit.toLocaleString('fr-FR')}`}
-            color={theme.info}
-            bg={theme.infoSoft}
-            theme={theme}
-          />
-        </View>
-      </Animated.View>
-
-      {/* ── Conflict Banner ───────────────────────────────────────── */}
-      {booking.conflict && booking.conflict.withBookingIds.length > 0 && (
-        <Animated.View
-          entering={FadeInDown.duration(400).delay(140)}
-          style={{ marginTop: 16, marginHorizontal: 16 }}
-        >
-          <View
-            style={{
-              backgroundColor: theme.dangerSoft,
-              borderLeftWidth: 4,
-              borderLeftColor: theme.danger,
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <View className="flex-row items-center" style={{ gap: 8 }}>
-              <AlertTriangle size={16} color={theme.danger} />
-              <Text
-                variant="titleMedium"
-                color={theme.danger}
-                style={{ fontFamily: fontFamilies.semiBold }}
-              >
-                {t('bookings.conflict.bannerTitle', 'Double-booking detected')}
-              </Text>
-            </View>
-            <Text variant="bodySmall" color={theme.danger} className="mt-1">
-              {t('bookings.conflict.bannerSubtitle', 'This vehicle is also booked on:')}
-            </Text>
-            <View className="flex-row flex-wrap mt-2" style={{ gap: 6 }}>
-              {booking.conflict.withBookingIds.map((refId) => {
-                const other = bookings.find((b) => b.id === refId);
-                return (
-                  <Pressable
-                    key={refId}
-                    onPress={() => {
-                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push({
-                        pathname: '/(app)/(bookings)/[id]',
-                        params: { id: refId },
-                      });
-                    }}
-                    style={{
-                      backgroundColor: theme.surface,
-                      borderWidth: 1,
-                      borderColor: theme.danger,
-                      borderRadius: 9999,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text
-                      variant="labelSmall"
-                      color={theme.danger}
-                      style={{ fontFamily: fontFamilies.semiBold }}
-                    >
-                      #{refId}
-                      {other ? ` · ${other.startDate} → ${other.endDate}` : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </Animated.View>
-      )}
-
-      {/* ── Client ────────────────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(200)}
-        style={{ marginTop: 18, marginHorizontal: 16 }}
-      >
-        <SectionLabel theme={theme}>{t('bookings.detail.client', 'Client')}</SectionLabel>
-        <View
-          style={{
-            backgroundColor: theme.surface,
-            borderRadius: 18,
-            padding: 14,
-            borderWidth: 1,
-            borderColor: theme.borderLight,
-          }}
-        >
-          <View className="flex-row items-center">
-            <Avatar name={booking.clientName} size="md" />
-            <View className="ml-3 flex-1">
-              <Text
-                variant="titleMedium"
-                style={{ fontFamily: fontFamilies.semiBold, fontSize: 14 }}
-                numberOfLines={1}
-              >
-                {booking.clientName}
-              </Text>
-              {client?.phone ? (
-                <Text
-                  variant="bodySmall"
-                  color={theme.textSecondary}
-                  style={{ fontSize: 12, marginTop: 2 }}
-                  numberOfLines={1}
-                >
-                  {client.phone}
-                </Text>
-              ) : null}
-              {client?.email ? (
-                <Text
-                  variant="bodySmall"
-                  color={theme.textTertiary}
-                  style={{ fontSize: 11 }}
-                  numberOfLines={1}
-                >
-                  {client.email}
-                </Text>
-              ) : null}
-            </View>
-            <View className="flex-row" style={{ gap: 8 }}>
-              <ContactButton
-                icon={Phone}
-                theme={theme}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  showToast({
-                    variant: 'info',
-                    title: t('bookings.detail.callSimulated', 'Call simulated'),
-                    message: client?.phone ?? booking.clientName,
-                  });
-                }}
-              />
-              <ContactButton
-                icon={Mail}
-                theme={theme}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  showToast({
-                    variant: 'info',
-                    title: t('bookings.detail.emailSimulated', 'Email simulated'),
-                    message: client?.email ?? booking.clientName,
-                  });
-                }}
-              />
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* ── Dates & Duration ─────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(260)}
-        style={{ marginTop: 18, marginHorizontal: 16 }}
-      >
-        <SectionLabel theme={theme}>
-          {t('bookings.detail.datesTitle', 'Rental period')}
-        </SectionLabel>
-        <View
-          style={{
-            backgroundColor: theme.surface,
-            borderRadius: 18,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: theme.borderLight,
-          }}
-        >
-          <View className="flex-row items-center">
-            <View style={{ flex: 1 }}>
-              <Text
-                variant="caption"
-                color={theme.textTertiary}
-                style={{ fontSize: 11 }}
-              >
-                {t('bookings.detail.startDate', 'Start')}
-              </Text>
-              <Text
-                variant="titleMedium"
-                style={{ fontFamily: fontFamilies.semiBold, marginTop: 3, fontSize: 15 }}
-              >
-                {formatDate(booking.startDate)}
-              </Text>
-            </View>
-            <View
+            {/* Back */}
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.back();
+              }}
+              hitSlop={10}
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                backgroundColor: theme.surfaceTertiary,
-                alignItems: 'center',
-                justifyContent: 'center',
+                position: "absolute",
+                top: insets.top + 8,
+                left: 16,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: "rgba(255,255,255,0.92)",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <ArrowRight size={14} color={theme.textSecondary} strokeWidth={2} />
-            </View>
-            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-              <Text
-                variant="caption"
-                color={theme.textTertiary}
-                style={{ fontSize: 11 }}
-              >
-                {t('bookings.detail.endDate', 'End')}
-              </Text>
-              <Text
-                variant="titleMedium"
-                style={{ fontFamily: fontFamilies.semiBold, marginTop: 3, fontSize: 15 }}
-              >
-                {formatDate(booking.endDate)}
-              </Text>
-            </View>
-          </View>
+              <ChevronLeft size={22} color="#111" strokeWidth={2.2} />
+            </Pressable>
 
-          <View style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+            {/* Status chip */}
             <View
               style={{
+                position: "absolute",
+                top: insets.top + 12,
+                right: 16,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 9999,
+                backgroundColor: tone.bg,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: tone.fg,
+                }}
+              />
+              <Text
+                variant="labelSmall"
+                color={tone.fg}
+                style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
+              >
+                {statusLabel(booking.status)}
+              </Text>
+            </View>
+
+            {/* Ref chip */}
+            <View
+              style={{
+                position: "absolute",
+                bottom: 40,
+                alignSelf: "center",
                 paddingHorizontal: 12,
                 paddingVertical: 4,
                 borderRadius: 9999,
-                backgroundColor: theme.accentSoft,
+                backgroundColor: "rgba(0,0,0,0.55)",
               }}
             >
               <Text
                 variant="labelSmall"
-                color={theme.accent}
+                color="#FFFFFF"
                 style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
               >
-                {totalDays} {t('bookings.detail.days', 'days')}
+                #{booking.id}
               </Text>
             </View>
           </View>
+        </Animated.View>
 
-          <Divider className="my-3" />
-
-          <DetailRow
-            icon={Clock}
-            label={`${t('bookings.detail.pickup', 'Pickup')}: ${booking.pickupTime}`}
-            theme={theme}
-          />
-          <DetailRow
-            icon={Clock}
-            label={`${t('bookings.detail.return', 'Return')}: ${booking.returnTime}`}
-            theme={theme}
-          />
-          <DetailRow
-            icon={MapPin}
-            label={booking.pickupLocation}
-            theme={theme}
-          />
-          {booking.returnLocation !== booking.pickupLocation && (
-            <DetailRow icon={MapPin} label={booking.returnLocation} theme={theme} />
-          )}
-
-          {booking.status === 'active' && (
-            <View style={{ marginTop: 14 }}>
+        {/* ── Floating info card ────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.duration(450).delay(80)}
+          style={{
+            marginTop: -28,
+            marginHorizontal: 16,
+            backgroundColor: theme.surface,
+            borderRadius: 24,
+            padding: 18,
+            borderWidth: 1,
+            borderColor: theme.borderLight,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
+            elevation: 6,
+          }}
+        >
+          <View className="flex-row items-start">
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text
+                variant="headlineMedium"
+                style={{
+                  fontFamily: fontFamilies.bold,
+                  fontSize: 22,
+                  lineHeight: 26,
+                }}
+                numberOfLines={1}
+              >
+                {booking.vehicleName}
+              </Text>
               <Text
                 variant="bodySmall"
-                color={theme.textSecondary}
-                style={{ marginBottom: 6, fontSize: 12 }}
+                color={theme.textTertiary}
+                style={{ marginTop: 4, fontSize: 12 }}
+                numberOfLines={1}
               >
-                {remaining} {t('bookings.detail.daysRemaining', 'days remaining')}
+                {booking.clientName}
               </Text>
-              <ProgressBar
-                progress={Math.min(1, elapsed / totalDays)}
-                label={`${elapsed} / ${totalDays} ${t('bookings.detail.days', 'days')}`}
-                showPercentage
-                color={theme.accent}
-              />
             </View>
-          )}
-        </View>
-      </Animated.View>
-
-      {/* ── Timeline ──────────────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(320)}
-        style={{ marginTop: 18, marginHorizontal: 16 }}
-      >
-        <SectionLabel theme={theme}>
-          {t('bookings.detail.timeline', 'Timeline')}
-        </SectionLabel>
-        <View
-          style={{
-            backgroundColor: theme.surface,
-            borderRadius: 18,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: theme.borderLight,
-          }}
-        >
-          {timeline.map((step, index) => {
-            const isLast = index === timeline.length - 1;
-            const dotColor = step.completed
-              ? theme.success
-              : step.active
-                ? theme.accent
-                : theme.border;
-            const dotBorderOnly = !step.completed && !step.active;
-
-            return (
-              <View key={step.key} className="flex-row">
-                <View className="items-center" style={{ width: 22 }}>
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: dotBorderOnly ? 'transparent' : dotColor,
-                      borderWidth: dotBorderOnly ? 2 : 0,
-                      borderColor: dotBorderOnly ? theme.border : 'transparent',
-                      marginTop: 4,
-                    }}
-                  />
-                  {!isLast && (
-                    <View
-                      style={{
-                        width: 2,
-                        flex: 1,
-                        backgroundColor: step.completed ? theme.success : theme.border,
-                      }}
-                    />
-                  )}
-                </View>
-                <View className="ml-3 pb-4 flex-1">
-                  <Text
-                    variant="titleSmall"
-                    color={
-                      step.completed
-                        ? theme.textPrimary
-                        : step.active
-                          ? theme.accent
-                          : theme.textTertiary
-                    }
-                    style={{
-                      fontFamily: step.active || step.completed ? fontFamilies.semiBold : fontFamilies.medium,
-                      fontSize: 13,
-                    }}
-                  >
-                    {step.label}
-                  </Text>
-                  {step.date ? (
-                    <Text
-                      variant="caption"
-                      color={theme.textTertiary}
-                      style={{ fontSize: 11, marginTop: 2 }}
-                    >
-                      {formatDate(step.date)}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      </Animated.View>
-
-      {/* ── Pricing ───────────────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(380)}
-        style={{ marginTop: 18, marginHorizontal: 16 }}
-      >
-        <SectionLabel theme={theme}>
-          {t('bookings.detail.pricing', 'Pricing')}
-        </SectionLabel>
-        <View
-          style={{
-            backgroundColor: theme.surface,
-            borderRadius: 18,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: theme.borderLight,
-          }}
-        >
-          <PriceRow
-            label={`${'\u20AC'}${booking.dailyRate} x ${totalDays} ${t('bookings.detail.days', 'days')}`}
-            value={`${'\u20AC'}${subtotal.toLocaleString('fr-FR')}`}
-            theme={theme}
-          />
-          {perDayOptions.map((opt) => (
-            <PriceRow
-              key={opt.id}
-              label={`${opt.label} (${'\u20AC'}${opt.price}/day)`}
-              value={`${'\u20AC'}${(opt.price * totalDays).toLocaleString('fr-FR')}`}
-              theme={theme}
-            />
-          ))}
-          {deliveryOption?.deliveryDetails && (
-            <>
-              <PriceRow
-                label={t('bookings.new.delivery.optionLabel', 'Home delivery')}
-                value={`${'\u20AC'}${deliveryOption.deliveryDetails.fee.toFixed(2)}`}
-                theme={theme}
-              />
+            <View style={{ alignItems: "flex-end" }}>
+              <Text
+                variant="headlineMedium"
+                color={theme.accent}
+                style={{
+                  fontFamily: fontFamilies.bold,
+                  fontSize: 20,
+                  lineHeight: 24,
+                }}
+              >
+                {"\u20AC"}
+                {booking.dailyRate}
+              </Text>
               <Text
                 variant="caption"
                 color={theme.textTertiary}
-                style={{ fontSize: 11, marginTop: -4, marginBottom: 4 }}
-                numberOfLines={2}
+                style={{ fontSize: 11, marginTop: 2 }}
               >
-                {deliveryOption.deliveryDetails.address} ·{' '}
-                {deliveryOption.deliveryDetails.distanceKm.toFixed(2)}{' '}
-                {t('bookings.mileage.unit', 'km')}
+                / {t("bookings.detail.perDay", "day")}
               </Text>
-            </>
-          )}
-
-          <Divider className="my-3" />
-
-          <PriceRow
-            label={t('bookings.detail.deposit', 'Deposit')}
-            value={`${'\u20AC'}${booking.deposit.toLocaleString('fr-FR')}`}
-            theme={theme}
-          />
-
-          <View className="flex-row justify-between" style={{ marginTop: 8 }}>
-            <Text
-              variant="titleMedium"
-              style={{ fontFamily: fontFamilies.semiBold, fontSize: 15 }}
-            >
-              {t('bookings.detail.total', 'Total')}
-            </Text>
-            <Text
-              variant="titleMedium"
-              color={theme.accent}
-              style={{ fontFamily: fontFamilies.bold, fontSize: 18 }}
-            >
-              {'\u20AC'}{total.toLocaleString('fr-FR')}
-            </Text>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* ── Payment ───────────────────────────────────────────────── */}
-      {booking.paymentStatus && (
-        <Animated.View
-          entering={FadeInDown.duration(400).delay(440)}
-          style={{ marginTop: 18, marginHorizontal: 16 }}
-        >
-          <SectionLabel theme={theme}>
-            {t('booking.payment.title', 'Payment')}
-          </SectionLabel>
-          <View
-            style={{
-              backgroundColor: theme.surface,
-              borderRadius: 18,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: theme.borderLight,
-            }}
-          >
-            <View className="flex-row items-center justify-between">
-              <Text
-                variant="bodyMedium"
-                color={theme.textSecondary}
-                style={{ fontSize: 13 }}
-              >
-                {t('booking.payment.status.label', 'Status')}
-              </Text>
-              {(() => {
-                const ps = booking.paymentStatus;
-                const payTone =
-                  ps === 'paid'
-                    ? toneColors('success', theme)
-                    : ps === 'expired' || ps === 'failed'
-                      ? toneColors('danger', theme)
-                      : toneColors('warning', theme);
-                return (
-                  <View
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 9999,
-                      backgroundColor: payTone.bg,
-                    }}
-                  >
-                    <Text
-                      variant="labelSmall"
-                      color={payTone.fg}
-                      style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
-                    >
-                      {t(`booking.payment.status.${ps}`, ps)}
-                    </Text>
-                  </View>
-                );
-              })()}
             </View>
+          </View>
 
-            {booking.paymentLink && booking.paymentStatus === 'link_sent' && (
-              <View style={{ marginTop: 12 }}>
-                <View
-                  style={{
-                    backgroundColor: theme.surfaceTertiary,
-                    borderRadius: 12,
-                    padding: 10,
-                    marginBottom: 10,
-                  }}
-                >
-                  <Text variant="bodySmall" color={theme.textSecondary} numberOfLines={1}>
-                    {booking.paymentLink}
-                  </Text>
-                </View>
-                <View className="flex-row" style={{ gap: 8 }}>
-                  <PayActionPill
-                    icon={Copy}
-                    label={t('booking.payment.copyLink', 'Copy')}
-                    theme={theme}
-                    onPress={() => {
-                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      showToast({
-                        variant: 'success',
-                        title: t('booking.payment.copyLink', 'Link copied'),
-                      });
-                    }}
-                  />
-                  <PayActionPill
-                    icon={MessageCircle}
-                    label="WhatsApp"
-                    theme={theme}
-                    onPress={() => {
-                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      showToast({
-                        variant: 'info',
-                        title: t('booking.payment.sendWhatsApp', 'WhatsApp'),
-                      });
-                    }}
-                  />
-                  <PayActionPill
-                    icon={Send}
-                    label="Email"
-                    theme={theme}
-                    onPress={() => {
-                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      showToast({
-                        variant: 'info',
-                        title: t('booking.payment.sendEmail', 'Email'),
-                      });
-                    }}
-                  />
-                </View>
-              </View>
-            )}
-
-            {booking.paymentStatus === 'expired' && (
-              <View style={{ marginTop: 12 }}>
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onPress={() => {
-                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    showToast({
-                      variant: 'success',
-                      title: t('booking.payment.resend', 'Payment link resent'),
-                    });
-                  }}
-                >
-                  {t('booking.payment.resend', 'Resend Payment Link')}
-                </Button>
-              </View>
-            )}
-
-            {booking.autoCancelAt && booking.paymentStatus !== 'paid' && (
-              <View
-                className="flex-row items-center"
-                style={{
-                  marginTop: 12,
-                  borderRadius: 12,
-                  paddingHorizontal: 10,
-                  paddingVertical: 8,
-                  backgroundColor: theme.warningSoft,
-                }}
-              >
-                <Timer size={14} color={theme.warning} />
-                <Text
-                  variant="bodySmall"
-                  color={theme.warning}
-                  style={{ marginLeft: 6, fontSize: 12 }}
-                >
-                  {t('booking.autoCancelIn', {
-                    defaultValue: 'Auto-cancels in {{time}}',
-                    time: 'soon',
-                  })}
-                </Text>
-              </View>
-            )}
+          {/* Stat chips */}
+          <View className="flex-row" style={{ gap: 8, marginTop: 14 }}>
+            <StatChip
+              icon={Calendar}
+              label={`${totalDays} ${t("bookings.detail.days", "days")}`}
+              color={theme.accent}
+              bg={theme.accentSoft}
+              theme={theme}
+            />
+            <StatChip
+              icon={Timer}
+              label={
+                booking.status === "active"
+                  ? `${remaining}d ${t("bookings.detail.left", "left")}`
+                  : `${"\u20AC"}${total.toLocaleString("fr-FR")}`
+              }
+              color={theme.success}
+              bg={theme.successSoft}
+              theme={theme}
+            />
+            <StatChip
+              icon={FileText}
+              label={`${"\u20AC"}${booking.deposit.toLocaleString("fr-FR")}`}
+              color={theme.info}
+              bg={theme.infoSoft}
+              theme={theme}
+            />
           </View>
         </Animated.View>
-      )}
 
-      {/* ── Insurance ─────────────────────────────────────────────── */}
-      {booking.insurance && (
+        {/* ── Conflict Banner ───────────────────────────────────────── */}
+        {booking.conflict && booking.conflict.withBookingIds.length > 0 && (
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(140)}
+            style={{ marginTop: 16, marginHorizontal: 16 }}
+          >
+            <View
+              style={{
+                backgroundColor: theme.dangerSoft,
+                borderLeftWidth: 4,
+                borderLeftColor: theme.danger,
+                borderRadius: 16,
+                padding: 14,
+              }}
+            >
+              <View className="flex-row items-center" style={{ gap: 8 }}>
+                <AlertTriangle size={16} color={theme.danger} />
+                <Text
+                  variant="titleMedium"
+                  color={theme.danger}
+                  style={{ fontFamily: fontFamilies.semiBold }}
+                >
+                  {t(
+                    "bookings.conflict.bannerTitle",
+                    "Double-booking detected",
+                  )}
+                </Text>
+              </View>
+              <Text variant="bodySmall" color={theme.danger} className="mt-1">
+                {t(
+                  "bookings.conflict.bannerSubtitle",
+                  "This vehicle is also booked on:",
+                )}
+              </Text>
+              <View className="flex-row flex-wrap mt-2" style={{ gap: 6 }}>
+                {booking.conflict.withBookingIds.map((refId) => {
+                  const other = bookings.find((b) => b.id === refId);
+                  return (
+                    <Pressable
+                      key={refId}
+                      onPress={() => {
+                        void Haptics.impactAsync(
+                          Haptics.ImpactFeedbackStyle.Light,
+                        );
+                        router.push({
+                          pathname: "/(app)/(bookings)/[id]",
+                          params: { id: refId },
+                        });
+                      }}
+                      style={{
+                        backgroundColor: theme.surface,
+                        borderWidth: 1,
+                        borderColor: theme.danger,
+                        borderRadius: 9999,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text
+                        variant="labelSmall"
+                        color={theme.danger}
+                        style={{ fontFamily: fontFamilies.semiBold }}
+                      >
+                        #{refId}
+                        {other
+                          ? ` · ${other.startDate} → ${other.endDate}`
+                          : ""}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Client ────────────────────────────────────────────────── */}
         <Animated.View
-          entering={FadeInDown.duration(400).delay(480)}
+          entering={FadeInDown.duration(400).delay(200)}
           style={{ marginTop: 18, marginHorizontal: 16 }}
         >
           <SectionLabel theme={theme}>
-            {t('insurance.title', 'Insurance')}
+            {t("bookings.detail.client", "Client")}
+          </SectionLabel>
+          <View
+            style={{
+              backgroundColor: theme.surface,
+              borderRadius: 18,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: theme.borderLight,
+            }}
+          >
+            <View className="flex-row items-center">
+              <Avatar name={booking.clientName} size="md" />
+              <View className="ml-3 flex-1">
+                <Text
+                  variant="titleMedium"
+                  style={{ fontFamily: fontFamilies.semiBold, fontSize: 14 }}
+                  numberOfLines={1}
+                >
+                  {booking.clientName}
+                </Text>
+                {client?.phone ? (
+                  <Text
+                    variant="bodySmall"
+                    color={theme.textSecondary}
+                    style={{ fontSize: 12, marginTop: 2 }}
+                    numberOfLines={1}
+                  >
+                    {client.phone}
+                  </Text>
+                ) : null}
+                {client?.email ? (
+                  <Text
+                    variant="bodySmall"
+                    color={theme.textTertiary}
+                    style={{ fontSize: 11 }}
+                    numberOfLines={1}
+                  >
+                    {client.email}
+                  </Text>
+                ) : null}
+              </View>
+              <View className="flex-row" style={{ gap: 8 }}>
+                <ContactButton
+                  icon={Phone}
+                  theme={theme}
+                  onPress={() => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    showToast({
+                      variant: "info",
+                      title: t(
+                        "bookings.detail.callSimulated",
+                        "Call simulated",
+                      ),
+                      message: client?.phone ?? booking.clientName,
+                    });
+                  }}
+                />
+                <ContactButton
+                  icon={Mail}
+                  theme={theme}
+                  onPress={() => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    showToast({
+                      variant: "info",
+                      title: t(
+                        "bookings.detail.emailSimulated",
+                        "Email simulated",
+                      ),
+                      message: client?.email ?? booking.clientName,
+                    });
+                  }}
+                />
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ── Dates & Duration ─────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(260)}
+          style={{ marginTop: 18, marginHorizontal: 16 }}
+        >
+          <SectionLabel theme={theme}>
+            {t("bookings.detail.datesTitle", "Rental period")}
           </SectionLabel>
           <View
             style={{
@@ -994,60 +609,227 @@ export default function BookingDetailScreen() {
               borderColor: theme.borderLight,
             }}
           >
-            <View className="flex-row items-center justify-between">
-              <Text
-                variant="titleMedium"
-                style={{ fontFamily: fontFamilies.semiBold, fontSize: 14 }}
-              >
-                {booking.insurance.tier === 'all_inclusive'
-                  ? t('insurance.allInclusive.title', 'All-Inclusive')
-                  : t('insurance.basic.title', 'Basic Insurance')}
-              </Text>
+            <View className="flex-row items-center">
+              <View style={{ flex: 1 }}>
+                <Text
+                  variant="caption"
+                  color={theme.textTertiary}
+                  style={{ fontSize: 11 }}
+                >
+                  {t("bookings.detail.startDate", "Start")}
+                </Text>
+                <Text
+                  variant="titleMedium"
+                  style={{
+                    fontFamily: fontFamilies.semiBold,
+                    marginTop: 3,
+                    fontSize: 15,
+                  }}
+                >
+                  {formatDate(booking.startDate)}
+                </Text>
+              </View>
               <View
                 style={{
-                  paddingHorizontal: 10,
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: theme.surfaceTertiary,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ArrowRight
+                  size={14}
+                  color={theme.textSecondary}
+                  strokeWidth={2}
+                />
+              </View>
+              <View style={{ flex: 1, alignItems: "flex-end" }}>
+                <Text
+                  variant="caption"
+                  color={theme.textTertiary}
+                  style={{ fontSize: 11 }}
+                >
+                  {t("bookings.detail.endDate", "End")}
+                </Text>
+                <Text
+                  variant="titleMedium"
+                  style={{
+                    fontFamily: fontFamilies.semiBold,
+                    marginTop: 3,
+                    fontSize: 15,
+                  }}
+                >
+                  {formatDate(booking.endDate)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ marginTop: 10, alignSelf: "flex-start" }}>
+              <View
+                style={{
+                  paddingHorizontal: 12,
                   paddingVertical: 4,
                   borderRadius: 9999,
-                  backgroundColor:
-                    booking.insurance.tier === 'all_inclusive'
-                      ? theme.accentSoft
-                      : theme.successSoft,
+                  backgroundColor: theme.accentSoft,
                 }}
               >
                 <Text
                   variant="labelSmall"
-                  color={
-                    booking.insurance.tier === 'all_inclusive'
-                      ? theme.accent
-                      : theme.success
-                  }
+                  color={theme.accent}
                   style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
                 >
-                  {booking.insurance.tier === 'all_inclusive'
-                    ? `CHF ${booking.insurance.totalCost}`
-                    : t('insurance.basic.included', 'Included')}
+                  {totalDays} {t("bookings.detail.days", "days")}
                 </Text>
               </View>
             </View>
-            <Text
-              variant="bodySmall"
-              color={theme.textTertiary}
-              style={{ marginTop: 8, fontSize: 12 }}
-            >
-              Excess: CHF {booking.insurance.excess.toLocaleString('fr-FR')}
-            </Text>
+
+            <Divider className="my-3" />
+
+            <DetailRow
+              icon={Clock}
+              label={`${t("bookings.detail.pickup", "Pickup")}: ${booking.pickupTime}`}
+              theme={theme}
+            />
+            <DetailRow
+              icon={Clock}
+              label={`${t("bookings.detail.return", "Return")}: ${booking.returnTime}`}
+              theme={theme}
+            />
+            <DetailRow
+              icon={MapPin}
+              label={booking.pickupLocation}
+              theme={theme}
+            />
+            {booking.returnLocation !== booking.pickupLocation && (
+              <DetailRow
+                icon={MapPin}
+                label={booking.returnLocation}
+                theme={theme}
+              />
+            )}
+
+            {booking.status === "active" && (
+              <View style={{ marginTop: 14 }}>
+                <Text
+                  variant="bodySmall"
+                  color={theme.textSecondary}
+                  style={{ marginBottom: 6, fontSize: 12 }}
+                >
+                  {remaining}{" "}
+                  {t("bookings.detail.daysRemaining", "days remaining")}
+                </Text>
+                <ProgressBar
+                  progress={Math.min(1, elapsed / totalDays)}
+                  label={`${elapsed} / ${totalDays} ${t("bookings.detail.days", "days")}`}
+                  showPercentage
+                  color={theme.accent}
+                />
+              </View>
+            )}
           </View>
         </Animated.View>
-      )}
 
-      {/* ── Mileage (completed) ──────────────────────────────────── */}
-      {booking.status === 'completed' && booking.startMileage != null && (
+        {/* ── Timeline ──────────────────────────────────────────────── */}
         <Animated.View
-          entering={FadeInDown.duration(400).delay(520)}
+          entering={FadeInDown.duration(400).delay(320)}
           style={{ marginTop: 18, marginHorizontal: 16 }}
         >
           <SectionLabel theme={theme}>
-            {t('bookings.mileage.sectionTitle', 'Mileage')}
+            {t("bookings.detail.timeline", "Timeline")}
+          </SectionLabel>
+          <View
+            style={{
+              backgroundColor: theme.surface,
+              borderRadius: 18,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: theme.borderLight,
+            }}
+          >
+            {timeline.map((step, index) => {
+              const isLast = index === timeline.length - 1;
+              const dotColor = step.completed
+                ? theme.success
+                : step.active
+                  ? theme.accent
+                  : theme.border;
+              const dotBorderOnly = !step.completed && !step.active;
+
+              return (
+                <View key={step.key} className="flex-row">
+                  <View className="items-center" style={{ width: 22 }}>
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: dotBorderOnly
+                          ? "transparent"
+                          : dotColor,
+                        borderWidth: dotBorderOnly ? 2 : 0,
+                        borderColor: dotBorderOnly
+                          ? theme.border
+                          : "transparent",
+                        marginTop: 4,
+                      }}
+                    />
+                    {!isLast && (
+                      <View
+                        style={{
+                          width: 2,
+                          flex: 1,
+                          backgroundColor: step.completed
+                            ? theme.success
+                            : theme.border,
+                        }}
+                      />
+                    )}
+                  </View>
+                  <View className="ml-3 pb-4 flex-1">
+                    <Text
+                      variant="titleSmall"
+                      color={
+                        step.completed
+                          ? theme.textPrimary
+                          : step.active
+                            ? theme.accent
+                            : theme.textTertiary
+                      }
+                      style={{
+                        fontFamily:
+                          step.active || step.completed
+                            ? fontFamilies.semiBold
+                            : fontFamilies.medium,
+                        fontSize: 13,
+                      }}
+                    >
+                      {step.label}
+                    </Text>
+                    {step.date ? (
+                      <Text
+                        variant="caption"
+                        color={theme.textTertiary}
+                        style={{ fontSize: 11, marginTop: 2 }}
+                      >
+                        {formatDate(step.date)}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </Animated.View>
+
+        {/* ── Pricing ───────────────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(380)}
+          style={{ marginTop: 18, marginHorizontal: 16 }}
+        >
+          <SectionLabel theme={theme}>
+            {t("bookings.detail.pricing", "Pricing")}
           </SectionLabel>
           <View
             style={{
@@ -1059,119 +841,448 @@ export default function BookingDetailScreen() {
             }}
           >
             <PriceRow
-              label={t('bookings.mileage.startMileageReadonly', 'Departure mileage')}
-              value={`${booking.startMileage.toLocaleString()} ${t('bookings.mileage.unit', 'km')}`}
+              label={`${"\u20AC"}${booking.dailyRate} x ${totalDays} ${t("bookings.detail.days", "days")}`}
+              value={`${"\u20AC"}${subtotal.toLocaleString("fr-FR")}`}
               theme={theme}
             />
-            {booking.returnMileage != null && (
+            {perDayOptions.map((opt) => (
               <PriceRow
-                label={t('bookings.mileage.returnMileageStored', 'Return mileage')}
-                value={`${booking.returnMileage.toLocaleString()} ${t('bookings.mileage.unit', 'km')}`}
+                key={opt.id}
+                label={`${opt.label} (${"\u20AC"}${opt.price}/day)`}
+                value={`${"\u20AC"}${(opt.price * totalDays).toLocaleString("fr-FR")}`}
                 theme={theme}
               />
-            )}
-            {booking.kmDriven != null && (
-              <PriceRow
-                label={t('bookings.mileage.kmDriven', 'Km driven')}
-                value={`${booking.kmDriven.toLocaleString()} ${t('bookings.mileage.unit', 'km')}`}
-                theme={theme}
-                accent
-              />
-            )}
-            {booking.includedKm != null && (
-              <PriceRow
-                label={t('bookings.mileage.includedKm', 'Included km')}
-                value={`${booking.includedKm.toLocaleString()} ${t('bookings.mileage.unit', 'km')}`}
-                theme={theme}
-              />
+            ))}
+            {deliveryOption?.deliveryDetails && (
+              <>
+                <PriceRow
+                  label={t(
+                    "bookings.new.delivery.optionLabel",
+                    "Home delivery",
+                  )}
+                  value={`${"\u20AC"}${deliveryOption.deliveryDetails.fee.toFixed(2)}`}
+                  theme={theme}
+                />
+                <Text
+                  variant="caption"
+                  color={theme.textTertiary}
+                  style={{ fontSize: 11, marginTop: -4, marginBottom: 4 }}
+                  numberOfLines={2}
+                >
+                  {deliveryOption.deliveryDetails.address} ·{" "}
+                  {deliveryOption.deliveryDetails.distanceKm.toFixed(2)}{" "}
+                  {t("bookings.mileage.unit", "km")}
+                </Text>
+              </>
             )}
 
-            {((booking.kmOverage ?? 0) > 0 || (booking.overageCost ?? 0) > 0) && (
-              <>
-                <Divider className="my-2" />
+            <Divider className="my-3" />
+
+            <PriceRow
+              label={t("bookings.detail.deposit", "Deposit")}
+              value={`${"\u20AC"}${booking.deposit.toLocaleString("fr-FR")}`}
+              theme={theme}
+            />
+
+            <View className="flex-row justify-between" style={{ marginTop: 8 }}>
+              <Text
+                variant="titleMedium"
+                style={{ fontFamily: fontFamilies.semiBold, fontSize: 15 }}
+              >
+                {t("bookings.detail.total", "Total")}
+              </Text>
+              <Text
+                variant="titleMedium"
+                color={theme.accent}
+                style={{ fontFamily: fontFamilies.bold, fontSize: 18 }}
+              >
+                {"\u20AC"}
+                {total.toLocaleString("fr-FR")}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ── Payment ───────────────────────────────────────────────── */}
+        {booking.paymentStatus && (
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(440)}
+            style={{ marginTop: 18, marginHorizontal: 16 }}
+          >
+            <SectionLabel theme={theme}>
+              {t("booking.payment.title", "Payment")}
+            </SectionLabel>
+            <View
+              style={{
+                backgroundColor: theme.surface,
+                borderRadius: 18,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: theme.borderLight,
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text
+                  variant="bodyMedium"
+                  color={theme.textSecondary}
+                  style={{ fontSize: 13 }}
+                >
+                  {t("booking.payment.status.label", "Status")}
+                </Text>
+                {(() => {
+                  const ps = booking.paymentStatus;
+                  const payTone =
+                    ps === "paid"
+                      ? toneColors("success", theme)
+                      : ps === "expired" || ps === "failed"
+                        ? toneColors("danger", theme)
+                        : toneColors("warning", theme);
+                  return (
+                    <View
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 9999,
+                        backgroundColor: payTone.bg,
+                      }}
+                    >
+                      <Text
+                        variant="labelSmall"
+                        color={payTone.fg}
+                        style={{
+                          fontFamily: fontFamilies.semiBold,
+                          fontSize: 11,
+                        }}
+                      >
+                        {t(`booking.payment.status.${ps}`, ps)}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {booking.paymentLink && booking.paymentStatus === "link_sent" && (
+                <View style={{ marginTop: 12 }}>
+                  <View
+                    style={{
+                      backgroundColor: theme.surfaceTertiary,
+                      borderRadius: 12,
+                      padding: 10,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Text
+                      variant="bodySmall"
+                      color={theme.textSecondary}
+                      numberOfLines={1}
+                    >
+                      {booking.paymentLink}
+                    </Text>
+                  </View>
+                  <View className="flex-row" style={{ gap: 8 }}>
+                    <PayActionPill
+                      icon={Copy}
+                      label={t("booking.payment.copyLink", "Copy")}
+                      theme={theme}
+                      onPress={() => {
+                        void Haptics.impactAsync(
+                          Haptics.ImpactFeedbackStyle.Light,
+                        );
+                        showToast({
+                          variant: "success",
+                          title: t("booking.payment.copyLink", "Link copied"),
+                        });
+                      }}
+                    />
+                    <PayActionPill
+                      icon={MessageCircle}
+                      label="WhatsApp"
+                      theme={theme}
+                      onPress={() => {
+                        void Haptics.impactAsync(
+                          Haptics.ImpactFeedbackStyle.Light,
+                        );
+                        showToast({
+                          variant: "info",
+                          title: t("booking.payment.sendWhatsApp", "WhatsApp"),
+                        });
+                      }}
+                    />
+                    <PayActionPill
+                      icon={Send}
+                      label="Email"
+                      theme={theme}
+                      onPress={() => {
+                        void Haptics.impactAsync(
+                          Haptics.ImpactFeedbackStyle.Light,
+                        );
+                        showToast({
+                          variant: "info",
+                          title: t("booking.payment.sendEmail", "Email"),
+                        });
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {booking.paymentStatus === "expired" && (
+                <View style={{ marginTop: 12 }}>
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    onPress={() => {
+                      void Haptics.impactAsync(
+                        Haptics.ImpactFeedbackStyle.Medium,
+                      );
+                      showToast({
+                        variant: "success",
+                        title: t(
+                          "booking.payment.resend",
+                          "Payment link resent",
+                        ),
+                      });
+                    }}
+                  >
+                    {t("booking.payment.resend", "Resend Payment Link")}
+                  </Button>
+                </View>
+              )}
+
+              {booking.autoCancelAt && booking.paymentStatus !== "paid" && (
                 <View
-                  className="flex-row justify-between items-center"
+                  className="flex-row items-center"
                   style={{
+                    marginTop: 12,
                     borderRadius: 12,
                     paddingHorizontal: 10,
                     paddingVertical: 8,
                     backgroundColor: theme.warningSoft,
-                    marginTop: 4,
+                  }}
+                >
+                  <Timer size={14} color={theme.warning} />
+                  <Text
+                    variant="bodySmall"
+                    color={theme.warning}
+                    style={{ marginLeft: 6, fontSize: 12 }}
+                  >
+                    {t("booking.autoCancelIn", {
+                      defaultValue: "Auto-cancels in {{time}}",
+                      time: "soon",
+                    })}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Insurance ─────────────────────────────────────────────── */}
+        {booking.insurance && (
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(480)}
+            style={{ marginTop: 18, marginHorizontal: 16 }}
+          >
+            <SectionLabel theme={theme}>
+              {t("insurance.title", "Insurance")}
+            </SectionLabel>
+            <View
+              style={{
+                backgroundColor: theme.surface,
+                borderRadius: 18,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: theme.borderLight,
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text
+                  variant="titleMedium"
+                  style={{ fontFamily: fontFamilies.semiBold, fontSize: 14 }}
+                >
+                  {booking.insurance.tier === "all_inclusive"
+                    ? t("insurance.allInclusive.title", "All-Inclusive")
+                    : t("insurance.basic.title", "Basic Insurance")}
+                </Text>
+                <View
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 9999,
+                    backgroundColor:
+                      booking.insurance.tier === "all_inclusive"
+                        ? theme.accentSoft
+                        : theme.successSoft,
                   }}
                 >
                   <Text
-                    variant="bodyMedium"
-                    color={theme.warning}
-                    style={{ fontSize: 13 }}
+                    variant="labelSmall"
+                    color={
+                      booking.insurance.tier === "all_inclusive"
+                        ? theme.accent
+                        : theme.success
+                    }
+                    style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
                   >
-                    {t('bookings.mileage.overage', 'Overage')}
-                  </Text>
-                  <Text
-                    variant="bodyMedium"
-                    color={theme.warning}
-                    style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
-                  >
-                    {(booking.kmOverage ?? 0).toLocaleString()}{' '}
-                    {t('bookings.mileage.unit', 'km')} · CHF{' '}
-                    {(booking.overageCost ?? 0).toFixed(2)}
+                    {booking.insurance.tier === "all_inclusive"
+                      ? `CHF ${booking.insurance.totalCost}`
+                      : t("insurance.basic.included", "Included")}
                   </Text>
                 </View>
-              </>
+              </View>
+              <Text
+                variant="bodySmall"
+                color={theme.textTertiary}
+                style={{ marginTop: 8, fontSize: 12 }}
+              >
+                Excess: CHF {booking.insurance.excess.toLocaleString("fr-FR")}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Mileage (completed) ──────────────────────────────────── */}
+        {booking.status === "completed" && booking.startMileage != null && (
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(520)}
+            style={{ marginTop: 18, marginHorizontal: 16 }}
+          >
+            <SectionLabel theme={theme}>
+              {t("bookings.mileage.sectionTitle", "Mileage")}
+            </SectionLabel>
+            <View
+              style={{
+                backgroundColor: theme.surface,
+                borderRadius: 18,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: theme.borderLight,
+              }}
+            >
+              <PriceRow
+                label={t(
+                  "bookings.mileage.startMileageReadonly",
+                  "Departure mileage",
+                )}
+                value={`${booking.startMileage.toLocaleString()} ${t("bookings.mileage.unit", "km")}`}
+                theme={theme}
+              />
+              {booking.returnMileage != null && (
+                <PriceRow
+                  label={t(
+                    "bookings.mileage.returnMileageStored",
+                    "Return mileage",
+                  )}
+                  value={`${booking.returnMileage.toLocaleString()} ${t("bookings.mileage.unit", "km")}`}
+                  theme={theme}
+                />
+              )}
+              {booking.kmDriven != null && (
+                <PriceRow
+                  label={t("bookings.mileage.kmDriven", "Km driven")}
+                  value={`${booking.kmDriven.toLocaleString()} ${t("bookings.mileage.unit", "km")}`}
+                  theme={theme}
+                  accent
+                />
+              )}
+              {booking.includedKm != null && (
+                <PriceRow
+                  label={t("bookings.mileage.includedKm", "Included km")}
+                  value={`${booking.includedKm.toLocaleString()} ${t("bookings.mileage.unit", "km")}`}
+                  theme={theme}
+                />
+              )}
+
+              {((booking.kmOverage ?? 0) > 0 ||
+                (booking.overageCost ?? 0) > 0) && (
+                <>
+                  <Divider className="my-2" />
+                  <View
+                    className="flex-row justify-between items-center"
+                    style={{
+                      borderRadius: 12,
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      backgroundColor: theme.warningSoft,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Text
+                      variant="bodyMedium"
+                      color={theme.warning}
+                      style={{ fontSize: 13 }}
+                    >
+                      {t("bookings.mileage.overage", "Overage")}
+                    </Text>
+                    <Text
+                      variant="bodyMedium"
+                      color={theme.warning}
+                      style={{
+                        fontFamily: fontFamilies.semiBold,
+                        fontSize: 13,
+                      }}
+                    >
+                      {(booking.kmOverage ?? 0).toLocaleString()}{" "}
+                      {t("bookings.mileage.unit", "km")} · CHF{" "}
+                      {(booking.overageCost ?? 0).toFixed(2)}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Actions ───────────────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(560)}
+          style={{ marginTop: 22, marginHorizontal: 16 }}
+        >
+          <ActionButtons
+            booking={booking}
+            theme={theme}
+            router={router}
+            showToast={showToast}
+            t={t}
+          />
+        </Animated.View>
+
+        {/* ── Notes ─────────────────────────────────────────────────── */}
+        <Animated.View
+          entering={FadeInDown.duration(400).delay(620)}
+          style={{ marginTop: 18, marginHorizontal: 16, marginBottom: 12 }}
+        >
+          <SectionLabel theme={theme}>
+            {t("bookings.detail.notes", "Notes")}
+          </SectionLabel>
+          <View
+            style={{
+              backgroundColor: theme.surface,
+              borderRadius: 18,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: theme.borderLight,
+            }}
+          >
+            {booking.notes ? (
+              <Text
+                variant="bodyMedium"
+                color={theme.textSecondary}
+                style={{ fontSize: 13, lineHeight: 19 }}
+              >
+                {booking.notes}
+              </Text>
+            ) : (
+              <Text
+                variant="bodyMedium"
+                color={theme.textTertiary}
+                style={{ fontSize: 13 }}
+              >
+                {t("bookings.detail.noNotes", "No notes")}
+              </Text>
             )}
           </View>
         </Animated.View>
-      )}
-
-      {/* ── Actions ───────────────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(560)}
-        style={{ marginTop: 22, marginHorizontal: 16 }}
-      >
-        <ActionButtons
-          booking={booking}
-          theme={theme}
-          router={router}
-          showToast={showToast}
-          t={t}
-        />
-      </Animated.View>
-
-      {/* ── Notes ─────────────────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(620)}
-        style={{ marginTop: 18, marginHorizontal: 16, marginBottom: 12 }}
-      >
-        <SectionLabel theme={theme}>
-          {t('bookings.detail.notes', 'Notes')}
-        </SectionLabel>
-        <View
-          style={{
-            backgroundColor: theme.surface,
-            borderRadius: 18,
-            padding: 14,
-            borderWidth: 1,
-            borderColor: theme.borderLight,
-          }}
-        >
-          {booking.notes ? (
-            <Text
-              variant="bodyMedium"
-              color={theme.textSecondary}
-              style={{ fontSize: 13, lineHeight: 19 }}
-            >
-              {booking.notes}
-            </Text>
-          ) : (
-            <Text
-              variant="bodyMedium"
-              color={theme.textTertiary}
-              style={{ fontSize: 13 }}
-            >
-              {t('bookings.detail.noNotes', 'No notes')}
-            </Text>
-          )}
-        </View>
-      </Animated.View>
       </ScrollView>
     </View>
   );
@@ -1193,7 +1304,7 @@ function SectionLabel({
       style={{
         fontFamily: fontFamilies.medium,
         fontSize: 11,
-        textTransform: 'uppercase',
+        textTransform: "uppercase",
         letterSpacing: 1,
         marginBottom: 8,
         marginLeft: 4,
@@ -1205,7 +1316,11 @@ function SectionLabel({
 }
 
 interface StatChipProps {
-  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   label: string;
   color: string;
   bg: string;
@@ -1217,8 +1332,8 @@ function StatChip({ icon: Icon, label, color, bg, theme }: StatChipProps) {
     <View
       style={{
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         gap: 6,
         paddingHorizontal: 10,
         paddingVertical: 8,
@@ -1232,8 +1347,8 @@ function StatChip({ icon: Icon, label, color, bg, theme }: StatChipProps) {
           height: 22,
           borderRadius: 11,
           backgroundColor: bg,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <Icon size={12} color={color} strokeWidth={2.2} />
@@ -1259,7 +1374,11 @@ function ContactButton({
   theme,
   onPress,
 }: {
-  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
 }) {
@@ -1271,8 +1390,8 @@ function ContactButton({
         height: 40,
         borderRadius: 20,
         backgroundColor: theme.surfaceTertiary,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: "center",
+        justifyContent: "center",
         transform: [{ scale: pressed ? 0.94 : 1 }],
       })}
     >
@@ -1286,7 +1405,11 @@ function DetailRow({
   label,
   theme,
 }: {
-  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   label: string;
   theme: ReturnType<typeof useTheme>;
 }) {
@@ -1346,7 +1469,11 @@ function PayActionPill({
   theme,
   onPress,
 }: {
-  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   label: string;
   theme: ReturnType<typeof useTheme>;
   onPress: () => void;
@@ -1356,9 +1483,9 @@ function PayActionPill({
       onPress={onPress}
       style={({ pressed }) => ({
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         paddingVertical: 9,
         borderRadius: 9999,
         backgroundColor: theme.surfaceTertiary,
@@ -1381,7 +1508,7 @@ function PayActionPill({
 // ── Action Buttons Component ────────────────────────────────────────────────
 
 type ShowToastFn = (toast: {
-  variant: 'success' | 'error' | 'warning' | 'info';
+  variant: "success" | "error" | "warning" | "info";
   title: string;
   message?: string;
   duration?: number;
@@ -1392,22 +1519,31 @@ interface ActionButtonsProps {
   theme: ReturnType<typeof useTheme>;
   router: ReturnType<typeof useRouter>;
   showToast: ShowToastFn;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
 }
 
-function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsProps) {
+function ActionButtons({
+  booking,
+  theme,
+  router,
+  showToast,
+  t,
+}: ActionButtonsProps) {
   const handleCancel = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     useBookingStore.getState().cancelBooking(booking.id);
     showToast({
-      variant: 'success',
-      title: t('bookings.detail.cancelled', 'Booking cancelled'),
-      message: t('bookings.detail.cancelledMsg', 'The booking has been cancelled.'),
+      variant: "success",
+      title: t("bookings.detail.cancelled", "Booking cancelled"),
+      message: t(
+        "bookings.detail.cancelledMsg",
+        "The booking has been cancelled.",
+      ),
     });
   };
 
   switch (booking.status) {
-    case 'pending':
+    case "pending":
       return (
         <View className="gap-3">
           <Button
@@ -1416,14 +1552,16 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             leftIcon={CalendarCheck}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              useBookingStore.getState().updateBookingStatus(booking.id, 'confirmed');
+              useBookingStore
+                .getState()
+                .updateBookingStatus(booking.id, "confirmed");
               showToast({
-                variant: 'success',
-                title: t('bookings.detail.confirmed', 'Booking confirmed'),
+                variant: "success",
+                title: t("bookings.detail.confirmed", "Booking confirmed"),
               });
             }}
           >
-            {t('bookings.detail.confirm', 'Confirm')}
+            {t("bookings.detail.confirm", "Confirm")}
           </Button>
           <Button
             variant="danger"
@@ -1431,12 +1569,12 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             leftIcon={CalendarX}
             onPress={handleCancel}
           >
-            {t('bookings.detail.cancel', 'Cancel')}
+            {t("bookings.detail.cancel", "Cancel")}
           </Button>
         </View>
       );
 
-    case 'confirmed':
+    case "confirmed":
       return (
         <View className="gap-3">
           <Button
@@ -1448,7 +1586,7 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
               router.push(`/(app)/(bookings)/pickup/${booking.id}` as never);
             }}
           >
-            {t('pickup.title', 'Start Pickup')}
+            {t("pickup.title", "Start Pickup")}
           </Button>
           <Button
             variant="danger"
@@ -1456,12 +1594,12 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             leftIcon={CalendarX}
             onPress={handleCancel}
           >
-            {t('bookings.detail.cancel', 'Cancel')}
+            {t("bookings.detail.cancel", "Cancel")}
           </Button>
         </View>
       );
 
-    case 'active':
+    case "active":
       return (
         <View className="gap-3">
           <Button
@@ -1473,7 +1611,7 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
               router.push(`/(app)/(bookings)/return/${booking.id}` as never);
             }}
           >
-            {t('return.title', 'Start Return')}
+            {t("return.title", "Start Return")}
           </Button>
           <Button
             variant="secondary"
@@ -1482,21 +1620,21 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               showToast({
-                variant: 'info',
-                title: t('bookings.detail.extendRental', 'Extend Rental'),
+                variant: "info",
+                title: t("bookings.detail.extendRental", "Extend Rental"),
                 message: t(
-                  'bookings.detail.extendRentalMsg',
-                  'Rental extension will be available soon.',
+                  "bookings.detail.extendRentalMsg",
+                  "Rental extension will be available soon.",
                 ),
               });
             }}
           >
-            {t('bookings.detail.extendRental', 'Extend Rental')}
+            {t("bookings.detail.extendRental", "Extend Rental")}
           </Button>
         </View>
       );
 
-    case 'completed':
+    case "completed":
       return (
         <View className="gap-3">
           <Button
@@ -1506,16 +1644,16 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               showToast({
-                variant: 'info',
-                title: t('bookings.detail.viewInvoice', 'View Invoice'),
+                variant: "info",
+                title: t("bookings.detail.viewInvoice", "View Invoice"),
                 message: t(
-                  'bookings.detail.viewInvoiceMsg',
-                  'Invoice viewer will be available soon.',
+                  "bookings.detail.viewInvoiceMsg",
+                  "Invoice viewer will be available soon.",
                 ),
               });
             }}
           >
-            {t('bookings.detail.viewInvoice', 'View Invoice')}
+            {t("bookings.detail.viewInvoice", "View Invoice")}
           </Button>
           <Button
             variant="secondary"
@@ -1524,21 +1662,21 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               showToast({
-                variant: 'info',
-                title: t('bookings.detail.viewInspection', 'View Inspection'),
+                variant: "info",
+                title: t("bookings.detail.viewInspection", "View Inspection"),
                 message: t(
-                  'bookings.detail.viewInspectionMsg',
-                  'Inspection viewer will be available soon.',
+                  "bookings.detail.viewInspectionMsg",
+                  "Inspection viewer will be available soon.",
                 ),
               });
             }}
           >
-            {t('bookings.detail.viewInspection', 'View Inspection')}
+            {t("bookings.detail.viewInspection", "View Inspection")}
           </Button>
         </View>
       );
 
-    case 'cancelled':
+    case "cancelled":
       return (
         <View className="gap-3">
           <Button
@@ -1548,16 +1686,16 @@ function ActionButtons({ booking, theme, router, showToast, t }: ActionButtonsPr
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               showToast({
-                variant: 'info',
-                title: t('bookings.detail.rebook', 'Rebook'),
+                variant: "info",
+                title: t("bookings.detail.rebook", "Rebook"),
                 message: t(
-                  'bookings.detail.rebookMsg',
-                  'Rebooking will be available soon.',
+                  "bookings.detail.rebookMsg",
+                  "Rebooking will be available soon.",
                 ),
               });
             }}
           >
-            {t('bookings.detail.rebook', 'Rebook')}
+            {t("bookings.detail.rebook", "Rebook")}
           </Button>
         </View>
       );

@@ -48,32 +48,50 @@ export function formatDate(
 
 /**
  * Approximate French relative-time string.
+ * Falls back to a manual implementation when Intl.RelativeTimeFormat
+ * is unavailable (e.g. React Native JSC/Hermes).
  */
 function formatRelativeDate(date: Date): string {
   const now = Date.now();
   const diffMs = date.getTime() - now;
   const absDiffSeconds = Math.round(Math.abs(diffMs) / 1000);
+  const isPast = diffMs < 0;
 
-  const units: Array<{ unit: Intl.RelativeTimeFormatUnit; seconds: number }> = [
-    { unit: 'year', seconds: 31_536_000 },
-    { unit: 'month', seconds: 2_592_000 },
-    { unit: 'week', seconds: 604_800 },
-    { unit: 'day', seconds: 86_400 },
-    { unit: 'hour', seconds: 3_600 },
-    { unit: 'minute', seconds: 60 },
-    { unit: 'second', seconds: 1 },
+  const units: { label: string; labelPlural: string; seconds: number }[] = [
+    { label: 'an', labelPlural: 'ans', seconds: 31_536_000 },
+    { label: 'mois', labelPlural: 'mois', seconds: 2_592_000 },
+    { label: 'semaine', labelPlural: 'semaines', seconds: 604_800 },
+    { label: 'jour', labelPlural: 'jours', seconds: 86_400 },
+    { label: 'heure', labelPlural: 'heures', seconds: 3_600 },
+    { label: 'minute', labelPlural: 'minutes', seconds: 60 },
+    { label: 'seconde', labelPlural: 'secondes', seconds: 1 },
   ];
 
-  const rtf = new Intl.RelativeTimeFormat(DEFAULT_LOCALE, { numeric: 'auto' });
+  if (typeof Intl !== 'undefined' && 'RelativeTimeFormat' in Intl) {
+    const rtf = new (Intl as any).RelativeTimeFormat(DEFAULT_LOCALE, {
+      numeric: 'auto',
+    });
 
-  for (const { unit, seconds } of units) {
+    for (const { label, seconds } of units) {
+      if (absDiffSeconds >= seconds) {
+        const value = Math.round(diffMs / 1000 / seconds);
+        return rtf.format(value, label as any);
+      }
+    }
+
+    return rtf.format(0, 'second');
+  }
+
+  // Fallback for React Native JSC/Hermes without RelativeTimeFormat
+  for (const { label, labelPlural, seconds } of units) {
     if (absDiffSeconds >= seconds) {
-      const value = Math.round(diffMs / 1000 / seconds);
-      return rtf.format(value, unit);
+      const value = Math.round(absDiffSeconds / seconds);
+      const plural = value > 1 ? labelPlural : label;
+      return isPast ? `il y a ${value} ${plural}` : `dans ${value} ${plural}`;
     }
   }
 
-  return rtf.format(0, 'second');
+  return 'maintenant';
 }
 
 /**

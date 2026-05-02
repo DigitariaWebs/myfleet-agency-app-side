@@ -14,6 +14,7 @@ import { Divider } from '@/components/ui/Divider';
 import { useToastStore } from '@/components/ui/Toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useCreateVehicle } from '@/hooks/useFleet';
 import type { VehicleBrand, VehicleCategory, FuelType, Transmission } from '@/types/vehicle';
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ export default function AddVehicleScreen() {
   const [seats, setSeats] = useState('');
   const [dailyRate, setDailyRate] = useState('');
   const [notes, setNotes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createVehicle = useCreateVehicle();
 
   // ── Handlers ────────────────────────────────────────────────────────────
 
@@ -92,13 +93,34 @@ export default function AddVehicleScreen() {
   }, [showToast]);
 
   const handleSubmit = useCallback(() => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      showToast({ variant: 'success', title: 'Vehicle added', message: 'The vehicle has been added to the fleet.' });
-      router.back();
-    }, 800);
-  }, [showToast, router]);
+    createVehicle.mutate(
+      {
+        slug: name.toLowerCase().replace(/\s+/g, '-'),
+        name,
+        brand: brand ?? '',
+        category: category ?? '',
+        year: parseInt(year, 10) || new Date().getFullYear(),
+        mileage: parseInt(mileage, 10) || 0,
+        licensePlate,
+        dailyRate: parseInt(dailyRate, 10) || 0,
+        fuelType: fuelType ?? 'gasoline',
+        transmission: transmission ?? 'automatic',
+        seats: parseInt(seats, 10) || 5,
+        color,
+        features: notes ? [notes] : [],
+        quantity: 1,
+      },
+      {
+        onSuccess: () => {
+          showToast({ variant: 'success', title: 'Vehicle added', message: 'The vehicle has been added to the fleet.' });
+          router.back();
+        },
+        onError: (err: any) => {
+          showToast({ variant: 'error', title: 'Error', message: err?.message || 'Failed to add vehicle' });
+        },
+      }
+    );
+  }, [createVehicle, name, brand, category, year, mileage, licensePlate, dailyRate, fuelType, transmission, seats, color, notes, showToast, router]);
 
   // ── Unauthorized state ──────────────────────────────────────────────────
 
@@ -376,7 +398,7 @@ export default function AddVehicleScreen() {
           variant="primary"
           size="lg"
           fullWidth
-          loading={isSubmitting}
+          loading={createVehicle.isPending}
           onPress={handleSubmit}
         >
           {t('fleet.addVehicle', { defaultValue: 'Add Vehicle' })}

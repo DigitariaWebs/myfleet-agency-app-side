@@ -30,7 +30,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { mockVehicles } from '@/data/vehicles';
+import { useVehicles } from '@/hooks/useFleet';
 import { getVehicleImage } from '@/data/vehicleImages';
 import { matchesVehicleQuery } from '@/utils/vehicleSearch';
 import { fontFamilies } from '@/theme/typography';
@@ -38,18 +38,18 @@ import type { Vehicle, VehicleStatus, VehicleBrand } from '@/types/vehicle';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const ALL_BRANDS = Array.from(
-  new Set(mockVehicles.map((v) => v.brand)),
-).sort() as VehicleBrand[];
-
-function countByStatus(status: VehicleStatus | null): number {
-  if (status === null) return mockVehicles.length;
-  return mockVehicles.filter((v) => v.status === status).length;
+function getAllBrands(vehicles: Vehicle[]): VehicleBrand[] {
+  return Array.from(new Set(vehicles.map((v) => v.brand))).sort() as VehicleBrand[];
 }
 
-function countByBrand(brand: VehicleBrand | null): number {
-  if (brand === null) return mockVehicles.length;
-  return mockVehicles.filter((v) => v.brand === brand).length;
+function countByStatus(vehicles: Vehicle[], status: VehicleStatus | null): number {
+  if (status === null) return vehicles.length;
+  return vehicles.filter((v) => v.status === status).length;
+}
+
+function countByBrand(vehicles: Vehicle[], brand: VehicleBrand | null): number {
+  if (brand === null) return vehicles.length;
+  return vehicles.filter((v) => v.brand === brand).length;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -61,6 +61,8 @@ export default function FleetScreen() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'admin';
   const params = useLocalSearchParams<{ status?: string }>();
+
+  const { data: vehicles = [], isLoading, refetch } = useVehicles();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | null>(null);
@@ -76,17 +78,18 @@ export default function FleetScreen() {
   }, [params.status]);
 
   const filtered = useMemo(() => {
-    return mockVehicles.filter((v) => {
+    return vehicles.filter((v) => {
       if (statusFilter && v.status !== statusFilter) return false;
       if (brandFilter && v.brand !== brandFilter) return false;
       return matchesVehicleQuery(v, search);
     });
-  }, [statusFilter, brandFilter, search]);
+  }, [vehicles, statusFilter, brandFilter, search]);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   const handleToggleView = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -338,7 +341,7 @@ export default function FleetScreen() {
                 color={theme.accent}
                 style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
               >
-                {mockVehicles.length}
+                {vehicles.length}
               </Text>
             </View>
           </View>
@@ -437,7 +440,7 @@ export default function FleetScreen() {
               return (
                 <FilterPill
                   key={opt.label}
-                  label={`${opt.label} (${countByStatus(opt.value)})`}
+                  label={`${opt.label} (${countByStatus(vehicles, opt.value)})`}
                   selected={selected}
                   onPress={() => {
                     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -461,7 +464,7 @@ export default function FleetScreen() {
             contentContainerStyle={{ gap: 8, paddingRight: 4 }}
           >
             <FilterPill
-              label={`${t('fleet.filter.all', 'All')} (${countByBrand(null)})`}
+              label={`${t('fleet.filter.all', 'All')} (${countByBrand(vehicles, null)})`}
               selected={brandFilter === null}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -469,10 +472,10 @@ export default function FleetScreen() {
               }}
               theme={theme}
             />
-            {ALL_BRANDS.map((brand) => (
+            {getAllBrands(vehicles).map((brand) => (
               <FilterPill
                 key={brand}
-                label={`${brand} (${countByBrand(brand)})`}
+                label={`${brand} (${countByBrand(vehicles, brand)})`}
                 selected={brandFilter === brand}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

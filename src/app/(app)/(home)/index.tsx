@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { FlatList, Pressable, View, type ListRenderItem } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
-  AlertTriangle,
   Bell,
   CalendarPlus,
   Car,
@@ -26,7 +25,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { FabMenu } from "@/components/ui/FabMenu";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useBookingStore, useConflictingBookings } from "@/stores/useBookingStore";
+import { useConflictCount } from "@/stores/useBookingStore";
 import { fontFamilies } from "@/theme/typography";
 import { getVehicleImage } from "@/data/vehicleImages";
 import {
@@ -73,7 +72,7 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const [refreshing, setRefreshing] = useState(false);
 
-  const conflictCount = useConflictingBookings().length;
+  const conflictCount = useConflictCount();
 
   const dateStr = useMemo(getFormattedDate, []);
   const overdueCount = useMemo(() => countOverdue(upcomingReturns), []);
@@ -88,6 +87,73 @@ export default function HomeScreen() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   }, []);
+
+  // ── Callbacks ──────────────────────────────────────────────
+
+  const handleProfilePress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/(app)/(more)/settings/profile");
+  }, [router]);
+
+  const handleNotificationsPress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/(app)/(more)/notifications");
+  }, [router]);
+
+  const handleSearchPress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/(app)/(bookings)");
+  }, [router]);
+
+  const handleFleetPress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/(app)/(home)/statistics");
+  }, [router]);
+
+  const handleActionNewInspection = useCallback(() => {
+    router.push("/(app)/(inspections)/new");
+  }, [router]);
+
+  const handleActionNewBooking = useCallback(() => {
+    router.push("/(app)/(bookings)/new");
+  }, [router]);
+
+  const handleActionNewClient = useCallback(() => {
+    router.push("/(app)/(more)/clients/new");
+  }, [router]);
+
+  const handleReturnPress = useCallback(
+    (bookingId: string) => {
+      router.push({
+        pathname: "/(app)/(bookings)/[id]",
+        params: { id: bookingId },
+      });
+    },
+    [router],
+  );
+
+  const handleRentalPress = useCallback(
+    (bookingId: string) => {
+      router.push({
+        pathname: "/(app)/(bookings)/[id]",
+        params: { id: bookingId },
+      });
+    },
+    [router],
+  );
+
+  const renderRentalItem: ListRenderItem<ActiveRental> = useCallback(
+    ({ item }) => (
+      <RentalCard
+        rental={item}
+        theme={theme}
+        onPress={() => handleRentalPress(item.bookingId)}
+      />
+    ),
+    [theme, handleRentalPress],
+  );
+
+  const rentalKeyExtractor = useCallback((item: ActiveRental) => item.id, []);
 
   // ── Focus card ─────────────────────────────────────────────
   const focus = useMemo(() => {
@@ -138,21 +204,28 @@ export default function HomeScreen() {
 
   return (
     <>
-      <ScreenWrapper scroll refreshing={refreshing} onRefresh={onRefresh} padded={false}>
+      <ScreenWrapper
+        scroll
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        padded={false}
+      >
         {/* ═══ Top bar ═══════════════════════════════════════════ */}
         <Animated.View
           entering={FadeInDown.duration(350)}
           className="px-5 pt-2 pb-5"
         >
           <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center" style={{ gap: 12, flex: 1 }}>
-              <Pressable
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/(app)/(more)/settings/profile");
-                }}
-              >
-                <Avatar name={user?.name ?? "U"} source={user?.avatar} size="md" />
+            <View
+              className="flex-row items-center"
+              style={{ gap: 12, flex: 1 }}
+            >
+              <Pressable onPress={handleProfilePress}>
+                <Avatar
+                  name={user?.name ?? "U"}
+                  source={user?.avatar}
+                  size="md"
+                />
               </Pressable>
               <View style={{ flex: 1 }}>
                 <Text
@@ -173,16 +246,12 @@ export default function HomeScreen() {
                   }}
                   numberOfLines={1}
                 >
-                  {t(getGreetingKey())},{" "}
-                  {user?.name?.split(" ")[0] ?? "User"}
+                  {t(getGreetingKey())}, {user?.name?.split(" ")[0] ?? "User"}
                 </Text>
               </View>
             </View>
             <Pressable
-              onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/(app)/(more)/notifications");
-              }}
+              onPress={handleNotificationsPress}
               style={{
                 width: 42,
                 height: 42,
@@ -305,10 +374,7 @@ export default function HomeScreen() {
           className="px-5 mt-4"
         >
           <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/(app)/(bookings)");
-            }}
+            onPress={handleSearchPress}
             style={({ pressed }) => ({
               flexDirection: "row",
               alignItems: "center",
@@ -339,10 +405,7 @@ export default function HomeScreen() {
           className="px-5 mt-4"
         >
           <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/(app)/(home)/statistics");
-            }}
+            onPress={handleFleetPress}
             style={({ pressed }) => ({
               backgroundColor: theme.surface,
               borderRadius: 22,
@@ -382,7 +445,11 @@ export default function HomeScreen() {
                   justifyContent: "center",
                 }}
               >
-                <ChevronRight size={16} color={theme.textSecondary} strokeWidth={2} />
+                <ChevronRight
+                  size={16}
+                  color={theme.textSecondary}
+                  strokeWidth={2}
+                />
               </View>
             </View>
 
@@ -396,9 +463,15 @@ export default function HomeScreen() {
                 backgroundColor: theme.surfaceTertiary,
               }}
             >
-              <View style={{ flex: rentedPct, backgroundColor: theme.success }} />
-              <View style={{ flex: availablePct, backgroundColor: theme.info }} />
-              <View style={{ flex: maintenancePct, backgroundColor: theme.warning }} />
+              <View
+                style={{ flex: rentedPct, backgroundColor: theme.success }}
+              />
+              <View
+                style={{ flex: availablePct, backgroundColor: theme.info }}
+              />
+              <View
+                style={{ flex: maintenancePct, backgroundColor: theme.warning }}
+              />
             </View>
 
             <View className="flex-row" style={{ gap: 8 }}>
@@ -437,19 +510,19 @@ export default function HomeScreen() {
               icon={ScanLine}
               label="Inspection"
               theme={theme}
-              onPress={() => router.push("/(app)/(inspections)/new")}
+              onPress={handleActionNewInspection}
             />
             <QuickAction
               icon={CalendarPlus}
               label="Réservation"
               theme={theme}
-              onPress={() => router.push("/(app)/(bookings)/new")}
+              onPress={handleActionNewBooking}
             />
             <QuickAction
               icon={UserPlus}
               label="Client"
               theme={theme}
-              onPress={() => router.push("/(app)/(more)/clients/new")}
+              onPress={handleActionNewClient}
             />
           </View>
         </Animated.View>
@@ -464,7 +537,7 @@ export default function HomeScreen() {
               variant="titleMedium"
               style={{ fontFamily: fontFamilies.bold, fontSize: 16 }}
             >
-              Retours aujourd'hui
+              Retours aujourd&apos;hui
             </Text>
             {upcomingReturns.length > 0 && (
               <Text
@@ -498,24 +571,21 @@ export default function HomeScreen() {
                   color={theme.textSecondary}
                   style={{ marginTop: 8 }}
                 >
-                  Aucun retour prévu aujourd'hui
+                  Aucun retour prévu aujourd&apos;hui
                 </Text>
               </View>
             ) : (
-              upcomingReturns.slice(0, 4).map((ret, idx) => (
-                <ReturnRow
-                  key={ret.id}
-                  item={ret}
-                  isLast={idx === Math.min(upcomingReturns.length, 4) - 1}
-                  theme={theme}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(app)/(bookings)/[id]",
-                      params: { id: ret.bookingId },
-                    })
-                  }
-                />
-              ))
+              upcomingReturns
+                .slice(0, 4)
+                .map((ret, idx) => (
+                  <ReturnRow
+                    key={ret.id}
+                    item={ret}
+                    isLast={idx === Math.min(upcomingReturns.length, 4) - 1}
+                    theme={theme}
+                    onPress={() => handleReturnPress(ret.bookingId)}
+                  />
+                ))
             )}
           </View>
         </Animated.View>
@@ -554,29 +624,22 @@ export default function HomeScreen() {
               <ChevronRight size={13} color={theme.accent} strokeWidth={2.2} />
             </Pressable>
           </View>
-          <ScrollView
+          <FlatList
             horizontal
+            data={activeRentals}
+            renderItem={renderRentalItem}
+            keyExtractor={rentalKeyExtractor}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
               paddingHorizontal: 20,
               gap: 12,
               paddingBottom: 2,
             }}
-          >
-            {activeRentals.map((rental) => (
-              <RentalCard
-                key={rental.id}
-                rental={rental}
-                theme={theme}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(app)/(bookings)/[id]",
-                    params: { id: rental.bookingId },
-                  })
-                }
-              />
-            ))}
-          </ScrollView>
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
+            windowSize={5}
+            removeClippedSubviews={true}
+          />
         </Animated.View>
       </ScreenWrapper>
 
@@ -587,7 +650,7 @@ export default function HomeScreen() {
 
 // ── Subcomponents ──────────────────────────────────────────────────────────
 
-function FocusGradient({
+const FocusGradient = React.memo(function FocusGradient({
   tone,
   theme,
 }: {
@@ -614,9 +677,9 @@ function FocusGradient({
       }}
     />
   );
-}
+});
 
-function LegendChip({
+const LegendChip = React.memo(function LegendChip({
   dot,
   label,
   theme,
@@ -649,7 +712,7 @@ function LegendChip({
       </Text>
     </View>
   );
-}
+});
 
 interface QuickActionProps {
   icon: LucideIcon;
@@ -658,7 +721,12 @@ interface QuickActionProps {
   onPress: () => void;
 }
 
-function QuickAction({ icon: Icon, label, theme, onPress }: QuickActionProps) {
+const QuickAction = React.memo(function QuickAction({
+  icon: Icon,
+  label,
+  theme,
+  onPress,
+}: QuickActionProps) {
   return (
     <Pressable
       onPress={() => {
@@ -702,7 +770,7 @@ function QuickAction({ icon: Icon, label, theme, onPress }: QuickActionProps) {
       </Text>
     </Pressable>
   );
-}
+});
 
 interface ReturnRowProps {
   item: UpcomingReturn;
@@ -711,7 +779,14 @@ interface ReturnRowProps {
   onPress: () => void;
 }
 
-function ReturnRow({ item, isLast, theme, onPress }: ReturnRowProps) {
+const ReturnRow = React.memo(function ReturnRow({
+  item,
+  isLast,
+  theme,
+  onPress,
+}: ReturnRowProps) {
+  const imageSource = getVehicleImage(item.vehicle.id);
+
   return (
     <Pressable
       onPress={() => {
@@ -740,9 +815,9 @@ function ReturnRow({ item, isLast, theme, onPress }: ReturnRowProps) {
           marginRight: 12,
         }}
       >
-        {getVehicleImage(item.vehicle.id) ? (
+        {imageSource ? (
           <Image
-            source={getVehicleImage(item.vehicle.id)!}
+            source={imageSource}
             style={{ width: 42, height: 42 }}
             contentFit="cover"
             transition={200}
@@ -794,7 +869,7 @@ function ReturnRow({ item, isLast, theme, onPress }: ReturnRowProps) {
       </View>
     </Pressable>
   );
-}
+});
 
 interface RentalCardProps {
   rental: ActiveRental;
@@ -802,7 +877,13 @@ interface RentalCardProps {
   onPress: () => void;
 }
 
-function RentalCard({ rental, theme, onPress }: RentalCardProps) {
+const RentalCard = React.memo(function RentalCard({
+  rental,
+  theme,
+  onPress,
+}: RentalCardProps) {
+  const imageSource = getVehicleImage(rental.vehicle.id);
+
   return (
     <Pressable
       onPress={() => {
@@ -826,9 +907,9 @@ function RentalCard({ rental, theme, onPress }: RentalCardProps) {
           overflow: "hidden",
         }}
       >
-        {getVehicleImage(rental.vehicle.id) ? (
+        {imageSource ? (
           <Image
-            source={getVehicleImage(rental.vehicle.id)!}
+            source={imageSource}
             style={{ width: "100%", height: 140 }}
             contentFit="cover"
             transition={200}
@@ -868,7 +949,10 @@ function RentalCard({ rental, theme, onPress }: RentalCardProps) {
           {rental.vehicle.name}
         </Text>
         <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
-          <Avatar name={`${rental.client.firstName} ${rental.client.lastName}`} size="sm" />
+          <Avatar
+            name={`${rental.client.firstName} ${rental.client.lastName}`}
+            size="sm"
+          />
           <Text
             variant="caption"
             color={theme.textSecondary}
@@ -889,12 +973,20 @@ function RentalCard({ rental, theme, onPress }: RentalCardProps) {
             justifyContent: "space-between",
           }}
         >
-          <Text variant="caption" color={theme.textTertiary} style={{ fontSize: 11 }}>
+          <Text
+            variant="caption"
+            color={theme.textTertiary}
+            style={{ fontSize: 11 }}
+          >
             Retour
           </Text>
           <Text
             variant="labelSmall"
-            style={{ fontFamily: fontFamilies.semiBold, fontSize: 12, color: theme.accent }}
+            style={{
+              fontFamily: fontFamilies.semiBold,
+              fontSize: 12,
+              color: theme.accent,
+            }}
           >
             {rental.returnDate}
           </Text>
@@ -902,4 +994,4 @@ function RentalCard({ rental, theme, onPress }: RentalCardProps) {
       </View>
     </Pressable>
   );
-}
+});

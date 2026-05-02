@@ -43,7 +43,7 @@ import { Card } from '@/components/ui/Card';
 import { Divider } from '@/components/ui/Divider';
 import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/components/ui/Toast';
-import { useClientStore } from '@/stores/useClientStore';
+import { useCreateClient } from '@/hooks/useClients';
 import { fontFamilies } from '@/theme/typography';
 import { shadows } from '@/theme/shadows';
 import type { Client } from '@/types/client';
@@ -297,7 +297,7 @@ export default function QuickRegisterScreen() {
   const theme = useTheme();
   const router = useRouter();
   const showToast = useToastStore((s) => s.show);
-  const addClient = useClientStore((s) => s.addClient);
+  const createClient = useCreateClient();
 
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -342,7 +342,7 @@ export default function QuickRegisterScreen() {
     }));
   }, []);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!firstName.trim() || !lastName.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showToast({
@@ -370,10 +370,8 @@ export default function QuickRegisterScreen() {
     setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newClient: Client = {
-        id: `c-walkin-${Date.now()}`,
+    try {
+      await createClient.mutateAsync({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
@@ -384,11 +382,6 @@ export default function QuickRegisterScreen() {
         idNumber: '',
         driverLicense: '',
         driverLicenseExpiry: '',
-        tags: ['new'],
-        flagReason: null,
-        totalBookings: 0,
-        totalSpent: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
         notes: '',
         documents: {
           idFront: documents.idFront ?? undefined,
@@ -398,28 +391,33 @@ export default function QuickRegisterScreen() {
           creditCardFront: documents.creditCardFront ?? undefined,
         },
         registrationMethod: 'walk-in',
-        registeredAt: new Date().toISOString(),
-      };
+      });
 
-      addClient(newClient);
       setIsSubmitting(false);
       setShowSuccess(true);
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Navigate back after success animation
       setTimeout(() => {
         showToast({
           variant: 'success',
           title: t('clients.quickRegister.successTitle', { defaultValue: 'Client Registered' }),
           message: t('clients.quickRegister.successMessage', {
-            defaultValue: `${newClient.firstName} ${newClient.lastName} has been registered.`,
+            defaultValue: `${firstName.trim()} ${lastName.trim()} has been registered.`,
           }),
         });
         router.back();
       }, 1800);
-    }, 1200);
-  }, [firstName, lastName, phone, email, documents, addClient, showToast, router, t]);
+    } catch {
+      setIsSubmitting(false);
+      showToast({
+        variant: 'error',
+        title: t('clients.quickRegister.errorTitle', { defaultValue: 'Error' }),
+        message: t('clients.quickRegister.createError', {
+          defaultValue: 'Failed to register client. Please try again.',
+        }),
+      });
+    }
+  }, [firstName, lastName, phone, email, documents, createClient, showToast, router, t]);
 
   // ── Success overlay ──────────────────────────────────────────────────────
 

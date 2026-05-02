@@ -10,15 +10,11 @@ interface FleetFilters {
 }
 
 interface FleetState {
-  vehicles: Vehicle[];
   selectedVehicle: Vehicle | null;
   filters: FleetFilters;
 }
 
 interface FleetActions {
-  setVehicles: (vehicles: Vehicle[]) => void;
-  addVehicle: (vehicle: Vehicle) => void;
-  updateVehicle: (id: string, updates: Partial<Vehicle>) => void;
   setFilter: <K extends keyof FleetFilters>(key: K, value: FleetFilters[K]) => void;
   selectVehicle: (vehicle: Vehicle | null) => void;
 }
@@ -29,7 +25,6 @@ type FleetStore = FleetState & FleetActions;
 
 export const useFleetStore = create<FleetStore>()((set) => ({
   // State
-  vehicles: [],
   selectedVehicle: null,
   filters: {
     status: null,
@@ -38,24 +33,6 @@ export const useFleetStore = create<FleetStore>()((set) => ({
   },
 
   // Actions
-  setVehicles: (vehicles) => set({ vehicles }),
-
-  addVehicle: (vehicle) =>
-    set((state) => ({
-      vehicles: [...state.vehicles, vehicle],
-    })),
-
-  updateVehicle: (id, updates) =>
-    set((state) => ({
-      vehicles: state.vehicles.map((v) =>
-        v.id === id ? { ...v, ...updates } : v,
-      ),
-      selectedVehicle:
-        state.selectedVehicle?.id === id
-          ? { ...state.selectedVehicle, ...updates }
-          : state.selectedVehicle,
-    })),
-
   setFilter: (key, value) =>
     set((state) => ({
       filters: { ...state.filters, [key]: value },

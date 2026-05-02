@@ -600,7 +600,7 @@ function ActionButtons({
                 Client notifi{'\u00E9'}
               </Text>
               <Text className="mt-1 text-sm text-text-secondary">
-                L'infraction a déjà été transmise avant tout débit.
+                L&apos;infraction a déjà été transmise avant tout débit.
               </Text>
             </View>
           </View>

@@ -31,7 +31,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { VideoPlayer } from '@/components/vehicle/VideoPlayer';
 import { useTheme } from '@/hooks/useTheme';
-import { mockVehicles } from '@/data/vehicles';
+import { useVehicle } from '@/hooks/useFleet';
 import { getVehicleImage } from '@/data/vehicleImages';
 import { fontFamilies } from '@/theme/typography';
 import type { Vehicle, FuelType, DamageRecord } from '@/types/vehicle';
@@ -184,9 +184,19 @@ export default function VehicleDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const vehicle = mockVehicles.find((v) => v.id === id);
+  const { data: vehicle, isLoading } = useVehicle(id);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [mediaTab, setMediaTab] = useState<MediaTab>('photos');
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <View className="flex-1 items-center justify-center px-4 py-20">
+          <Text color={theme.textSecondary}>{t('common.loading', 'Loading...')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!vehicle) {
     return (

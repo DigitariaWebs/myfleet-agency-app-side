@@ -17,7 +17,7 @@ export interface DeliveryDetails {
 export interface BookingOption {
   id: string;
   label: string;
-  /** Per-day rate. Set to 0 for one-time distance options (see deliveryDetails.fee). */
+  /** Per-day rate in cents. Set to 0 for one-time distance options (see deliveryDetails.fee). */
   price: number;
   enabled: boolean;
   /** Set when a distance-based option, such as delivery or custom recovery, has a resolved address. */
@@ -25,14 +25,19 @@ export interface BookingOption {
 }
 
 export interface PricingBreakdown {
+  /** In cents (smallest currency unit). */
   dailyRate: number;
   days: number;
+  /** In cents. */
   subtotal: number;
   options: BookingOption[];
+  /** In cents. */
   optionsTotal: number;
-  /** One-time delivery fee (0 when no delivery option is enabled). */
+  /** One-time delivery fee in cents (0 when no delivery option is enabled). */
   deliveryFee: number;
+  /** In cents. */
   deposit: number;
+  /** In cents. */
   total: number;
 }
 
@@ -53,8 +58,11 @@ export interface Booking {
   startDate: string;
   endDate: string;
   status: BookingStatus;
+  /** In cents (smallest currency unit). */
   dailyRate: number;
+  /** In cents. */
   totalAmount: number;
+  /** In cents. */
   deposit: number;
   pickupLocation: string;
   returnLocation: string;
@@ -73,9 +81,12 @@ export interface Booking {
   // Insurance fields
   insurance?: {
     tier: 'basic' | 'all_inclusive';
-    dailyRate: number;        // 0 for basic, 25 for all-inclusive (CHF)
-    totalCost: number;        // dailyRate * rentalDays
-    excess: number;           // 1500 for basic, 0 for all-inclusive
+    /** In cents. 0 for basic, 2500 for all-inclusive. */
+    dailyRate: number;
+    /** In cents. */
+    totalCost: number;
+    /** In cents. 150000 for basic, 0 for all-inclusive. */
+    excess: number;
   };
 
   // Auto-cancel

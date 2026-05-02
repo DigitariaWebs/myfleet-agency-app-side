@@ -19,8 +19,11 @@ export interface Violation {
   type: ViolationType;
   date: string;
   receivedDate: string;
+  /** In cents (smallest currency unit). */
   fineAmount: number;
+  /** In cents. */
   adminFee: number;
+  /** In cents. */
   totalCharge: number;
   location: string;
   status: ViolationStatus;

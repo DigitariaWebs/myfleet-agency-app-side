@@ -101,7 +101,7 @@ function httpStatusToErrorCode(
 
 interface MapboxGeocodeResponse {
   type: 'FeatureCollection';
-  features: Array<{
+  features: {
     properties: {
       full_address?: string;
       name?: string;
@@ -111,7 +111,7 @@ interface MapboxGeocodeResponse {
       type: 'Point';
       coordinates: [number, number]; // [lng, lat]
     };
-  }>;
+  }[];
 }
 
 export async function geocodeAddress(address: string): Promise<GeocodeResult> {
@@ -163,10 +163,10 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
 interface MapboxDirectionsResponse {
   code: string; // 'Ok' | 'NoRoute' | 'NoSegment' | 'ProfileNotFound' | 'InvalidInput' | ...
   message?: string;
-  routes: Array<{
+  routes: {
     distance: number; // meters
     duration: number; // seconds
-  }>;
+  }[];
 }
 
 function latLngToPoint(value: LatLng | string): string {

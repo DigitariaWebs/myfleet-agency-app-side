@@ -294,7 +294,7 @@ export default function InvoiceDetailScreen() {
           <View className="flex-row justify-between">
             <View>
               <Text variant="bodySmall" color={theme.textTertiary}>
-                Date d'{'\u00E9'}mission
+                Date d&apos;{'\u00E9'}mission
               </Text>
               <Text variant="bodySmall" className="mt-1">
                 {formatDate(invoice.issuedDate)}
@@ -302,7 +302,7 @@ export default function InvoiceDetailScreen() {
             </View>
             <View className="items-end">
               <Text variant="bodySmall" color={theme.textTertiary}>
-                Date d'{'\u00E9'}ch{'\u00E9'}ance
+                Date d&apos;{'\u00E9'}ch{'\u00E9'}ance
               </Text>
               <Text variant="bodySmall" className="mt-1">
                 {formatDate(invoice.dueDate)}

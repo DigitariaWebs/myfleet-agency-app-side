@@ -25,6 +25,7 @@ export interface Client {
   tags: ClientTag[];
   flagReason: string | null;
   totalBookings: number;
+  /** In cents (smallest currency unit). */
   totalSpent: number;
   createdAt: string;
   notes: string;

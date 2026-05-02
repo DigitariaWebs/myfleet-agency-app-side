@@ -43,6 +43,7 @@ export interface RentalHistoryEntry {
   startDate: string;
   endDate: string;
   duration: number; // days
+  /** In cents (smallest currency unit). */
   revenue: number;
 }
 
@@ -67,6 +68,7 @@ export interface Vehicle {
   year: number;
   mileage: number;
   licensePlate: string;
+  /** In cents (smallest currency unit). */
   dailyRate: number;
   images: string[];
   fuelType: FuelType;
@@ -80,6 +82,6 @@ export interface Vehicle {
   quantity: number;
   /** Default km included per rental — copied onto Booking at creation. */
   includedKm?: number;
-  /** Default cost per km above includedKm, in CHF. */
+  /** Default cost per km above includedKm, in cents. */
   extraKmRate?: number;
 }

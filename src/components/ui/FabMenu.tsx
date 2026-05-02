@@ -22,7 +22,7 @@ import { fontFamilies } from "@/theme/typography";
 
 // ── Public component ─────────────────────────────────────────────────────────
 
-export function FabMenu() {
+export const FabMenu = React.memo(function FabMenu() {
   const theme = useTheme();
   const router = useRouter();
   const { t } = useTranslation();
@@ -180,7 +180,7 @@ export function FabMenu() {
       </Modal>
     </>
   );
-}
+});
 
 // ── Action row ───────────────────────────────────────────────────────────────
 

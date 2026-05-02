@@ -185,7 +185,7 @@ export default function NewViolationScreen() {
         {/* Date */}
         <Animated.View entering={FadeInDown.delay(0).duration(400).springify()}>
           <Input
-            label="Date de l'infraction"
+            label="Date de l&apos;infraction"
             placeholder="YYYY-MM-DD"
             value={date}
             onChangeText={setDate}
@@ -256,7 +256,7 @@ export default function NewViolationScreen() {
             color={theme.textSecondary}
             className="mb-2"
           >
-            Type d'infraction
+            Type d&apos;infraction
           </Text>
           <ChipGroup>
             {TYPE_OPTIONS.map((opt) => (
@@ -365,7 +365,7 @@ export default function NewViolationScreen() {
       <Animated.View entering={FadeInDown.delay(0).duration(400).springify()}>
         <Card className="mb-4">
           <Text variant="titleMedium" className="mb-3">
-            Détails de l'infraction
+            Détails de l&apos;infraction
           </Text>
 
           <InfoRow label="Référence" value={reference} theme={theme} />
@@ -422,7 +422,7 @@ export default function NewViolationScreen() {
           leftIcon={Save}
           onPress={handleSubmit}
         >
-          Enregistrer l'infraction
+          Enregistrer l&apos;infraction
         </Button>
       </Animated.View>
     </ScreenWrapper>
