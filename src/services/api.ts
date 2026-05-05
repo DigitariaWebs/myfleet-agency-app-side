@@ -1,9 +1,10 @@
+import { getAuthHeader } from "@/services/authHeader";
+
 const DEFAULT_API_BASE_URL = "http://localhost:4000";
 
-export const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_BASE_URL).replace(
-  /\/+$/,
-  "",
-);
+export const BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_BASE_URL
+).replace(/\/+$/, "");
 
 export const AUTH_BASE_URL = (
   process.env.EXPO_PUBLIC_AUTH_BASE_URL ?? `${BASE_URL}/auth`
@@ -97,7 +98,8 @@ export async function apiRequest<T>(
       throw new ApiClientError({
         status: response.status,
         code: "HTTP_ERROR",
-        message: typeof body === "string" && body.length > 0 ? body : errorMessage,
+        message:
+          typeof body === "string" && body.length > 0 ? body : errorMessage,
       });
     }
 
@@ -123,7 +125,8 @@ export async function apiRequest<T>(
 
   throw new ApiClientError({
     status: response.status,
-    code: envelope.error?.code ?? (response.ok ? "INVALID_ENVELOPE" : "HTTP_ERROR"),
+    code:
+      envelope.error?.code ?? (response.ok ? "INVALID_ENVELOPE" : "HTTP_ERROR"),
     message,
     details: envelope.error?.details ?? body,
   });
@@ -136,4 +139,17 @@ export async function apiRequest<T>(
 export function delay(ms?: number): Promise<void> {
   const duration = ms ?? Math.floor(Math.random() * 500) + 300;
   return new Promise((resolve) => setTimeout(resolve, duration));
+}
+
+export async function authedRequest<T>(
+  path: string,
+  init: RequestInit & { baseUrl?: string } = {},
+): Promise<T> {
+  return apiRequest<T>(path, {
+    ...init,
+    headers: {
+      ...(init.headers ?? {}),
+      ...(await getAuthHeader()),
+    },
+  });
 }

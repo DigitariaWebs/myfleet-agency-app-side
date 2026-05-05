@@ -1,19 +1,12 @@
-import { apiRequest } from "@/services/api";
-import { getAuthHeader } from "@/services/authHeader";
+import { authedRequest } from "@/services/api";
 import type { Client } from "@/types/client";
 
 export async function getClients(): Promise<Client[]> {
-  return apiRequest<Client[]>("/clients", {
-    method: "GET",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<Client[]>("/clients", { method: "GET" });
 }
 
 export async function getClientById(id: string): Promise<Client> {
-  return apiRequest<Client>(`/clients/${id}`, {
-    method: "GET",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<Client>(`/clients/${id}`, { method: "GET" });
 }
 
 export interface CreateClientInput {
@@ -21,12 +14,13 @@ export interface CreateClientInput {
   lastName: string;
   email: string;
   phone: string;
-  address: string;
-  dateOfBirth: string;
-  idType: string;
-  idNumber: string;
-  driverLicense: string;
-  driverLicenseExpiry: string;
+  address?: string;
+  dateOfBirth?: string;
+  idType?: string;
+  idNumber?: string;
+  driverLicense?: string;
+  driverLicenseExpiry?: string;
+  tags?: string[];
   notes?: string;
   documents?: {
     idFront?: string;
@@ -39,12 +33,9 @@ export interface CreateClientInput {
 }
 
 export async function createClient(data: CreateClientInput): Promise<Client> {
-  return apiRequest<Client>("/clients", {
+  return authedRequest<Client>("/clients", {
     method: "POST",
-    headers: {
-      ...(await getAuthHeader()),
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 }
@@ -72,27 +63,24 @@ export interface UpdateClientInput {
   };
 }
 
-export async function updateClient(id: string, data: UpdateClientInput): Promise<Client> {
-  return apiRequest<Client>(`/clients/${id}`, {
+export async function updateClient(
+  id: string,
+  data: UpdateClientInput,
+): Promise<Client> {
+  return authedRequest<Client>(`/clients/${id}`, {
     method: "PATCH",
-    headers: {
-      ...(await getAuthHeader()),
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteClient(id: string): Promise<{ id: string }> {
-  return apiRequest<{ id: string }>(`/clients/${id}`, {
-    method: "DELETE",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<{ id: string }>(`/clients/${id}`, { method: "DELETE" });
 }
 
 export async function searchClients(query: string): Promise<Client[]> {
-  return apiRequest<Client[]>(`/clients?search=${encodeURIComponent(query)}`, {
-    method: "GET",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<Client[]>(
+    `/clients?search=${encodeURIComponent(query)}`,
+    { method: "GET" },
+  );
 }

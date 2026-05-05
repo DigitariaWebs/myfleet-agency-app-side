@@ -1,22 +1,60 @@
-import { delay, type ApiResponse } from '@/services/api';
-import type { Contract } from '@/types/contract';
-import { mockContracts } from '@/data/contracts';
+import { authedRequest, type ApiResponse } from "@/services/api";
+import { ok, toQuery } from "@/services/_helpers";
+import type { Contract } from "@/types/contract";
 
-export async function getContracts(): Promise<ApiResponse<Contract[]>> {
-  await delay();
-  return { data: mockContracts, success: true };
+interface ContractFilters {
+  bookingId?: string;
+  clientId?: string;
+  status?: Contract["status"];
 }
 
-export async function getContractById(id: string): Promise<ApiResponse<Contract | null>> {
-  await delay();
-  const contract = mockContracts.find((c) => c.id === id) ?? null;
-  if (!contract) {
-    return { data: null, success: false, message: `Contract "${id}" not found` };
-  }
-  return { data: contract, success: true };
+export async function getContracts(
+  filters: ContractFilters = {},
+): Promise<ApiResponse<Contract[]>> {
+  const data = await authedRequest<Contract[]>(`/contracts${toQuery(filters)}`);
+  return ok(data);
 }
 
-export async function createContract(data: Omit<Contract, 'id'>): Promise<ApiResponse<Contract>> {
-  await delay();
-  return { data: { ...data, id: `ct-${Date.now()}` }, success: true, message: 'Contract created' };
+export async function getContractById(
+  id: string,
+): Promise<ApiResponse<Contract>> {
+  const data = await authedRequest<Contract>(`/contracts/${id}`);
+  return ok(data);
+}
+
+export async function createContract(payload: {
+  bookingId: string;
+  notes?: string;
+}): Promise<ApiResponse<Contract>> {
+  const data = await authedRequest<Contract>("/contracts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return ok(data);
+}
+
+export async function signContract(
+  id: string,
+  payload: {
+    role: "lessee" | "lessor";
+    base64: string;
+    signerName: string;
+  },
+): Promise<ApiResponse<Contract>> {
+  const data = await authedRequest<Contract>(`/contracts/${id}/sign`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return ok(data);
+}
+
+export async function getContractPdfUrl(
+  id: string,
+): Promise<ApiResponse<{ url: string | null }>> {
+  const data = await authedRequest<{ url: string | null }>(
+    `/contracts/${id}/pdf`,
+  );
+  return ok(data);
 }

@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, ScrollView } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   AlertTriangle,
   CalendarDays,
@@ -12,19 +12,23 @@ import {
   ChevronRight,
   Clock,
   MapPin,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Badge, type BadgeProps } from '@/components/ui/Badge';
-import { IconButton } from '@/components/ui/IconButton';
-import { useTheme } from '@/hooks/useTheme';
-import { useBookingStore } from '@/stores/useBookingStore';
-import type { Booking, BookingStatus } from '@/types/booking';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Badge, type BadgeProps } from "@/components/ui/Badge";
+import { IconButton } from "@/components/ui/IconButton";
+import { useTheme } from "@/hooks/useTheme";
+import { useBookings } from "@/hooks/useBookings";
+import { useVehicles } from "@/hooks/useFleet";
+import { Image } from "@/components/ui/Image";
+import { resolveVehicleImageSource } from "@/data/vehicleImages";
+import type { Booking, BookingStatus } from "@/types/booking";
+import type { Vehicle } from "@/types/vehicle";
 
-type ViewMode = 'today' | 'upcoming' | 'calendar';
-type OperationType = 'pickup' | 'return' | 'inProgress';
-type BadgeVariant = NonNullable<BadgeProps['variant']>;
+type ViewMode = "today" | "upcoming" | "calendar";
+type OperationType = "pickup" | "return" | "inProgress";
+type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
 interface CalendarDay {
   date: Date | null;
@@ -42,34 +46,34 @@ interface OperationItem {
   type: OperationType;
 }
 
-const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 const MONTH_NAMES = [
-  'Janvier',
-  'F\u00E9vrier',
-  'Mars',
-  'Avril',
-  'Mai',
-  'Juin',
-  'Juillet',
-  'Ao\u00FBt',
-  'Septembre',
-  'Octobre',
-  'Novembre',
-  'D\u00E9cembre',
+  "Janvier",
+  "F\u00E9vrier",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Ao\u00FBt",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "D\u00E9cembre",
 ];
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function toDayKey(date: Date): string {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
 function parseDate(date: string): Date {
-  const [year, month, day] = date.split('-').map(Number);
+  const [year, month, day] = date.split("-").map(Number);
   return new Date(year, month - 1, day);
 }
 
@@ -86,18 +90,21 @@ function formatLongDate(date: Date): string {
   return `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function statusBadge(status: BookingStatus): { label: string; variant: BadgeVariant } {
+function statusBadge(status: BookingStatus): {
+  label: string;
+  variant: BadgeVariant;
+} {
   switch (status) {
-    case 'active':
-      return { label: 'En cours', variant: 'success' };
-    case 'confirmed':
-      return { label: 'Confirm\u00E9e', variant: 'info' };
-    case 'pending':
-      return { label: 'En attente', variant: 'warning' };
-    case 'completed':
-      return { label: 'Termin\u00E9e', variant: 'neutral' };
-    case 'cancelled':
-      return { label: 'Annul\u00E9e', variant: 'danger' };
+    case "active":
+      return { label: "En cours", variant: "success" };
+    case "confirmed":
+      return { label: "Confirm\u00E9e", variant: "info" };
+    case "pending":
+      return { label: "En attente", variant: "warning" };
+    case "completed":
+      return { label: "Termin\u00E9e", variant: "neutral" };
+    case "cancelled":
+      return { label: "Annul\u00E9e", variant: "danger" };
   }
 }
 
@@ -106,41 +113,41 @@ function operationMeta(type: OperationType): {
   variant: BadgeVariant;
 } {
   switch (type) {
-    case 'pickup':
-      return { label: 'Départ', variant: 'info' };
-    case 'return':
-      return { label: 'Retour', variant: 'warning' };
-    case 'inProgress':
-      return { label: 'En location', variant: 'success' };
+    case "pickup":
+      return { label: "Départ", variant: "info" };
+    case "return":
+      return { label: "Retour", variant: "warning" };
+    case "inProgress":
+      return { label: "En location", variant: "success" };
   }
 }
 
 function hasUrgency(booking: Booking): boolean {
   return Boolean(
     booking.conflict ||
-      booking.status === 'pending' ||
-      booking.paymentStatus === 'expired' ||
-      booking.paymentStatus === 'failed' ||
-      booking.paymentStatus === 'pending' ||
-      booking.paymentStatus === 'link_sent' ||
-      (booking.status === 'confirmed' && !booking.workflow?.contractId),
+    booking.status === "pending" ||
+    booking.paymentStatus === "expired" ||
+    booking.paymentStatus === "failed" ||
+    booking.paymentStatus === "pending" ||
+    booking.paymentStatus === "link_sent" ||
+    (booking.status === "confirmed" && !booking.workflow?.contractId),
   );
 }
 
 function getUrgencyLabels(booking: Booking): string[] {
   const labels: string[] = [];
-  if (booking.conflict) labels.push('Conflit');
-  if (booking.status === 'pending') labels.push('Validation');
+  if (booking.conflict) labels.push("Conflit");
+  if (booking.status === "pending") labels.push("Validation");
   if (
-    booking.paymentStatus === 'expired' ||
-    booking.paymentStatus === 'failed' ||
-    booking.paymentStatus === 'pending' ||
-    booking.paymentStatus === 'link_sent'
+    booking.paymentStatus === "expired" ||
+    booking.paymentStatus === "failed" ||
+    booking.paymentStatus === "pending" ||
+    booking.paymentStatus === "link_sent"
   ) {
-    labels.push('Paiement');
+    labels.push("Paiement");
   }
-  if (booking.status === 'confirmed' && !booking.workflow?.contractId) {
-    labels.push('Contrat');
+  if (booking.status === "confirmed" && !booking.workflow?.contractId) {
+    labels.push("Contrat");
   }
   return labels;
 }
@@ -149,7 +156,10 @@ function operationsForDate(date: Date, bookings: Booking[]): OperationItem[] {
   const key = toDayKey(date);
 
   return bookings
-    .filter((booking) => booking.status !== 'cancelled' && isWithinBooking(date, booking))
+    .filter(
+      (booking) =>
+        booking.status !== "cancelled" && isWithinBooking(date, booking),
+    )
     .flatMap((booking) => {
       const operations: OperationItem[] = [];
 
@@ -159,7 +169,7 @@ function operationsForDate(date: Date, bookings: Booking[]): OperationItem[] {
           booking,
           date,
           time: booking.pickupTime,
-          type: 'pickup',
+          type: "pickup",
         });
       }
 
@@ -169,7 +179,7 @@ function operationsForDate(date: Date, bookings: Booking[]): OperationItem[] {
           booking,
           date,
           time: booking.returnTime,
-          type: 'return',
+          type: "return",
         });
       }
 
@@ -178,16 +188,16 @@ function operationsForDate(date: Date, bookings: Booking[]): OperationItem[] {
           id: `${booking.id}-active`,
           booking,
           date,
-          time: '--:--',
-          type: 'inProgress',
+          time: "--:--",
+          type: "inProgress",
         });
       }
 
       return operations;
     })
     .sort((a, b) => {
-      if (a.time === '--:--') return 1;
-      if (b.time === '--:--') return -1;
+      if (a.time === "--:--") return 1;
+      if (b.time === "--:--") return -1;
       return a.time.localeCompare(b.time);
     });
 }
@@ -196,7 +206,7 @@ function upcomingOperations(today: Date, bookings: Booking[]): OperationItem[] {
   const todayKey = toDayKey(today);
 
   return bookings
-    .filter((booking) => booking.status !== 'cancelled')
+    .filter((booking) => booking.status !== "cancelled")
     .flatMap((booking) => {
       const operations: OperationItem[] = [];
       if (booking.startDate >= todayKey) {
@@ -205,7 +215,7 @@ function upcomingOperations(today: Date, bookings: Booking[]): OperationItem[] {
           booking,
           date: parseDate(booking.startDate),
           time: booking.pickupTime,
-          type: 'pickup',
+          type: "pickup",
         });
       }
       if (booking.endDate >= todayKey) {
@@ -214,7 +224,7 @@ function upcomingOperations(today: Date, bookings: Booking[]): OperationItem[] {
           booking,
           date: parseDate(booking.endDate),
           time: booking.returnTime,
-          type: 'return',
+          type: "return",
         });
       }
       return operations;
@@ -238,13 +248,20 @@ function generateCalendarDays(
   const days: CalendarDay[] = [];
 
   for (let i = 0; i < startDow; i++) {
-    days.push({ date: null, dayNumber: 0, isToday: false, count: 0, urgent: false });
+    days.push({
+      date: null,
+      dayNumber: 0,
+      isToday: false,
+      count: 0,
+      urgent: false,
+    });
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
     const dayBookings = bookings.filter(
-      (booking) => booking.status !== 'cancelled' && isWithinBooking(date, booking),
+      (booking) =>
+        booking.status !== "cancelled" && isWithinBooking(date, booking),
     );
     days.push({
       date,
@@ -268,9 +285,18 @@ function SegmentControl({
   const { t } = useTranslation();
   const theme = useTheme();
   const items: { key: ViewMode; label: string }[] = [
-    { key: 'today', label: t('bookings.calendar.tabs.today', 'Aujourd\u2019hui') },
-    { key: 'upcoming', label: t('bookings.calendar.tabs.upcoming', '\u00C0 venir') },
-    { key: 'calendar', label: t('bookings.calendar.tabs.calendar', 'Calendrier') },
+    {
+      key: "today",
+      label: t("bookings.calendar.tabs.today", "Aujourd\u2019hui"),
+    },
+    {
+      key: "upcoming",
+      label: t("bookings.calendar.tabs.upcoming", "\u00C0 venir"),
+    },
+    {
+      key: "calendar",
+      label: t("bookings.calendar.tabs.calendar", "Calendrier"),
+    },
   ];
 
   return (
@@ -287,12 +313,12 @@ function SegmentControl({
             className="flex-1 items-center justify-center rounded-full"
             style={{
               minHeight: 38,
-              backgroundColor: selected ? theme.accent : 'transparent',
+              backgroundColor: selected ? theme.accent : "transparent",
             }}
           >
             <Text
               variant="labelSmall"
-              color={selected ? '#FFFFFF' : theme.textSecondary}
+              color={selected ? "#FFFFFF" : theme.textSecondary}
               numberOfLines={1}
             >
               {item.label}
@@ -306,10 +332,12 @@ function SegmentControl({
 
 function OperationCard({
   operation,
+  vehicle,
   index,
   onPress,
 }: {
   operation: OperationItem;
+  vehicle: Vehicle | undefined;
   index: number;
   onPress: () => void;
 }) {
@@ -317,7 +345,7 @@ function OperationCard({
   const meta = operationMeta(operation.type);
   const bookingStatus = statusBadge(operation.booking.status);
   const urgencyLabels = getUrgencyLabels(operation.booking);
-  const isReturn = operation.type === 'return';
+  const isReturn = operation.type === "return";
   const location = isReturn
     ? operation.booking.returnLocation
     : operation.booking.pickupLocation;
@@ -329,7 +357,9 @@ function OperationCard({
 
   return (
     <AnimatedPressable
-      entering={FadeInDown.delay(index * 45).duration(300).springify()}
+      entering={FadeInDown.delay(index * 45)
+        .duration(300)
+        .springify()}
       onPress={handlePress}
       className="rounded-2xl overflow-hidden mb-3"
       style={{ backgroundColor: theme.surface }}
@@ -340,7 +370,7 @@ function OperationCard({
             width: 4,
             backgroundColor: hasUrgency(operation.booking)
               ? theme.danger
-              : meta.variant === 'warning'
+              : meta.variant === "warning"
                 ? theme.warning
                 : theme.accent,
           }}
@@ -349,14 +379,28 @@ function OperationCard({
           <View className="flex-row items-start justify-between gap-3">
             <View className="flex-row items-center gap-3 flex-1">
               <View
-                className="rounded-xl items-center justify-center"
+                className="rounded-xl items-center justify-center overflow-hidden"
                 style={{
                   width: 46,
                   height: 46,
                   backgroundColor: theme.surfaceTertiary,
                 }}
               >
-                <Car size={21} color={theme.textSecondary} />
+                {(() => {
+                  const thumb = resolveVehicleImageSource(
+                    vehicle ?? { id: operation.booking.vehicleId },
+                  );
+                  return thumb ? (
+                    <Image
+                      source={thumb}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                  ) : (
+                    <Car size={21} color={theme.textSecondary} />
+                  );
+                })()}
               </View>
               <View className="flex-1">
                 <View className="flex-row items-center gap-2 mb-1">
@@ -368,7 +412,11 @@ function OperationCard({
                 <Text variant="titleSmall" numberOfLines={1}>
                   {operation.booking.vehicleName}
                 </Text>
-                <Text variant="bodySmall" color={theme.textSecondary} numberOfLines={1}>
+                <Text
+                  variant="bodySmall"
+                  color={theme.textSecondary}
+                  numberOfLines={1}
+                >
                   {operation.booking.clientName}
                 </Text>
               </View>
@@ -380,7 +428,11 @@ function OperationCard({
 
           <View className="flex-row items-center gap-2 mt-3">
             <MapPin size={14} color={theme.textTertiary} />
-            <Text variant="bodySmall" color={theme.textTertiary} numberOfLines={1}>
+            <Text
+              variant="bodySmall"
+              color={theme.textTertiary}
+              numberOfLines={1}
+            >
               {location}
             </Text>
           </View>
@@ -405,19 +457,24 @@ function GroupedOperations({
   operations,
   emptyLabel,
   onBookingPress,
+  vehicleById,
   showDateHeaders = false,
 }: {
   operations: OperationItem[];
   emptyLabel: string;
   onBookingPress: (id: string) => void;
+  vehicleById: Map<string, Vehicle>;
   showDateHeaders?: boolean;
 }) {
   const theme = useTheme();
-  let lastKey = '';
+  let lastKey = "";
 
   if (operations.length === 0) {
     return (
-      <View className="rounded-2xl p-5 items-center" style={{ backgroundColor: theme.surface }}>
+      <View
+        className="rounded-2xl p-5 items-center"
+        style={{ backgroundColor: theme.surface }}
+      >
         <CalendarDays size={24} color={theme.textTertiary} />
         <Text variant="bodySmall" color={theme.textTertiary} className="mt-2">
           {emptyLabel}
@@ -437,14 +494,20 @@ function GroupedOperations({
           <View key={operation.id}>
             {showHeader && (
               <View className="flex-row items-center mt-2 mb-3">
-                <Text variant="titleMedium">{formatLongDate(operation.date)}</Text>
+                <Text variant="titleMedium">
+                  {formatLongDate(operation.date)}
+                </Text>
                 <Badge variant="neutral" size="sm" className="ml-2">
-                  {operations.filter((item) => toDayKey(item.date) === key).length}
+                  {
+                    operations.filter((item) => toDayKey(item.date) === key)
+                      .length
+                  }
                 </Badge>
               </View>
             )}
             <OperationCard
               operation={operation}
+              vehicle={vehicleById.get(operation.booking.vehicleId)}
               index={index}
               onPress={() => onBookingPress(operation.booking.id)}
             />
@@ -459,10 +522,15 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useTheme();
-  const bookings = useBookingStore((s) => s.bookings);
+  const { data: bookings = [] } = useBookings();
+  const { data: vehicles = [] } = useVehicles();
+  const vehicleById = useMemo(
+    () => new Map(vehicles.map((v) => [v.id, v])),
+    [vehicles],
+  );
 
   const today = useMemo(() => new Date(), []);
-  const [mode, setMode] = useState<ViewMode>('today');
+  const [mode, setMode] = useState<ViewMode>("today");
   const [currentMonth, setCurrentMonth] = useState<Date>(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
@@ -492,18 +560,24 @@ export default function CalendarScreen() {
   );
 
   const todayUrgentCount = useMemo(
-    () => todayOperations.filter((operation) => hasUrgency(operation.booking)).length,
+    () =>
+      todayOperations.filter((operation) => hasUrgency(operation.booking))
+        .length,
     [todayOperations],
   );
 
   const goToPrevMonth = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setCurrentMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+    );
   }, []);
 
   const goToNextMonth = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setCurrentMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+    );
   }, []);
 
   const handleDayPress = useCallback((date: Date) => {
@@ -541,12 +615,12 @@ export default function CalendarScreen() {
           </Pressable>
           <View className="flex-1">
             <Text variant="headlineLarge">
-              {t('bookings.calendar.agendaTitle', 'R\u00E9servations')}
+              {t("bookings.calendar.agendaTitle", "R\u00E9servations")}
             </Text>
             <Text variant="bodySmall" color={theme.textSecondary}>
               {t(
-                'bookings.calendar.agendaSubtitle',
-                'Pickups, retours et actions \u00E0 traiter',
+                "bookings.calendar.agendaSubtitle",
+                "Pickups, retours et actions \u00E0 traiter",
               )}
             </Text>
           </View>
@@ -554,7 +628,7 @@ export default function CalendarScreen() {
 
         <SegmentControl mode={mode} onChange={handleModeChange} />
 
-        {mode === 'today' && (
+        {mode === "today" && (
           <Animated.View entering={FadeInDown.duration(300)}>
             <View className="flex-row mb-4" style={{ gap: 10 }}>
               <View
@@ -562,7 +636,7 @@ export default function CalendarScreen() {
                 style={{ backgroundColor: theme.surface }}
               >
                 <Text variant="bodySmall" color={theme.textTertiary}>
-                  {t('bookings.calendar.todayOps', 'Op\u00E9rations')}
+                  {t("bookings.calendar.todayOps", "Op\u00E9rations")}
                 </Text>
                 <Text variant="headlineMedium" className="mt-1">
                   {todayOperations.length}
@@ -570,17 +644,24 @@ export default function CalendarScreen() {
               </View>
               <View
                 className="flex-1 rounded-2xl p-4"
-                style={{ backgroundColor: todayUrgentCount > 0 ? theme.dangerSoft : theme.surface }}
+                style={{
+                  backgroundColor:
+                    todayUrgentCount > 0 ? theme.dangerSoft : theme.surface,
+                }}
               >
                 <Text
                   variant="bodySmall"
-                  color={todayUrgentCount > 0 ? theme.danger : theme.textTertiary}
+                  color={
+                    todayUrgentCount > 0 ? theme.danger : theme.textTertiary
+                  }
                 >
-                  {t('bookings.calendar.toHandle', '\u00C0 traiter')}
+                  {t("bookings.calendar.toHandle", "\u00C0 traiter")}
                 </Text>
                 <Text
                   variant="headlineMedium"
-                  color={todayUrgentCount > 0 ? theme.danger : theme.textPrimary}
+                  color={
+                    todayUrgentCount > 0 ? theme.danger : theme.textPrimary
+                  }
                   className="mt-1"
                 >
                   {todayUrgentCount}
@@ -598,29 +679,31 @@ export default function CalendarScreen() {
             <GroupedOperations
               operations={todayOperations}
               emptyLabel={t(
-                'bookings.calendar.noTodayBookings',
-                'Aucune op\u00E9ration pr\u00E9vue aujourd\u2019hui',
+                "bookings.calendar.noTodayBookings",
+                "Aucune op\u00E9ration pr\u00E9vue aujourd\u2019hui",
               )}
               onBookingPress={handleBookingPress}
+              vehicleById={vehicleById}
             />
           </Animated.View>
         )}
 
-        {mode === 'upcoming' && (
+        {mode === "upcoming" && (
           <Animated.View entering={FadeInDown.duration(300)}>
             <GroupedOperations
               operations={upcoming}
               emptyLabel={t(
-                'bookings.calendar.noUpcomingBookings',
-                'Aucune r\u00E9servation \u00E0 venir',
+                "bookings.calendar.noUpcomingBookings",
+                "Aucune r\u00E9servation \u00E0 venir",
               )}
               onBookingPress={handleBookingPress}
+              vehicleById={vehicleById}
               showDateHeaders
             />
           </Animated.View>
         )}
 
-        {mode === 'calendar' && (
+        {mode === "calendar" && (
           <Animated.View entering={FadeInDown.duration(300)}>
             <View className="flex-row items-center justify-between mb-4">
               <IconButton
@@ -653,7 +736,12 @@ export default function CalendarScreen() {
             <View className="flex-row flex-wrap">
               {calendarDays.map((day, idx) => {
                 if (day.date === null) {
-                  return <View key={`empty-${idx}`} style={{ width: '14.285%', height: 58 }} />;
+                  return (
+                    <View
+                      key={`empty-${idx}`}
+                      style={{ width: "14.285%", height: 58 }}
+                    />
+                  );
                 }
 
                 const selected = isSameDay(day.date, selectedDate);
@@ -661,7 +749,7 @@ export default function CalendarScreen() {
                   <Pressable
                     key={`day-${day.dayNumber}`}
                     onPress={() => handleDayPress(day.date as Date)}
-                    style={{ width: '14.285%', height: 58 }}
+                    style={{ width: "14.285%", height: 58 }}
                     className="items-center justify-center"
                   >
                     <View
@@ -674,16 +762,16 @@ export default function CalendarScreen() {
                           ? theme.accent
                           : day.isToday
                             ? theme.accentSoft
-                            : 'transparent',
+                            : "transparent",
                         borderWidth: day.urgent && !selected ? 1 : 0,
-                        borderColor: day.urgent ? theme.danger : 'transparent',
+                        borderColor: day.urgent ? theme.danger : "transparent",
                       }}
                     >
                       <Text
                         variant="bodySmall"
                         color={
                           selected
-                            ? '#FFFFFF'
+                            ? "#FFFFFF"
                             : day.isToday
                               ? theme.accent
                               : theme.textPrimary
@@ -702,13 +790,17 @@ export default function CalendarScreen() {
                             backgroundColor: day.urgent
                               ? theme.danger
                               : selected
-                                ? 'rgba(255,255,255,0.22)'
+                                ? "rgba(255,255,255,0.22)"
                                 : theme.surfaceSecondary,
                           }}
                         >
                           <Text
                             variant="labelSmall"
-                            color={day.urgent || selected ? '#FFFFFF' : theme.textSecondary}
+                            color={
+                              day.urgent || selected
+                                ? "#FFFFFF"
+                                : theme.textSecondary
+                            }
                             style={{ fontSize: 10 }}
                           >
                             {day.count}
@@ -723,7 +815,9 @@ export default function CalendarScreen() {
 
             <View className="mt-6">
               <View className="flex-row items-center mb-3">
-                <Text variant="titleMedium">{formatLongDate(selectedDate)}</Text>
+                <Text variant="titleMedium">
+                  {formatLongDate(selectedDate)}
+                </Text>
                 <Badge variant="accent" size="sm" className="ml-2">
                   {selectedDayOperations.length}
                 </Badge>
@@ -731,10 +825,11 @@ export default function CalendarScreen() {
               <GroupedOperations
                 operations={selectedDayOperations}
                 emptyLabel={t(
-                  'bookings.calendar.noBookings',
-                  'Aucune r\u00E9servation pour ce jour',
+                  "bookings.calendar.noBookings",
+                  "Aucune r\u00E9servation pour ce jour",
                 )}
                 onBookingPress={handleBookingPress}
+                vehicleById={vehicleById}
               />
             </View>
           </Animated.View>

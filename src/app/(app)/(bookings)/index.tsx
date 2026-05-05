@@ -1,50 +1,53 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Pressable, FlatList, RefreshControl } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { View, Pressable, FlatList, RefreshControl } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   CalendarPlus,
   CalendarDays,
   CalendarOff,
   Car,
-  AlertTriangle,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { Chip, ChipGroup } from '@/components/ui/Chip';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { IconButton } from '@/components/ui/IconButton';
-import { useTheme } from '@/hooks/useTheme';
-import { formatDate } from '@/utils/format';
-import { useBookingStore } from '@/stores/useBookingStore';
-import type { Booking, BookingStatus } from '@/types/booking';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Chip, ChipGroup } from "@/components/ui/Chip";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { IconButton } from "@/components/ui/IconButton";
+import { useTheme } from "@/hooks/useTheme";
+import { formatDate } from "@/utils/format";
+import { useBookings } from "@/hooks/useBookings";
+import { useVehicles } from "@/hooks/useFleet";
+import { Image } from "@/components/ui/Image";
+import { resolveVehicleImageSource } from "@/data/vehicleImages";
+import type { Booking, BookingStatus } from "@/types/booking";
+import type { Vehicle } from "@/types/vehicle";
 
-type FilterValue = BookingStatus | 'upcoming' | 'conflict' | null;
+type FilterValue = BookingStatus | "upcoming" | "conflict" | null;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-type StatusBadgeVariant = 'success' | 'info' | 'warning' | 'neutral' | 'danger';
+type StatusBadgeVariant = "success" | "info" | "warning" | "neutral" | "danger";
 
 function getStatusBadge(status: BookingStatus): {
   label: string;
   variant: StatusBadgeVariant;
 } {
   switch (status) {
-    case 'active':
-      return { label: 'Active', variant: 'success' };
-    case 'confirmed':
-      return { label: 'Confirmed', variant: 'info' };
-    case 'pending':
-      return { label: 'Pending', variant: 'warning' };
-    case 'completed':
-      return { label: 'Completed', variant: 'neutral' };
-    case 'cancelled':
-      return { label: 'Cancelled', variant: 'danger' };
+    case "active":
+      return { label: "Active", variant: "success" };
+    case "confirmed":
+      return { label: "Confirmed", variant: "info" };
+    case "pending":
+      return { label: "Pending", variant: "warning" };
+    case "completed":
+      return { label: "Completed", variant: "neutral" };
+    case "cancelled":
+      return { label: "Cancelled", variant: "danger" };
   }
 }
 
@@ -53,14 +56,14 @@ function getStripColor(
   theme: ReturnType<typeof useTheme>,
 ): string {
   switch (status) {
-    case 'active':
+    case "active":
       return theme.success;
-    case 'pending':
-    case 'confirmed':
+    case "pending":
+    case "confirmed":
       return theme.info;
-    case 'completed':
+    case "completed":
       return theme.textTertiary;
-    case 'cancelled':
+    case "cancelled":
       return theme.danger;
   }
 }
@@ -71,20 +74,22 @@ function getDaysBetween(start: string, end: string): number {
 }
 
 function matchesUpcoming(status: BookingStatus): boolean {
-  return status === 'pending' || status === 'confirmed';
+  return status === "pending" || status === "confirmed";
 }
 
 interface BookingCardProps {
   booking: Booking;
+  vehicle: Vehicle | undefined;
   index: number;
   onPress: () => void;
 }
 
-function BookingCard({ booking, index, onPress }: BookingCardProps) {
+function BookingCard({ booking, vehicle, index, onPress }: BookingCardProps) {
   const theme = useTheme();
   const statusBadge = getStatusBadge(booking.status);
   const stripColor = getStripColor(booking.status, theme);
   const days = getDaysBetween(booking.startDate, booking.endDate);
+  const thumb = resolveVehicleImageSource(vehicle ?? { id: booking.vehicleId });
 
   const handlePress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -93,7 +98,9 @@ function BookingCard({ booking, index, onPress }: BookingCardProps) {
 
   return (
     <AnimatedPressable
-      entering={FadeInDown.delay(index * 50).duration(400).springify()}
+      entering={FadeInDown.delay(index * 50)
+        .duration(400)
+        .springify()}
       onPress={handlePress}
       className="rounded-xl overflow-hidden mb-3"
       style={{ backgroundColor: theme.surface }}
@@ -104,16 +111,25 @@ function BookingCard({ booking, index, onPress }: BookingCardProps) {
 
         {/* Content */}
         <View className="flex-1 flex-row p-3">
-          {/* Vehicle icon placeholder */}
+          {/* Vehicle thumbnail */}
           <View
-            className="rounded-xl items-center justify-center mr-3"
+            className="rounded-xl items-center justify-center mr-3 overflow-hidden"
             style={{
               width: 48,
               height: 48,
               backgroundColor: theme.surfaceTertiary,
             }}
           >
-            <Car size={22} color={theme.textTertiary} />
+            {thumb ? (
+              <Image
+                source={thumb}
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <Car size={22} color={theme.textTertiary} />
+            )}
           </View>
 
           {/* Middle column */}
@@ -134,8 +150,8 @@ function BookingCard({ booking, index, onPress }: BookingCardProps) {
               color={theme.textTertiary}
               className="mt-0.5"
             >
-              {formatDate(booking.startDate, 'short')} {'\u2192'}{' '}
-              {formatDate(booking.endDate, 'short')}
+              {formatDate(booking.startDate, "short")} {"\u2192"}{" "}
+              {formatDate(booking.endDate, "short")}
             </Text>
           </View>
 
@@ -145,7 +161,8 @@ function BookingCard({ booking, index, onPress }: BookingCardProps) {
               {days}j
             </Badge>
             <Text variant="titleMedium" color={theme.accent}>
-              {'\u20AC'}{booking.totalAmount}
+              {"\u20AC"}
+              {booking.totalAmount}
             </Text>
             <Badge variant={statusBadge.variant} size="sm">
               {statusBadge.label}
@@ -162,23 +179,27 @@ export default function BookingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string }>();
-  const bookings = useBookingStore((s) => s.bookings);
+  const { data: bookings = [], refetch, isRefetching } = useBookings();
+  const { data: vehicles = [] } = useVehicles();
+  const vehicleById = useMemo(
+    () => new Map(vehicles.map((v) => [v.id, v])),
+    [vehicles],
+  );
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterValue>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Honour deep-link filter query param (e.g. from the dashboard's conflict card
   // or the statistics tiles — accepts any of the chip filter values).
   useEffect(() => {
     const valid: FilterValue[] = [
-      'conflict',
-      'active',
-      'upcoming',
-      'completed',
-      'cancelled',
-      'pending',
-      'confirmed',
+      "conflict",
+      "active",
+      "upcoming",
+      "completed",
+      "cancelled",
+      "pending",
+      "confirmed",
     ];
     if (params.filter && (valid as string[]).includes(params.filter)) {
       setFilter(params.filter as FilterValue);
@@ -210,10 +231,10 @@ export default function BookingsScreen() {
   // Apply status/category filter
   const filteredBookings = useMemo(() => {
     if (filter === null) return searchFiltered;
-    if (filter === 'upcoming') {
+    if (filter === "upcoming") {
       return searchFiltered.filter((b) => matchesUpcoming(b.status));
     }
-    if (filter === 'conflict') {
+    if (filter === "conflict") {
       return searchFiltered.filter(
         (b) => b.conflict && b.conflict.withBookingIds.length > 0,
       );
@@ -225,10 +246,10 @@ export default function BookingsScreen() {
   const counts = useMemo(
     () => ({
       all: searchFiltered.length,
-      active: searchFiltered.filter((b) => b.status === 'active').length,
+      active: searchFiltered.filter((b) => b.status === "active").length,
       upcoming: searchFiltered.filter((b) => matchesUpcoming(b.status)).length,
-      completed: searchFiltered.filter((b) => b.status === 'completed').length,
-      cancelled: searchFiltered.filter((b) => b.status === 'cancelled').length,
+      completed: searchFiltered.filter((b) => b.status === "completed").length,
+      cancelled: searchFiltered.filter((b) => b.status === "cancelled").length,
       conflict: searchFiltered.filter(
         (b) => b.conflict && b.conflict.withBookingIds.length > 0,
       ).length,
@@ -245,10 +266,9 @@ export default function BookingsScreen() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    void refetch();
+  }, [refetch]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -261,11 +281,12 @@ export default function BookingsScreen() {
     ({ item, index }: { item: Booking; index: number }) => (
       <BookingCard
         booking={item}
+        vehicle={vehicleById.get(item.vehicleId)}
         index={index}
         onPress={() => handleCardPress(item.id)}
       />
     ),
-    [handleCardPress],
+    [handleCardPress, vehicleById],
   );
 
   const keyExtractor = useCallback((item: Booking) => item.id, []);
@@ -276,20 +297,20 @@ export default function BookingsScreen() {
         {/* Header row */}
         <View className="flex-row items-center justify-between pt-6 pb-4">
           <Text variant="headlineLarge">
-            {t('bookings.title', 'R\u00E9servations')}
+            {t("bookings.title", "R\u00E9servations")}
           </Text>
           <View className="flex-row items-center gap-2">
             <IconButton
               icon={CalendarDays}
               variant="ghost"
               size="md"
-              onPress={() => router.push('/(app)/(bookings)/calendar')}
+              onPress={() => router.push("/(app)/(bookings)/calendar")}
             />
             <IconButton
               icon={CalendarPlus}
               variant="filled"
               size="md"
-              onPress={() => router.push('/(app)/(bookings)/new')}
+              onPress={() => router.push("/(app)/(bookings)/new")}
             />
           </View>
         </View>
@@ -297,8 +318,8 @@ export default function BookingsScreen() {
         {/* Search */}
         <SearchBar
           placeholder={t(
-            'bookings.search',
-            'Rechercher client, v\u00E9hicule...',
+            "bookings.search",
+            "Rechercher client, v\u00E9hicule...",
           )}
           onSearch={handleSearch}
           className="mb-3"
@@ -307,35 +328,35 @@ export default function BookingsScreen() {
         {/* Filter Chips */}
         <ChipGroup className="mb-4">
           <Chip
-            label={`${t('bookings.all', 'Tous')} (${counts.all})`}
+            label={`${t("bookings.all", "Tous")} (${counts.all})`}
             selected={filter === null}
             onPress={() => handleFilterPress(null)}
           />
           <Chip
-            label={`${t('bookings.active', 'Actifs')} (${counts.active})`}
-            selected={filter === 'active'}
-            onPress={() => handleFilterPress('active')}
+            label={`${t("bookings.active", "Actifs")} (${counts.active})`}
+            selected={filter === "active"}
+            onPress={() => handleFilterPress("active")}
           />
           <Chip
-            label={`${t('bookings.upcoming', '\u00C0 venir')} (${counts.upcoming})`}
-            selected={filter === 'upcoming'}
-            onPress={() => handleFilterPress('upcoming')}
+            label={`${t("bookings.upcoming", "\u00C0 venir")} (${counts.upcoming})`}
+            selected={filter === "upcoming"}
+            onPress={() => handleFilterPress("upcoming")}
           />
           <Chip
-            label={`${t('bookings.completed', 'Termin\u00E9s')} (${counts.completed})`}
-            selected={filter === 'completed'}
-            onPress={() => handleFilterPress('completed')}
+            label={`${t("bookings.completed", "Termin\u00E9s")} (${counts.completed})`}
+            selected={filter === "completed"}
+            onPress={() => handleFilterPress("completed")}
           />
           <Chip
-            label={`${t('bookings.cancelled', 'Annul\u00E9s')} (${counts.cancelled})`}
-            selected={filter === 'cancelled'}
-            onPress={() => handleFilterPress('cancelled')}
+            label={`${t("bookings.cancelled", "Annul\u00E9s")} (${counts.cancelled})`}
+            selected={filter === "cancelled"}
+            onPress={() => handleFilterPress("cancelled")}
           />
           {counts.conflict > 0 && (
             <Chip
-              label={`${t('bookings.conflict.filterChip', 'Conflicts')} (${counts.conflict})`}
-              selected={filter === 'conflict'}
-              onPress={() => handleFilterPress('conflict')}
+              label={`${t("bookings.conflict.filterChip", "Conflicts")} (${counts.conflict})`}
+              selected={filter === "conflict"}
+              onPress={() => handleFilterPress("conflict")}
             />
           )}
         </ChipGroup>
@@ -348,10 +369,10 @@ export default function BookingsScreen() {
     () => (
       <EmptyState
         icon={CalendarOff}
-        title={t('bookings.emptyTitle', 'Aucune r\u00E9servation trouv\u00E9e')}
+        title={t("bookings.emptyTitle", "Aucune r\u00E9servation trouv\u00E9e")}
         subtitle={t(
-          'bookings.emptySubtitle',
-          'Essayez de modifier votre recherche ou vos filtres.',
+          "bookings.emptySubtitle",
+          "Essayez de modifier votre recherche ou vos filtres.",
         )}
         className="mt-16"
       />
@@ -371,7 +392,7 @@ export default function BookingsScreen() {
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isRefetching}
             onRefresh={handleRefresh}
             tintColor={theme.accent}
           />

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createVehicle,
   deleteVehicle,
+  getFleetStats,
   getVehicleById,
   getVehicles,
   updateVehicle,
@@ -16,7 +17,16 @@ export const fleetKeys = {
     [...fleetKeys.lists(), filters] as const,
   details: () => [...fleetKeys.all, "detail"] as const,
   detail: (id: string) => [...fleetKeys.details(), id] as const,
+  stats: () => [...fleetKeys.all, "stats"] as const,
 };
+
+export function useFleetStats() {
+  return useQuery({
+    queryKey: fleetKeys.stats(),
+    queryFn: getFleetStats,
+    staleTime: 60_000,
+  });
+}
 
 export function useVehicles() {
   return useQuery({

@@ -1,4 +1,4 @@
-import { apiRequest, BASE_URL } from "@/services/api";
+import { apiRequest, authedRequest, BASE_URL } from "@/services/api";
 import { getAuthHeader } from "@/services/authHeader";
 import type { AngleKey, Vehicle } from "@/types/vehicle";
 
@@ -272,4 +272,15 @@ export async function deleteVehicle(id: string): Promise<{ id: string }> {
     method: "DELETE",
     headers: await getAuthHeader(),
   });
+}
+
+export interface FleetStats {
+  total: number;
+  rented: number;
+  available: number;
+  maintenance: number;
+}
+
+export async function getFleetStats(): Promise<FleetStats> {
+  return authedRequest<FleetStats>("/fleet/stats", { method: "GET" });
 }

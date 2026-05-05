@@ -16,10 +16,6 @@ export default function InspectionsLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="new" />
       <Stack.Screen name="[id]" />
-      <Stack.Screen
-        name="camera"
-        options={{ animation: "slide_from_bottom", gestureEnabled: false }}
-      />
     </Stack>
   );
 }

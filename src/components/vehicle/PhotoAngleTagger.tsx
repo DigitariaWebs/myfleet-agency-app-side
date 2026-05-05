@@ -1,6 +1,13 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, Pressable, Modal, ScrollView, Dimensions } from "react-native";
-import { Image } from "expo-image";
+import {
+  View,
+  Pressable,
+  Modal,
+  ScrollView,
+  Dimensions,
+  ActivityIndicator,
+} from "react-native";
+import { Image } from "@/components/ui/Image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { X, Check, ImageIcon } from "lucide-react-native";
@@ -67,6 +74,7 @@ export function PhotoAngleTagger({
   const insets = useSafeAreaInsets();
 
   const [tags, setTags] = useState<(string | null)[]>([]);
+  const [isPreparing, setIsPreparing] = useState(false);
 
   // Reset tags only when the asset count changes (parent passes a new array
   // identity each render; depending on .length keeps tags stable while typing).
@@ -75,6 +83,25 @@ export function PhotoAngleTagger({
       setTags(new Array(assets.length).fill(null));
     }
   }, [assets.length]);
+
+  // Warm the image cache when the tagger is opened so thumbnails appear
+  // without flashing. Show a spinner while prefetching.
+  useEffect(() => {
+    if (!visible || assets.length === 0) {
+      setIsPreparing(false);
+      return;
+    }
+    let cancelled = false;
+    setIsPreparing(true);
+    void Promise.all(
+      assets.map((a) => Image.prefetch(a.uri).catch(() => undefined)),
+    ).finally(() => {
+      if (!cancelled) setIsPreparing(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, assets]);
 
   const handleTag = useCallback(
     (index: number, angleKey: string) => {
@@ -324,7 +351,7 @@ export function PhotoAngleTagger({
             variant="primary"
             size="lg"
             fullWidth
-            disabled={!allTagged}
+            disabled={!allTagged || isPreparing}
             onPress={handleComplete}
           >
             {allTagged
@@ -332,6 +359,44 @@ export function PhotoAngleTagger({
               : "Tag all photos"}
           </Button>
         </View>
+
+        {/* Loading overlay while prefetching newly-picked images */}
+        {isPreparing && (
+          <View
+            pointerEvents="auto"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.35)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View
+              style={{
+                paddingHorizontal: 22,
+                paddingVertical: 18,
+                borderRadius: 16,
+                backgroundColor: theme.surface,
+                alignItems: "center",
+                gap: 10,
+                minWidth: 160,
+              }}
+            >
+              <ActivityIndicator size="small" color={theme.accent} />
+              <Text
+                variant="bodySmall"
+                color={theme.textSecondary}
+                style={{ fontSize: 12, fontFamily: fontFamilies.medium }}
+              >
+                Preparing photos…
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
   );

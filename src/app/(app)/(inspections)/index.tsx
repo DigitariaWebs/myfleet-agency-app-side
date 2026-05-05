@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Pressable,
@@ -6,23 +6,24 @@ import {
   RefreshControl,
   ScrollView,
   TextInput,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { ScanLine, Plus, Camera, Search, X } from 'lucide-react-native';
-import { Image } from 'expo-image';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { ScanLine, Plus, Camera, Search, X } from "lucide-react-native";
+import { Image } from "@/components/ui/Image";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { formatDate } from '@/utils/format';
-import { mockInspections } from '@/data/inspections';
-import { getVehicleImage } from '@/data/vehicleImages';
-import { fontFamilies } from '@/theme/typography';
-import type { Inspection, InspectionType } from '@/types/inspection';
+import { useQueryClient } from "@tanstack/react-query";
+
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/hooks/useTheme";
+import { useInspections, inspectionKeys } from "@/hooks/useInspections";
+import { formatDate } from "@/utils/format";
+import { fontFamilies } from "@/theme/typography";
+import type { Inspection, InspectionType } from "@/types/inspection";
 
 type TypeTone = { fg: string; bg: string };
 
@@ -31,26 +32,26 @@ function getTypeTone(
   theme: ReturnType<typeof useTheme>,
 ): TypeTone {
   switch (type) {
-    case 'pre-rental':
+    case "pre-rental":
       return { fg: theme.info, bg: theme.infoSoft };
-    case 'post-rental':
+    case "post-rental":
       return { fg: theme.warning, bg: theme.warningSoft };
-    case 'routine':
+    case "routine":
       return { fg: theme.accent, bg: theme.accentSoft };
   }
 }
 
 function getTypeLabel(
   type: InspectionType,
-  t: ReturnType<typeof useTranslation>['t'],
+  t: ReturnType<typeof useTranslation>["t"],
 ): string {
   switch (type) {
-    case 'pre-rental':
-      return t('inspections.preRental', 'Pre-rental');
-    case 'post-rental':
-      return t('inspections.postRental', 'Post-rental');
-    case 'routine':
-      return t('inspections.routine', 'Routine');
+    case "pre-rental":
+      return t("inspections.preRental", "Pre-rental");
+    case "post-rental":
+      return t("inspections.postRental", "Post-rental");
+    case "routine":
+      return t("inspections.routine", "Routine");
   }
 }
 
@@ -61,7 +62,7 @@ interface InspectionCardProps {
   index: number;
   onPress: () => void;
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
 }
 
 function InspectionCard({
@@ -72,22 +73,23 @@ function InspectionCard({
   t,
 }: InspectionCardProps) {
   const typeTone = getTypeTone(inspection.type, theme);
-  const totalDamages = inspection.totalDamagesAI + inspection.totalDamagesManual;
-  const vehicleImageUri = getVehicleImage(inspection.vehicleId);
+  const totalDamages =
+    inspection.totalDamagesAI + inspection.totalDamagesManual;
+  const thumbnailUri =
+    inspection.photos.find((p) => p.url)?.url ?? inspection.photos[0]?.uri;
 
   const handlePress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
   }, [onPress]);
 
-  const statusTone = inspection.status === 'draft'
-    ? { fg: theme.warning, bg: theme.warningSoft }
-    : { fg: theme.success, bg: theme.successSoft };
+  const statusTone =
+    inspection.status === "draft"
+      ? { fg: theme.warning, bg: theme.warningSoft }
+      : { fg: theme.success, bg: theme.successSoft };
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(index * 40).duration(350)}
-    >
+    <Animated.View entering={FadeInDown.delay(index * 40).duration(350)}>
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => ({
@@ -96,8 +98,8 @@ function InspectionCard({
           padding: 12,
           borderWidth: 1,
           borderColor: theme.borderLight,
-          flexDirection: 'row',
-          alignItems: 'flex-start',
+          flexDirection: "row",
+          alignItems: "flex-start",
           transform: [{ scale: pressed ? 0.99 : 1 }],
         })}
       >
@@ -107,16 +109,16 @@ function InspectionCard({
             width: 64,
             height: 64,
             borderRadius: 14,
-            overflow: 'hidden',
+            overflow: "hidden",
             backgroundColor: theme.surfaceTertiary,
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: "center",
+            justifyContent: "center",
             marginRight: 12,
           }}
         >
-          {vehicleImageUri ? (
+          {thumbnailUri ? (
             <Image
-              source={vehicleImageUri}
+              source={{ uri: thumbnailUri }}
               style={{ width: 64, height: 64 }}
               contentFit="cover"
               transition={200}
@@ -167,7 +169,7 @@ function InspectionCard({
             style={{ fontSize: 12, marginTop: 3 }}
             numberOfLines={1}
           >
-            {formatDate(inspection.date, 'short')} {'\u00B7'}{' '}
+            {formatDate(inspection.date, "short")} {"\u00B7"}{" "}
             {inspection.inspectorName}
           </Text>
 
@@ -178,7 +180,7 @@ function InspectionCard({
               style={{ fontSize: 11, marginTop: 2 }}
               numberOfLines={1}
             >
-              {t('inspections.client', 'Client')}: {inspection.clientName}
+              {t("inspections.client", "Client")}: {inspection.clientName}
             </Text>
           )}
 
@@ -205,8 +207,8 @@ function InspectionCard({
                 }}
               >
                 {totalDamages === 0
-                  ? t('inspections.clean', 'Clean')
-                  : `${totalDamages} ${t('inspections.damages', 'damages')}`}
+                  ? t("inspections.clean", "Clean")
+                  : `${totalDamages} ${t("inspections.damages", "damages")}`}
               </Text>
             </View>
 
@@ -226,9 +228,9 @@ function InspectionCard({
                   fontSize: 10,
                 }}
               >
-                {inspection.status === 'draft'
-                  ? t('inspections.draft', 'Draft')
-                  : t('inspections.completed', 'Completed')}
+                {inspection.status === "draft"
+                  ? t("inspections.draft", "Draft")
+                  : t("inspections.completed", "Completed")}
               </Text>
             </View>
           </View>
@@ -263,7 +265,7 @@ function FilterPill({ label, selected, onPress, theme }: FilterPillProps) {
     >
       <Text
         variant="labelSmall"
-        color={selected ? '#FFFFFF' : theme.textSecondary}
+        color={selected ? "#FFFFFF" : theme.textSecondary}
         style={{ fontFamily: fontFamilies.semiBold, fontSize: 12 }}
       >
         {label}
@@ -279,16 +281,24 @@ export default function InspectionsScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<InspectionType | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  const qc = useQueryClient();
+  const {
+    data: inspections = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useInspections();
+
   const sortedInspections = useMemo(
     () =>
-      [...mockInspections].sort(
+      [...inspections].sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       ),
-    [],
+    [inspections],
   );
 
   const filteredInspections = useMemo(() => {
@@ -321,26 +331,30 @@ export default function InspectionsScreen() {
 
     return {
       all: base.length,
-      'pre-rental': base.filter((i) => i.type === 'pre-rental').length,
-      'post-rental': base.filter((i) => i.type === 'post-rental').length,
-      routine: base.filter((i) => i.type === 'routine').length,
+      "pre-rental": base.filter((i) => i.type === "pre-rental").length,
+      "post-rental": base.filter((i) => i.type === "post-rental").length,
+      routine: base.filter((i) => i.type === "routine").length,
     };
   }, [sortedInspections, searchQuery]);
 
   const heroStats = useMemo(() => {
-    const total = mockInspections.length;
-    const clean = mockInspections.filter(
+    const total = inspections.length;
+    const clean = inspections.filter(
       (i) => i.totalDamagesAI + i.totalDamagesManual === 0,
     ).length;
     const issues = total - clean;
     return { total, clean, issues };
-  }, []);
+  }, [inspections]);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTimeout(() => setRefreshing(false), 700);
-  }, []);
+    try {
+      await qc.invalidateQueries({ queryKey: inspectionKeys.all });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [qc]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -351,7 +365,7 @@ export default function InspectionsScreen() {
 
   const handleNewInspection = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(inspections)/new');
+    router.push("/(inspections)/new");
   }, [router]);
 
   const renderItem = useCallback(
@@ -383,7 +397,7 @@ export default function InspectionsScreen() {
               variant="headlineLarge"
               style={{ fontFamily: fontFamilies.bold, fontSize: 22 }}
             >
-              {t('inspections.title', 'Inspections')}
+              {t("inspections.title", "Inspections")}
             </Text>
             <View
               style={{
@@ -410,8 +424,8 @@ export default function InspectionsScreen() {
               height: 40,
               borderRadius: 20,
               backgroundColor: theme.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Plus size={18} color="#FFFFFF" strokeWidth={2.4} />
@@ -426,13 +440,13 @@ export default function InspectionsScreen() {
             borderRadius: 20,
             borderWidth: 1,
             borderColor: theme.borderLight,
-            flexDirection: 'row',
+            flexDirection: "row",
             paddingVertical: 16,
           }}
         >
           <StatCell
             value={heroStats.total}
-            label={t('inspections.stats.total', 'inspections')}
+            label={t("inspections.stats.total", "inspections")}
             color={theme.textPrimary}
             theme={theme}
           />
@@ -445,7 +459,7 @@ export default function InspectionsScreen() {
           />
           <StatCell
             value={heroStats.clean}
-            label={t('inspections.stats.clean', 'no damage')}
+            label={t("inspections.stats.clean", "no damage")}
             color={theme.success}
             theme={theme}
           />
@@ -458,7 +472,7 @@ export default function InspectionsScreen() {
           />
           <StatCell
             value={heroStats.issues}
-            label={t('inspections.stats.damages', 'damages found')}
+            label={t("inspections.stats.damages", "damages found")}
             color={theme.danger}
             theme={theme}
           />
@@ -469,8 +483,8 @@ export default function InspectionsScreen() {
           entering={FadeInDown.delay(100).duration(400)}
           style={{
             marginTop: 14,
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: "row",
+            alignItems: "center",
             paddingHorizontal: 14,
             paddingVertical: 10,
             borderRadius: 9999,
@@ -483,7 +497,7 @@ export default function InspectionsScreen() {
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder={t('inspections.search', 'Search vehicle or client...')}
+            placeholder={t("inspections.search", "Search vehicle or client...")}
             placeholderTextColor={theme.textTertiary}
             style={{
               flex: 1,
@@ -495,7 +509,7 @@ export default function InspectionsScreen() {
             }}
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+            <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
               <X size={14} color={theme.textTertiary} />
             </Pressable>
           )}
@@ -512,7 +526,7 @@ export default function InspectionsScreen() {
             contentContainerStyle={{ gap: 8, paddingRight: 4 }}
           >
             <FilterPill
-              label={`${t('inspections.all', 'All')} (${counts.all})`}
+              label={`${t("inspections.all", "All")} (${counts.all})`}
               selected={typeFilter === null}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -521,33 +535,35 @@ export default function InspectionsScreen() {
               theme={theme}
             />
             <FilterPill
-              label={`${t('inspections.preRental', 'Pre-rental')} (${counts['pre-rental']})`}
-              selected={typeFilter === 'pre-rental'}
+              label={`${t("inspections.preRental", "Pre-rental")} (${counts["pre-rental"]})`}
+              selected={typeFilter === "pre-rental"}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setTypeFilter((prev) =>
-                  prev === 'pre-rental' ? null : 'pre-rental',
+                  prev === "pre-rental" ? null : "pre-rental",
                 );
               }}
               theme={theme}
             />
             <FilterPill
-              label={`${t('inspections.postRental', 'Post-rental')} (${counts['post-rental']})`}
-              selected={typeFilter === 'post-rental'}
+              label={`${t("inspections.postRental", "Post-rental")} (${counts["post-rental"]})`}
+              selected={typeFilter === "post-rental"}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setTypeFilter((prev) =>
-                  prev === 'post-rental' ? null : 'post-rental',
+                  prev === "post-rental" ? null : "post-rental",
                 );
               }}
               theme={theme}
             />
             <FilterPill
-              label={`${t('inspections.routine', 'Routine')} (${counts.routine})`}
-              selected={typeFilter === 'routine'}
+              label={`${t("inspections.routine", "Routine")} (${counts.routine})`}
+              selected={typeFilter === "routine"}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setTypeFilter((prev) => (prev === 'routine' ? null : 'routine'));
+                setTypeFilter((prev) =>
+                  prev === "routine" ? null : "routine",
+                );
               }}
               theme={theme}
             />
@@ -562,16 +578,78 @@ export default function InspectionsScreen() {
     () => (
       <EmptyState
         icon={ScanLine}
-        title={t('inspections.emptyTitle', 'No inspections found')}
+        title={t("inspections.emptyTitle", "No inspections found")}
         subtitle={t(
-          'inspections.emptySubtitle',
-          'Try adjusting your search or filters.',
+          "inspections.emptySubtitle",
+          "Try adjusting your search or filters.",
         )}
         className="mt-16"
       />
     ),
     [t],
   );
+
+  if (isLoading && inspections.length === 0) {
+    return (
+      <ScreenWrapper>
+        {ListHeaderComponent}
+        <View style={{ gap: 10, paddingTop: 4 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <View
+              key={i}
+              style={{
+                height: 92,
+                borderRadius: 18,
+                backgroundColor: theme.surface,
+                borderWidth: 1,
+                borderColor: theme.borderLight,
+                opacity: 0.6,
+              }}
+            />
+          ))}
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  if (isError && inspections.length === 0) {
+    return (
+      <ScreenWrapper>
+        {ListHeaderComponent}
+        <View style={{ alignItems: "center", paddingTop: 32 }}>
+          <EmptyState
+            icon={ScanLine}
+            title={t("inspections.errorTitle", "Couldn't load inspections")}
+            subtitle={t(
+              "inspections.errorSubtitle",
+              "Check your connection and try again.",
+            )}
+          />
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              void refetch();
+            }}
+            style={{
+              marginTop: 12,
+              paddingHorizontal: 18,
+              paddingVertical: 10,
+              borderRadius: 9999,
+              backgroundColor: theme.accent,
+            }}
+          >
+            <Text
+              variant="labelSmall"
+              color="#FFFFFF"
+              style={{ fontFamily: fontFamilies.semiBold, fontSize: 12 }}
+            >
+              {t("common.retry", "Retry")}
+            </Text>
+          </Pressable>
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper>
@@ -613,7 +691,7 @@ function StatCell({
   theme: ReturnType<typeof useTheme>;
 }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
+    <View style={{ flex: 1, alignItems: "center" }}>
       <Text
         variant="headlineMedium"
         color={color}

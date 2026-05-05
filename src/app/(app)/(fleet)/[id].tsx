@@ -6,7 +6,7 @@ import {
   Pressable,
   ScrollView,
 } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   SafeAreaView,
@@ -548,7 +548,17 @@ export default function VehicleDetailScreen() {
               <Button variant="primary" className="flex-1">
                 {t("fleet.detail.bookNow", "Book Now")}
               </Button>
-              <Button variant="secondary" className="flex-1">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push({
+                    pathname: "/(app)/(inspections)/new",
+                    params: { vehicleId: vehicle.id },
+                  });
+                }}
+              >
                 {t("fleet.detail.inspect", "Inspect")}
               </Button>
             </View>

@@ -1,8 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Platform, View, Pressable, ScrollView, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import React, { useState, useMemo, useCallback } from "react";
+import { Platform, View, Pressable, ScrollView, Modal } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -10,12 +12,12 @@ import Animated, {
   withSpring,
   withSequence,
   withTiming,
-} from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
+} from "react-native-reanimated";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import * as Haptics from "expo-haptics";
+import { Image } from "@/components/ui/Image";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   X,
   ArrowLeft,
@@ -38,54 +40,66 @@ import {
   ArrowRight,
   FileText,
   CreditCard,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { getVehicleImage } from '@/data/vehicleImages';
-import { fontFamilies } from '@/theme/typography';
+import { resolveVehicleImageSource } from "@/data/vehicleImages";
+import { fontFamilies } from "@/theme/typography";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { StickyButton } from '@/components/ui/StickyButton';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
-import { Divider } from '@/components/ui/Divider';
-import { Avatar } from '@/components/ui/Avatar';
-import { useTheme } from '@/hooks/useTheme';
-import { colors } from '@/theme/colors';
-import { mockVehicles } from '@/data/vehicles';
-import { mockClients } from '@/data/clients';
-import { matchesVehicleQuery } from '@/utils/vehicleSearch';
-import type { Vehicle } from '@/types/vehicle';
-import type { Client } from '@/types/client';
-import { useBookingStore, useVehicleAvailable } from '@/stores/useBookingStore';
-import { useCurrentAgencySettings } from '@/stores/useAgencySettingsStore';
-import { useToastStore } from '@/components/ui/Toast';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { StickyButton } from "@/components/ui/StickyButton";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { Divider } from "@/components/ui/Divider";
+import { Avatar } from "@/components/ui/Avatar";
+import { useTheme } from "@/hooks/useTheme";
+import { colors } from "@/theme/colors";
+import { matchesVehicleQuery } from "@/utils/vehicleSearch";
+import type { Vehicle } from "@/types/vehicle";
+import type { Client } from "@/types/client";
+import {
+  useBookingAvailability,
+  useBookings,
+  useCreateBooking,
+} from "@/hooks/useBookings";
+import { useVehicles } from "@/hooks/useFleet";
+import { useClients, useCreateClient } from "@/hooks/useClients";
+import type { CreateClientInput } from "@/services/clientService";
+import { faker } from "@faker-js/faker";
+import { useCurrentAgencySettings } from "@/stores/useAgencySettingsStore";
+import { useToastStore } from "@/components/ui/Toast";
 import {
   geocodeAddress,
   getDrivingDistance,
   GeocodingError,
   DistanceMatrixError,
   MapsApiKeyMissingError,
-} from '@/services/mapsService';
-import type { Booking, DeliveryDetails } from '@/types/booking';
+} from "@/services/mapsService";
+import type { Booking, DeliveryDetails } from "@/types/booking";
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const STEP_COUNT = 5;
 
-const STEP_ICONS = [Car, User, CalendarDays, DollarSign, ClipboardCheck] as const;
+const STEP_ICONS = [
+  Car,
+  User,
+  CalendarDays,
+  DollarSign,
+  ClipboardCheck,
+] as const;
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const DISTANCE_OPTION_IDS = ['delivery', 'custom-pickup'] as const;
+const DISTANCE_OPTION_IDS = ["delivery", "custom-pickup"] as const;
 const ADDRESS_SUGGESTIONS = [
-  '5 Chemin du Pavillon, 1218 Le Grand-Saconnex',
-  'Rue du Mont-Blanc 10, 1201 Genève',
-  'Quai du Mont-Blanc 17, 1201 Genève',
-  'Aéroport de Genève, Route de l’Aéroport 21, 1215 Genève',
-  'Place Cornavin 7, 1201 Genève',
+  "5 Chemin du Pavillon, 1218 Le Grand-Saconnex",
+  "Rue du Mont-Blanc 10, 1201 Genève",
+  "Quai du Mont-Blanc 17, 1201 Genève",
+  "Aéroport de Genève, Route de l’Aéroport 21, 1215 Genève",
+  "Place Cornavin 7, 1201 Genève",
 ] as const;
 
 interface OptionToggle {
@@ -97,17 +111,25 @@ interface OptionToggle {
 }
 
 function isDistanceOption(optionId: string): boolean {
-  return DISTANCE_OPTION_IDS.includes(optionId as (typeof DISTANCE_OPTION_IDS)[number]);
+  return DISTANCE_OPTION_IDS.includes(
+    optionId as (typeof DISTANCE_OPTION_IDS)[number],
+  );
 }
 
-function getMockRouteDetails(address: string, config: ReturnType<typeof useCurrentAgencySettings>['delivery']): DeliveryDetails {
+function getMockRouteDetails(
+  address: string,
+  config: ReturnType<typeof useCurrentAgencySettings>["delivery"],
+): DeliveryDetails {
   const seed = address
     .trim()
     .toLowerCase()
-    .split('')
+    .split("")
     .reduce((sum, char) => sum + char.charCodeAt(0), 0);
   const distanceKm = Math.round(((seed % 2800) / 100 + 2.4) * 100) / 100;
-  const fee = Math.round(Math.max(distanceKm * config.ratePerKm, config.minFee ?? 0) * 100) / 100;
+  const fee =
+    Math.round(
+      Math.max(distanceKm * config.ratePerKm, config.minFee ?? 0) * 100,
+    ) / 100;
 
   return {
     address,
@@ -154,7 +176,8 @@ function StepIndicator({
               width: isActive ? 24 : 8,
               height: 8,
               borderRadius: 4,
-              backgroundColor: isActive || isCompleted ? theme.accent : theme.border,
+              backgroundColor:
+                isActive || isCompleted ? theme.accent : theme.border,
             }}
           />
         );
@@ -174,7 +197,7 @@ function SuccessOverlay({
   bookingRef: string;
   onBack: () => void;
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   const checkScale = useSharedValue(0);
 
@@ -203,12 +226,12 @@ function SuccessOverlay({
         </Animated.View>
 
         <Text variant="headlineLarge" align="center">
-          {t('bookings.new.confirmedTitle', 'Booking Confirmed!')}
+          {t("bookings.new.confirmedTitle", "Booking Confirmed!")}
         </Text>
 
         <View className="mt-3 mb-2">
           <Text variant="bodyMedium" color={theme.textSecondary} align="center">
-            {t('bookings.new.confirmedReference', 'Reference')}
+            {t("bookings.new.confirmedReference", "Reference")}
           </Text>
         </View>
 
@@ -217,13 +240,8 @@ function SuccessOverlay({
         </Badge>
 
         <View className="mt-8 w-full">
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            onPress={onBack}
-          >
-            {t('bookings.new.backToBookings', 'Back to Bookings')}
+          <Button variant="primary" size="lg" fullWidth onPress={onBack}>
+            {t("bookings.new.backToBookings", "Back to Bookings")}
           </Button>
         </View>
       </Animated.View>
@@ -238,28 +256,29 @@ export default function NewBookingScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const isDark = theme.background === colors.dark.background;
-  const pickerTheme = isDark ? 'dark' : 'light';
+  const pickerTheme = isDark ? "dark" : "light";
   const showToast = useToastStore((s) => s.show);
-  const bookingStore = useBookingStore();
+  const createMutation = useCreateBooking();
+  const createClientMutation = useCreateClient();
+  const { data: allBookings = [] } = useBookings();
 
   // ── Step 1: Vehicle ──────────────────────────────────────────────────
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleSearch, setVehicleSearch] = useState("");
 
   // ── Flow State ──────────────────────────────────────────────────────────
   const [step, setStep] = useState<number>(1);
 
   // Step 2: Client
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [clientSearch, setClientSearch] = useState('');
-  const [counterClients, setCounterClients] = useState<Client[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
   const [showCounterClientModal, setShowCounterClientModal] = useState(false);
-  const [counterFirstName, setCounterFirstName] = useState('');
-  const [counterLastName, setCounterLastName] = useState('');
-  const [counterPhone, setCounterPhone] = useState('');
-  const [counterEmail, setCounterEmail] = useState('');
-  const [counterAddress, setCounterAddress] = useState('');
-  const [counterLicense, setCounterLicense] = useState('');
+  const [counterFirstName, setCounterFirstName] = useState("");
+  const [counterLastName, setCounterLastName] = useState("");
+  const [counterPhone, setCounterPhone] = useState("");
+  const [counterEmail, setCounterEmail] = useState("");
+  const [counterAddress, setCounterAddress] = useState("");
+  const [counterLicense, setCounterLicense] = useState("");
 
   // Step 3: Dates (native pickers)
   const tomorrow = new Date();
@@ -271,18 +290,29 @@ export default function NewBookingScreen() {
     return d;
   });
   const [pickupTime, setPickupTime] = useState<Date>(() => {
-    const d = new Date(); d.setHours(9, 0, 0, 0); return d;
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    return d;
   });
   const [returnTime, setReturnTime] = useState<Date>(() => {
-    const d = new Date(); d.setHours(18, 0, 0, 0); return d;
+    const d = new Date();
+    d.setHours(18, 0, 0, 0);
+    return d;
   });
-  const [showPicker, setShowPicker] = useState<'start' | 'end' | 'pickupTime' | 'returnTime' | null>(null);
+  const [showPicker, setShowPicker] = useState<
+    "start" | "end" | "pickupTime" | "returnTime" | null
+  >(null);
 
   // String versions for store/validation
   const startDate = startDateObj.toISOString().slice(0, 10);
   const endDate = endDateObj.toISOString().slice(0, 10);
 
-  const vehicleAvailableForDates = useVehicleAvailable(selectedVehicle?.id ?? '', startDate, endDate);
+  const { data: availability } = useBookingAvailability(
+    selectedVehicle?.id,
+    startDate,
+    endDate,
+  );
+  const vehicleAvailableForDates = availability?.available ?? true;
 
   // Agency delivery config (used throughout Step 4)
   const agencyDelivery = useCurrentAgencySettings().delivery;
@@ -293,15 +323,25 @@ export default function NewBookingScreen() {
   // Step 4: Options
   const [options, setOptions] = useState<OptionToggle[]>(() => {
     const baseOptions: OptionToggle[] = [
-      { id: 'ins', label: 'Insurance Plus', price: 15, enabled: false },
-      { id: 'drv', label: 'Additional Driver', price: 10, enabled: false },
-      { id: 'foreign-use', label: 'Foreign Use Pass', price: 25, enabled: false },
-      { id: 'seat', label: 'Child Seat', price: 5, enabled: false },
+      { id: "ins", label: "Insurance Plus", price: 15, enabled: false },
+      { id: "drv", label: "Additional Driver", price: 10, enabled: false },
+      {
+        id: "foreign-use",
+        label: "Foreign Use Pass",
+        price: 25,
+        enabled: false,
+      },
+      { id: "seat", label: "Child Seat", price: 5, enabled: false },
     ];
     if (agencyDelivery.enabled) {
       return [
-        { id: 'delivery', label: 'Home delivery', price: 0, enabled: false },
-        { id: 'custom-pickup', label: 'Custom recovery', price: 0, enabled: false },
+        { id: "delivery", label: "Home delivery", price: 0, enabled: false },
+        {
+          id: "custom-pickup",
+          label: "Custom recovery",
+          price: 0,
+          enabled: false,
+        },
         ...baseOptions,
       ];
     }
@@ -309,9 +349,15 @@ export default function NewBookingScreen() {
   });
 
   // Distance-based option input state
-  const [routeAddresses, setRouteAddresses] = useState<Record<string, string>>({});
-  const [routeComputing, setRouteComputing] = useState<Record<string, boolean>>({});
-  const [routeErrors, setRouteErrors] = useState<Record<string, string | null>>({});
+  const [routeAddresses, setRouteAddresses] = useState<Record<string, string>>(
+    {},
+  );
+  const [routeComputing, setRouteComputing] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [routeErrors, setRouteErrors] = useState<Record<string, string | null>>(
+    {},
+  );
 
   // Step 5: Confirm
   const [confirmedRef, setConfirmedRef] = useState<string | null>(null);
@@ -322,9 +368,12 @@ export default function NewBookingScreen() {
 
   // ── Derived Data ────────────────────────────────────────────────────────
 
+  const { data: allVehicles = [] } = useVehicles();
+  const { data: allClients = [] } = useClients();
+
   const availableVehicles = useMemo(
-    () => mockVehicles.filter((v) => v.status === 'available'),
-    [],
+    () => allVehicles.filter((v) => v.status === "available"),
+    [allVehicles],
   );
 
   const filteredVehicles = useMemo(() => {
@@ -338,7 +387,6 @@ export default function NewBookingScreen() {
   }, [availableVehicles, vehicleSearch]);
 
   const filteredClients = useMemo(() => {
-    const allClients = [...counterClients, ...mockClients];
     const q = clientSearch.toLowerCase().trim();
     if (!q) return allClients;
     return allClients.filter(
@@ -348,23 +396,38 @@ export default function NewBookingScreen() {
         c.email.toLowerCase().includes(q) ||
         c.phone.includes(q),
     );
-  }, [clientSearch, counterClients]);
+  }, [clientSearch, allClients]);
 
-  const datesValid = useMemo(() => endDateObj > startDateObj, [startDateObj, endDateObj]);
+  const datesValid = useMemo(
+    () => endDateObj > startDateObj,
+    [startDateObj, endDateObj],
+  );
 
   const days = useMemo(() => {
     if (!datesValid) return 0;
-    return Math.max(1, Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / 86400000));
+    return Math.max(
+      1,
+      Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / 86400000),
+    );
   }, [startDateObj, endDateObj, datesValid]);
 
   const unresolvedDistanceOptions = useMemo(
-    () => options.filter((o) => isDistanceOption(o.id) && o.enabled && !o.deliveryDetails),
+    () =>
+      options.filter(
+        (o) => isDistanceOption(o.id) && o.enabled && !o.deliveryDetails,
+      ),
     [options],
   );
 
   const pricing = useMemo(() => {
     if (!selectedVehicle || days <= 0) {
-      return { subtotal: 0, optionsTotal: 0, deliveryFee: 0, deposit: 0, total: 0 };
+      return {
+        subtotal: 0,
+        optionsTotal: 0,
+        deliveryFee: 0,
+        deposit: 0,
+        total: 0,
+      };
     }
     const subtotal = selectedVehicle.dailyRate * days;
     const optionsTotal = options
@@ -463,196 +526,215 @@ export default function NewBookingScreen() {
     [clearComputedRoute, options],
   );
 
-  const handleCalculateRoute = useCallback(async (optionId: string) => {
-    const trimmed = (routeAddresses[optionId] ?? '').trim();
-    const setRouteError = (message: string) => {
-      setRouteErrors((prev) => ({ ...prev, [optionId]: message }));
-    };
+  const handleCalculateRoute = useCallback(
+    async (optionId: string) => {
+      const trimmed = (routeAddresses[optionId] ?? "").trim();
+      const setRouteError = (message: string) => {
+        setRouteErrors((prev) => ({ ...prev, [optionId]: message }));
+      };
 
-    if (!trimmed) {
-      setRouteError(
-        t(
-          optionId === 'custom-pickup'
-            ? 'bookings.new.customPickup.addressRequired'
-            : 'bookings.new.delivery.addressRequired',
-          optionId === 'custom-pickup'
-            ? 'Recovery address required'
-            : 'Delivery address required',
-        ),
-      );
-      return;
-    }
-    if (!hasBasePoint) {
-      setRouteError(
-        t(
-          'bookings.new.delivery.noBasePoint',
-          'No agency base address configured',
-        ),
-      );
-      return;
-    }
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setRouteComputing((prev) => ({ ...prev, [optionId]: true }));
-    setRouteErrors((prev) => ({ ...prev, [optionId]: null }));
-    try {
-      const geocoded = await geocodeAddress(trimmed);
-      const distance = await getDrivingDistance(
-        { lat: agencyDelivery.basePointLat, lng: agencyDelivery.basePointLng },
-        { lat: geocoded.lat, lng: geocoded.lng },
-      );
-      const distanceKm = Math.round((distance.distanceMeters / 1000) * 100) / 100;
-
-      if (
-        agencyDelivery.maxDistanceKm != null &&
-        distanceKm > agencyDelivery.maxDistanceKm
-      ) {
+      if (!trimmed) {
         setRouteError(
-          t('bookings.new.delivery.maxDistanceExceeded', {
-            defaultValue: 'Distance {{distance}} km exceeds limit {{max}} km',
-            distance: distanceKm,
-            max: agencyDelivery.maxDistanceKm,
-          }),
+          t(
+            optionId === "custom-pickup"
+              ? "bookings.new.customPickup.addressRequired"
+              : "bookings.new.delivery.addressRequired",
+            optionId === "custom-pickup"
+              ? "Recovery address required"
+              : "Delivery address required",
+          ),
         );
         return;
       }
+      if (!hasBasePoint) {
+        setRouteError(
+          t(
+            "bookings.new.delivery.noBasePoint",
+            "No agency base address configured",
+          ),
+        );
+        return;
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setRouteComputing((prev) => ({ ...prev, [optionId]: true }));
+      setRouteErrors((prev) => ({ ...prev, [optionId]: null }));
+      try {
+        const geocoded = await geocodeAddress(trimmed);
+        const distance = await getDrivingDistance(
+          {
+            lat: agencyDelivery.basePointLat,
+            lng: agencyDelivery.basePointLng,
+          },
+          { lat: geocoded.lat, lng: geocoded.lng },
+        );
+        const distanceKm =
+          Math.round((distance.distanceMeters / 1000) * 100) / 100;
 
-      const rawFee = distanceKm * agencyDelivery.ratePerKm;
-      const fee = Math.max(rawFee, agencyDelivery.minFee ?? 0);
-      const roundedFee = Math.round(fee * 100) / 100;
+        if (
+          agencyDelivery.maxDistanceKm != null &&
+          distanceKm > agencyDelivery.maxDistanceKm
+        ) {
+          setRouteError(
+            t("bookings.new.delivery.maxDistanceExceeded", {
+              defaultValue: "Distance {{distance}} km exceeds limit {{max}} km",
+              distance: distanceKm,
+              max: agencyDelivery.maxDistanceKm,
+            }),
+          );
+          return;
+        }
 
-      const details: DeliveryDetails = {
-        address: geocoded.formattedAddress,
-        lat: geocoded.lat,
-        lng: geocoded.lng,
-        distanceKm,
-        fee: roundedFee,
-      };
+        const rawFee = distanceKm * agencyDelivery.ratePerKm;
+        const fee = Math.max(rawFee, agencyDelivery.minFee ?? 0);
+        const roundedFee = Math.round(fee * 100) / 100;
 
-      setOptions((prev) =>
-        prev.map((o) =>
-          o.id === optionId ? { ...o, deliveryDetails: details } : o,
-        ),
-      );
-    } catch (err) {
-      if (err instanceof MapsApiKeyMissingError) {
-        const details = getMockRouteDetails(trimmed, agencyDelivery);
+        const details: DeliveryDetails = {
+          address: geocoded.formattedAddress,
+          lat: geocoded.lat,
+          lng: geocoded.lng,
+          distanceKm,
+          fee: roundedFee,
+        };
+
         setOptions((prev) =>
           prev.map((o) =>
             o.id === optionId ? { ...o, deliveryDetails: details } : o,
           ),
         );
-        return;
-      }
+      } catch (err) {
+        if (err instanceof MapsApiKeyMissingError) {
+          const details = getMockRouteDetails(trimmed, agencyDelivery);
+          setOptions((prev) =>
+            prev.map((o) =>
+              o.id === optionId ? { ...o, deliveryDetails: details } : o,
+            ),
+          );
+          return;
+        }
 
-      let key = 'bookings.new.delivery.errorUnknown';
-      if (err instanceof GeocodingError) {
-        key =
-          err.code === 'ZERO_RESULTS'
-            ? 'bookings.new.delivery.errorZeroResults'
-            : err.code === 'OVER_QUERY_LIMIT'
-              ? 'bookings.new.delivery.errorQuota'
-              : err.code === 'REQUEST_DENIED'
-                ? 'bookings.new.delivery.errorRequestDenied'
-                : err.code === 'NETWORK'
-                  ? 'bookings.new.delivery.errorNetwork'
-                  : 'bookings.new.delivery.errorUnknown';
-      } else if (err instanceof DistanceMatrixError) {
-        key =
-          err.code === 'OVER_QUERY_LIMIT'
-            ? 'bookings.new.delivery.errorQuota'
-            : err.code === 'REQUEST_DENIED'
-              ? 'bookings.new.delivery.errorRequestDenied'
-              : err.code === 'NETWORK'
-                ? 'bookings.new.delivery.errorNetwork'
-                : 'bookings.new.delivery.errorZeroResults';
+        let key = "bookings.new.delivery.errorUnknown";
+        if (err instanceof GeocodingError) {
+          key =
+            err.code === "ZERO_RESULTS"
+              ? "bookings.new.delivery.errorZeroResults"
+              : err.code === "OVER_QUERY_LIMIT"
+                ? "bookings.new.delivery.errorQuota"
+                : err.code === "REQUEST_DENIED"
+                  ? "bookings.new.delivery.errorRequestDenied"
+                  : err.code === "NETWORK"
+                    ? "bookings.new.delivery.errorNetwork"
+                    : "bookings.new.delivery.errorUnknown";
+        } else if (err instanceof DistanceMatrixError) {
+          key =
+            err.code === "OVER_QUERY_LIMIT"
+              ? "bookings.new.delivery.errorQuota"
+              : err.code === "REQUEST_DENIED"
+                ? "bookings.new.delivery.errorRequestDenied"
+                : err.code === "NETWORK"
+                  ? "bookings.new.delivery.errorNetwork"
+                  : "bookings.new.delivery.errorZeroResults";
+        }
+        setRouteError(t(key, "Error"));
+      } finally {
+        setRouteComputing((prev) => ({ ...prev, [optionId]: false }));
       }
-      setRouteError(t(key, 'Error'));
-    } finally {
-      setRouteComputing((prev) => ({ ...prev, [optionId]: false }));
-    }
-  }, [
-    routeAddresses,
-    hasBasePoint,
-    agencyDelivery.basePointLat,
-    agencyDelivery.basePointLng,
-    agencyDelivery.ratePerKm,
-    agencyDelivery.minFee,
-    agencyDelivery.maxDistanceKm,
-    t,
-  ]);
+    },
+    [
+      routeAddresses,
+      hasBasePoint,
+      agencyDelivery.basePointLat,
+      agencyDelivery.basePointLng,
+      agencyDelivery.ratePerKm,
+      agencyDelivery.minFee,
+      agencyDelivery.maxDistanceKm,
+      t,
+    ],
+  );
 
   const getOptionLabel = useCallback(
     (option: OptionToggle) => {
-      if (option.id === 'delivery') {
-        return t('bookings.new.delivery.optionLabel', 'Home delivery');
+      if (option.id === "delivery") {
+        return t("bookings.new.delivery.optionLabel", "Home delivery");
       }
-      if (option.id === 'custom-pickup') {
-        return t('bookings.new.customPickup.optionLabel', 'Custom recovery');
+      if (option.id === "custom-pickup") {
+        return t("bookings.new.customPickup.optionLabel", "Custom recovery");
       }
       return option.label;
     },
     [t],
   );
 
-  const proceedWithCreate = useCallback(() => {
-    if (!selectedVehicle) return;
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const booking = bookingStore.createBooking(selectedVehicle.dailyRate);
-    if (booking) {
-      setConfirmedRef(booking.id);
-    } else {
-      showToast({
-        variant: 'error',
-        title: 'Error',
-        message: 'Failed to create booking. Please try again.',
-      });
-    }
-  }, [bookingStore, selectedVehicle, showToast]);
+  const proceedWithCreate = useCallback(
+    async (force = false) => {
+      if (!selectedVehicle || !selectedClient) return;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      try {
+        const result = await createMutation.mutateAsync({
+          vehicleId: selectedVehicle.id,
+          clientId: selectedClient.id,
+          startDate,
+          endDate,
+          pickupTime: pickupTime.toTimeString().slice(0, 5),
+          returnTime: returnTime.toTimeString().slice(0, 5),
+          options: options.map((o) => ({
+            id: o.id,
+            label: getOptionLabel(o),
+            price: o.price,
+            enabled: o.enabled,
+            ...(o.deliveryDetails
+              ? { deliveryDetails: o.deliveryDetails }
+              : {}),
+          })),
+          force,
+        });
+        if (result.booking) {
+          setConfirmedRef(result.booking.id);
+          return;
+        }
+        if (result.conflict) {
+          const conflictIds = result.conflict.conflictingBookingIds;
+          const matchedConflicts = allBookings.filter((b) =>
+            conflictIds.includes(b.id),
+          );
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Warning,
+          );
+          setConflictModal({ visible: true, conflicts: matchedConflicts });
+        }
+      } catch (err) {
+        showToast({
+          variant: "error",
+          title: "Error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to create booking. Please try again.",
+        });
+      }
+    },
+    [
+      createMutation,
+      selectedVehicle,
+      selectedClient,
+      startDate,
+      endDate,
+      pickupTime,
+      returnTime,
+      options,
+      getOptionLabel,
+      allBookings,
+      showToast,
+    ],
+  );
 
   const handleConfirm = useCallback(() => {
     if (!selectedVehicle || !selectedClient) return;
-
-    bookingStore.startDraft();
-    bookingStore.updateDraft({
-      vehicleId: selectedVehicle.id,
-      vehicleName: `${selectedVehicle.brand} ${selectedVehicle.name}`,
-      clientId: selectedClient.id,
-      clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-      startDate,
-      endDate,
-      pickupTime: pickupTime.toTimeString().slice(0, 5),
-      returnTime: returnTime.toTimeString().slice(0, 5),
-      options: options.map((o) => ({
-        id: o.id,
-        label: getOptionLabel(o),
-        price: o.price,
-        enabled: o.enabled,
-        ...(o.deliveryDetails ? { deliveryDetails: o.deliveryDetails } : {}),
-      })),
-    });
-
-    const conflicts = bookingStore.findDraftConflicts();
-    if (conflicts.length > 0) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      setConflictModal({ visible: true, conflicts });
-      return;
-    }
-
-    proceedWithCreate();
-  }, [
-    selectedVehicle,
-    selectedClient,
-    startDate,
-    endDate,
-    options,
-    getOptionLabel,
-    bookingStore,
-    proceedWithCreate,
-  ]);
+    void proceedWithCreate(false);
+  }, [selectedVehicle, selectedClient, proceedWithCreate]);
 
   const handleConflictCreateAnyway = useCallback(() => {
     setConflictModal({ visible: false, conflicts: [] });
-    proceedWithCreate();
+    void proceedWithCreate(true);
   }, [proceedWithCreate]);
 
   const handleConflictModifyDates = useCallback(() => {
@@ -662,16 +744,15 @@ export default function NewBookingScreen() {
 
   const handleConflictAbandon = useCallback(() => {
     setConflictModal({ visible: false, conflicts: [] });
-    bookingStore.discardDraft();
     router.back();
-  }, [bookingStore, router]);
+  }, [router]);
 
   const handleSaveDraft = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showToast({
-      variant: 'info',
-      title: 'Coming soon',
-      message: 'Draft saving will be available soon.',
+      variant: "info",
+      title: "Coming soon",
+      message: "Draft saving will be available soon.",
     });
   }, [showToast]);
 
@@ -680,63 +761,85 @@ export default function NewBookingScreen() {
     setShowCounterClientModal(true);
   }, []);
 
-  const handleCreateCounterClient = useCallback(() => {
-    if (!counterFirstName.trim() || !counterLastName.trim() || !counterPhone.trim()) {
+  const handleFillFakeCounterClient = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const firstName = faker.person.firstName();
+    const lastName = faker.person.lastName();
+    setCounterFirstName(firstName);
+    setCounterLastName(lastName);
+    setCounterPhone(faker.phone.number({ style: "international" }));
+    setCounterEmail(
+      faker.internet.email({ firstName, lastName }).toLowerCase(),
+    );
+    setCounterAddress(
+      `${faker.location.streetAddress()}, ${faker.location.zipCode()} ${faker.location.city()}`,
+    );
+    setCounterLicense(faker.string.alphanumeric(9).toUpperCase());
+  }, []);
+
+  const handleCreateCounterClient = useCallback(async () => {
+    if (
+      !counterFirstName.trim() ||
+      !counterLastName.trim() ||
+      !counterPhone.trim()
+    ) {
       showToast({
-        variant: 'warning',
-        title: t('bookings.new.counterClient.missingTitle', 'Informations manquantes'),
+        variant: "warning",
+        title: t(
+          "bookings.new.counterClient.missingTitle",
+          "Informations manquantes",
+        ),
         message: t(
-          'bookings.new.counterClient.missingMessage',
-          'Nom, prénom et téléphone sont nécessaires pour créer le client.',
+          "bookings.new.counterClient.missingMessage",
+          "Nom, prénom et téléphone sont nécessaires pour créer le client.",
         ),
       });
       return;
     }
 
-    const newClient: Client = {
-      id: `walkin-${Date.now()}`,
+    const license = counterLicense.trim();
+    const payload: CreateClientInput = {
       firstName: counterFirstName.trim(),
       lastName: counterLastName.trim(),
       email: counterEmail.trim() || `${Date.now()}@walkin.myfleet.local`,
       phone: counterPhone.trim(),
       address: counterAddress.trim(),
-      dateOfBirth: '',
-      idType: 'driving-license',
-      idNumber: '',
-      driverLicense: counterLicense.trim(),
-      driverLicenseExpiry: '',
-      tags: ['new'],
-      flagReason: null,
-      totalBookings: 0,
-      totalSpent: 0,
-      createdAt: new Date().toISOString().slice(0, 10),
-      notes: 'Créé au comptoir pendant une réservation.',
-      documents: {
-        idFront: 'pending',
-        idBack: 'pending',
-        licenseFront: counterLicense.trim() ? 'captured' : 'pending',
-      },
-      registrationMethod: 'walk-in',
-      registeredAt: new Date().toISOString(),
+      ...(license ? { driverLicense: license } : {}),
+      notes: "Créé au comptoir pendant une réservation.",
+      registrationMethod: "walk-in",
     };
 
-    setCounterClients((prev) => [newClient, ...prev]);
-    setSelectedClient(newClient);
-    setShowCounterClientModal(false);
-    setCounterFirstName('');
-    setCounterLastName('');
-    setCounterPhone('');
-    setCounterEmail('');
-    setCounterAddress('');
-    setCounterLicense('');
-    showToast({
-      variant: 'success',
-      title: t('bookings.new.counterClient.createdTitle', 'Client ajouté'),
-      message: t(
-        'bookings.new.counterClient.createdMessage',
-        'Le client a été créé au comptoir et sélectionné pour cette réservation.',
-      ),
-    });
+    try {
+      const created = await createClientMutation.mutateAsync(payload);
+      setSelectedClient(created);
+      setShowCounterClientModal(false);
+      setCounterFirstName("");
+      setCounterLastName("");
+      setCounterPhone("");
+      setCounterEmail("");
+      setCounterAddress("");
+      setCounterLicense("");
+      showToast({
+        variant: "success",
+        title: t("bookings.new.counterClient.createdTitle", "Client ajouté"),
+        message: t(
+          "bookings.new.counterClient.createdMessage",
+          "Le client a été créé au comptoir et sélectionné pour cette réservation.",
+        ),
+      });
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: t("common.error", "Erreur"),
+        message:
+          err instanceof Error
+            ? err.message
+            : t(
+                "bookings.new.counterClient.createFailed",
+                "Impossible de créer le client. Veuillez réessayer.",
+              ),
+      });
+    }
   }, [
     counterAddress,
     counterEmail,
@@ -744,6 +847,7 @@ export default function NewBookingScreen() {
     counterLastName,
     counterLicense,
     counterPhone,
+    createClientMutation,
     showToast,
     t,
   ]);
@@ -751,41 +855,47 @@ export default function NewBookingScreen() {
   const handleCustomOption = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showToast({
-      variant: 'info',
-      title: t('bookings.new.customOptions.title', 'Options personnalisables'),
+      variant: "info",
+      title: t("bookings.new.customOptions.title", "Options personnalisables"),
       message: t(
-        'bookings.new.customOptions.message',
+        "bookings.new.customOptions.message",
         "Chaque agence pourra gérer ses propres options depuis les paramètres.",
       ),
     });
   }, [showToast, t]);
 
   const handleBackToBookings = useCallback(() => {
-    router.replace('/(app)/(bookings)');
+    router.replace("/(app)/(bookings)");
   }, [router]);
 
   // ── Date/time helpers (must be before any conditional return) ────────────
 
   const onDateChange = useCallback(
-    (pickerKey: 'start' | 'end' | 'pickupTime' | 'returnTime') =>
+    (pickerKey: "start" | "end" | "pickupTime" | "returnTime") =>
       (_: DateTimePickerEvent, selected?: Date) => {
-        if (Platform.OS === 'android') setShowPicker(null);
+        if (Platform.OS === "android") setShowPicker(null);
         if (!selected) return;
-        if (pickerKey === 'start') setStartDateObj(selected);
-        else if (pickerKey === 'end') setEndDateObj(selected);
-        else if (pickerKey === 'pickupTime') setPickupTime(selected);
-        else if (pickerKey === 'returnTime') setReturnTime(selected);
+        if (pickerKey === "start") setStartDateObj(selected);
+        else if (pickerKey === "end") setEndDateObj(selected);
+        else if (pickerKey === "pickupTime") setPickupTime(selected);
+        else if (pickerKey === "returnTime") setReturnTime(selected);
       },
     [],
   );
 
   const formatDisplayDate = useCallback(
-    (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    (d: Date) =>
+      d.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
     [],
   );
 
   const formatDisplayTime = useCallback(
-    (d: Date) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    (d: Date) =>
+      d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
     [],
   );
 
@@ -807,11 +917,11 @@ export default function NewBookingScreen() {
   // ── Step Titles ─────────────────────────────────────────────────────────
 
   const stepTitles: Record<number, string> = {
-    1: t('bookings.new.step1', 'Select Vehicle'),
-    2: t('bookings.new.step2', 'Select Client'),
-    3: t('bookings.new.step3', 'Select Dates'),
-    4: t('bookings.new.step4', 'Pricing & Options'),
-    5: t('bookings.new.step5', 'Review & Confirm'),
+    1: t("bookings.new.step1", "Select Vehicle"),
+    2: t("bookings.new.step2", "Select Client"),
+    3: t("bookings.new.step3", "Select Dates"),
+    4: t("bookings.new.step4", "Pricing & Options"),
+    5: t("bookings.new.step5", "Review & Confirm"),
   };
 
   // ── Option Icons ────────────────────────────────────────────────────────
@@ -819,8 +929,8 @@ export default function NewBookingScreen() {
   const optionIcons: Record<string, typeof Shield> = {
     ins: Shield,
     drv: Users,
-    'foreign-use': Globe2,
-    'custom-pickup': MapPin,
+    "foreign-use": Globe2,
+    "custom-pickup": MapPin,
     seat: Baby,
   };
 
@@ -829,7 +939,10 @@ export default function NewBookingScreen() {
   const renderStep1 = () => (
     <Animated.View entering={FadeInDown.duration(400).delay(100)}>
       <SearchBar
-        placeholder={t('bookings.new.searchVehicle', 'Search by name, model or plate')}
+        placeholder={t(
+          "bookings.new.searchVehicle",
+          "Search by name, model or plate",
+        )}
         value={vehicleSearch}
         onChangeText={setVehicleSearch}
         className="mb-3"
@@ -838,9 +951,15 @@ export default function NewBookingScreen() {
       <Text
         variant="bodySmall"
         color={theme.textTertiary}
-        style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginLeft: 4 }}
+        style={{
+          fontSize: 11,
+          textTransform: "uppercase",
+          letterSpacing: 1,
+          marginBottom: 10,
+          marginLeft: 4,
+        }}
       >
-        {filteredVehicles.length} {t('bookings.new.available', 'available')}
+        {filteredVehicles.length} {t("bookings.new.available", "available")}
       </Text>
 
       <View style={{ gap: 12 }}>
@@ -863,7 +982,7 @@ export default function NewBookingScreen() {
       {filteredVehicles.length === 0 && (
         <View className="items-center py-8">
           <Text variant="bodyMedium" color={theme.textTertiary}>
-            {t('bookings.new.noVehicles', 'No vehicles found')}
+            {t("bookings.new.noVehicles", "No vehicles found")}
           </Text>
         </View>
       )}
@@ -880,11 +999,11 @@ export default function NewBookingScreen() {
         onPress={handleAddNewClient}
         className="mb-4"
       >
-        {t('bookings.new.addClient', 'Add New Client')}
+        {t("bookings.new.addClient", "Add New Client")}
       </Button>
 
       <SearchBar
-        placeholder={t('bookings.new.searchClient', 'Search clients...')}
+        placeholder={t("bookings.new.searchClient", "Search clients...")}
         value={clientSearch}
         onChangeText={setClientSearch}
         className="mb-4"
@@ -910,7 +1029,7 @@ export default function NewBookingScreen() {
                 style={{
                   backgroundColor: theme.surface,
                   borderWidth: isSelected ? 2 : 0,
-                  borderColor: isSelected ? theme.accent : 'transparent',
+                  borderColor: isSelected ? theme.accent : "transparent",
                 }}
               >
                 <View className="flex-row items-center">
@@ -921,9 +1040,7 @@ export default function NewBookingScreen() {
                       {client.phone}
                     </Text>
                   </View>
-                  {isSelected && (
-                    <CheckCircle size={20} color={theme.accent} />
-                  )}
+                  {isSelected && <CheckCircle size={20} color={theme.accent} />}
                 </View>
               </View>
             </Pressable>
@@ -934,7 +1051,7 @@ export default function NewBookingScreen() {
       {filteredClients.length === 0 && (
         <View className="items-center py-8">
           <Text variant="bodyMedium" color={theme.textTertiary}>
-            {t('bookings.new.noClients', 'No clients found')}
+            {t("bookings.new.noClients", "No clients found")}
           </Text>
         </View>
       )}
@@ -954,7 +1071,7 @@ export default function NewBookingScreen() {
               backgroundColor: theme.accentSoft,
               borderRadius: 20,
               padding: 18,
-              alignItems: 'center',
+              alignItems: "center",
             }}
           >
             <Text
@@ -964,10 +1081,11 @@ export default function NewBookingScreen() {
                 fontSize: 11,
                 fontFamily: fontFamilies.medium,
                 letterSpacing: 0.5,
-                textTransform: 'uppercase',
+                textTransform: "uppercase",
               }}
             >
-              {t('bookings.new.dailyRate', 'Daily rate')} · €{selectedVehicle?.dailyRate ?? 0}
+              {t("bookings.new.dailyRate", "Daily rate")} · €
+              {selectedVehicle?.dailyRate ?? 0}
             </Text>
             <Text
               variant="headlineLarge"
@@ -978,7 +1096,10 @@ export default function NewBookingScreen() {
                 marginTop: 4,
               }}
             >
-              {t('bookings.new.duration', { count: days, defaultValue: '{{count}} days' })}
+              {t("bookings.new.duration", {
+                count: days,
+                defaultValue: "{{count}} days",
+              })}
             </Text>
           </View>
         )}
@@ -1000,15 +1121,19 @@ export default function NewBookingScreen() {
                 color={theme.textTertiary}
                 style={{ fontSize: 11, marginBottom: 4 }}
               >
-                {t('bookings.new.startDate', 'Start date')}
+                {t("bookings.new.startDate", "Start date")}
               </Text>
               <Pressable
-                onPress={() => setShowPicker(showPicker === 'start' ? null : 'start')}
+                onPress={() =>
+                  setShowPicker(showPicker === "start" ? null : "start")
+                }
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
                   backgroundColor:
-                    showPicker === 'start' ? theme.accentSoft : theme.surfaceTertiary,
+                    showPicker === "start"
+                      ? theme.accentSoft
+                      : theme.surfaceTertiary,
                   borderRadius: 14,
                   paddingHorizontal: 12,
                   paddingVertical: 10,
@@ -1036,31 +1161,39 @@ export default function NewBookingScreen() {
                 height: 28,
                 borderRadius: 14,
                 backgroundColor: theme.surfaceTertiary,
-                alignItems: 'center',
-                justifyContent: 'center',
+                alignItems: "center",
+                justifyContent: "center",
                 marginHorizontal: 8,
                 marginTop: 16,
               }}
             >
-              <ArrowRight size={14} color={theme.textSecondary} strokeWidth={2} />
+              <ArrowRight
+                size={14}
+                color={theme.textSecondary}
+                strokeWidth={2}
+              />
             </View>
 
             <View style={{ flex: 1 }}>
               <Text
                 variant="caption"
                 color={theme.textTertiary}
-                style={{ fontSize: 11, marginBottom: 4, textAlign: 'right' }}
+                style={{ fontSize: 11, marginBottom: 4, textAlign: "right" }}
               >
-                {t('bookings.new.endDate', 'End date')}
+                {t("bookings.new.endDate", "End date")}
               </Text>
               <Pressable
-                onPress={() => setShowPicker(showPicker === 'end' ? null : 'end')}
+                onPress={() =>
+                  setShowPicker(showPicker === "end" ? null : "end")
+                }
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
                   backgroundColor:
-                    showPicker === 'end' ? theme.accentSoft : theme.surfaceTertiary,
+                    showPicker === "end"
+                      ? theme.accentSoft
+                      : theme.surfaceTertiary,
                   borderRadius: 14,
                   paddingHorizontal: 12,
                   paddingVertical: 10,
@@ -1083,7 +1216,7 @@ export default function NewBookingScreen() {
             </View>
           </View>
 
-          {showPicker === 'start' && (
+          {showPicker === "start" && (
             <View className="items-center" style={{ marginTop: 6 }}>
               <DateTimePicker
                 value={startDateObj}
@@ -1092,12 +1225,12 @@ export default function NewBookingScreen() {
                 minimumDate={new Date()}
                 locale="fr-FR"
                 themeVariant={pickerTheme}
-                onChange={onDateChange('start')}
+                onChange={onDateChange("start")}
               />
             </View>
           )}
 
-          {showPicker === 'end' && (
+          {showPicker === "end" && (
             <View className="items-center" style={{ marginTop: 6 }}>
               <DateTimePicker
                 value={endDateObj}
@@ -1106,7 +1239,7 @@ export default function NewBookingScreen() {
                 minimumDate={startDateObj}
                 locale="fr-FR"
                 themeVariant={pickerTheme}
-                onChange={onDateChange('end')}
+                onChange={onDateChange("end")}
               />
             </View>
           )}
@@ -1127,13 +1260,13 @@ export default function NewBookingScreen() {
             color={theme.textTertiary}
             style={{
               fontSize: 11,
-              textTransform: 'uppercase',
+              textTransform: "uppercase",
               letterSpacing: 1,
               fontFamily: fontFamilies.medium,
               marginBottom: 10,
             }}
           >
-            {t('bookings.new.times', 'Schedule')}
+            {t("bookings.new.times", "Schedule")}
           </Text>
 
           <View className="flex-row" style={{ gap: 10 }}>
@@ -1143,18 +1276,20 @@ export default function NewBookingScreen() {
                 color={theme.textTertiary}
                 style={{ fontSize: 11, marginBottom: 4 }}
               >
-                {t('bookings.new.pickup', 'Pickup')}
+                {t("bookings.new.pickup", "Pickup")}
               </Text>
               <Pressable
                 onPress={() =>
-                  setShowPicker(showPicker === 'pickupTime' ? null : 'pickupTime')
+                  setShowPicker(
+                    showPicker === "pickupTime" ? null : "pickupTime",
+                  )
                 }
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
                   backgroundColor:
-                    showPicker === 'pickupTime'
+                    showPicker === "pickupTime"
                       ? theme.accentSoft
                       : theme.surfaceTertiary,
                   borderRadius: 14,
@@ -1181,18 +1316,20 @@ export default function NewBookingScreen() {
                 color={theme.textTertiary}
                 style={{ fontSize: 11, marginBottom: 4 }}
               >
-                {t('bookings.new.return', 'Return')}
+                {t("bookings.new.return", "Return")}
               </Text>
               <Pressable
                 onPress={() =>
-                  setShowPicker(showPicker === 'returnTime' ? null : 'returnTime')
+                  setShowPicker(
+                    showPicker === "returnTime" ? null : "returnTime",
+                  )
                 }
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
                   backgroundColor:
-                    showPicker === 'returnTime'
+                    showPicker === "returnTime"
                       ? theme.accentSoft
                       : theme.surfaceTertiary,
                   borderRadius: 14,
@@ -1214,7 +1351,7 @@ export default function NewBookingScreen() {
             </View>
           </View>
 
-          {showPicker === 'pickupTime' && (
+          {showPicker === "pickupTime" && (
             <View className="items-center" style={{ marginTop: 6 }}>
               <DateTimePicker
                 value={pickupTime}
@@ -1223,11 +1360,11 @@ export default function NewBookingScreen() {
                 minuteInterval={15}
                 locale="fr-FR"
                 themeVariant={pickerTheme}
-                onChange={onDateChange('pickupTime')}
+                onChange={onDateChange("pickupTime")}
               />
             </View>
           )}
-          {showPicker === 'returnTime' && (
+          {showPicker === "returnTime" && (
             <View className="items-center" style={{ marginTop: 6 }}>
               <DateTimePicker
                 value={returnTime}
@@ -1236,7 +1373,7 @@ export default function NewBookingScreen() {
                 minuteInterval={15}
                 locale="fr-FR"
                 themeVariant={pickerTheme}
-                onChange={onDateChange('returnTime')}
+                onChange={onDateChange("returnTime")}
               />
             </View>
           )}
@@ -1252,8 +1389,8 @@ export default function NewBookingScreen() {
                 borderLeftColor: theme.danger,
                 borderRadius: 16,
                 padding: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
+                flexDirection: "row",
+                alignItems: "center",
                 gap: 10,
               }}
             >
@@ -1264,7 +1401,7 @@ export default function NewBookingScreen() {
                   color={theme.danger}
                   style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
                 >
-                  {t('bookings.new.unavailable', 'Vehicle unavailable')}
+                  {t("bookings.new.unavailable", "Vehicle unavailable")}
                 </Text>
                 <Text
                   variant="bodySmall"
@@ -1272,8 +1409,8 @@ export default function NewBookingScreen() {
                   style={{ fontSize: 12, marginTop: 2 }}
                 >
                   {t(
-                    'bookings.new.unavailableDesc',
-                    'This vehicle is already booked for the selected dates.',
+                    "bookings.new.unavailableDesc",
+                    "This vehicle is already booked for the selected dates.",
                   )}
                 </Text>
               </View>
@@ -1289,25 +1426,31 @@ export default function NewBookingScreen() {
       <Card className="mb-4">
         <View className="p-4">
           <Text variant="titleMedium" className="mb-3">
-            {t('bookings.new.pricing', 'Tarification')}
+            {t("bookings.new.pricing", "Tarification")}
           </Text>
 
           {/* Daily rate line */}
           <View className="flex-row items-center justify-between mb-2">
             <Text variant="bodyMedium" color={theme.textSecondary}>
-              {'\u20AC'}{selectedVehicle?.dailyRate ?? 0} {'\u00D7'} {days}{' '}
-              {t('bookings.new.days', 'days')}
+              {"\u20AC"}
+              {selectedVehicle?.dailyRate ?? 0} {"\u00D7"} {days}{" "}
+              {t("bookings.new.days", "days")}
             </Text>
             <Text variant="bodyMedium">
-              {'\u20AC'}{pricing.subtotal}
+              {"\u20AC"}
+              {pricing.subtotal}
             </Text>
           </View>
 
           <Divider className="my-3" />
 
           {/* Option toggles */}
-          <Text variant="titleSmall" color={theme.textSecondary} className="mb-2">
-            {t('bookings.new.options', 'Options').toUpperCase()}
+          <Text
+            variant="titleSmall"
+            color={theme.textSecondary}
+            className="mb-2"
+          >
+            {t("bookings.new.options", "Options").toUpperCase()}
           </Text>
 
           <Pressable
@@ -1323,25 +1466,30 @@ export default function NewBookingScreen() {
             </View>
             <View className="flex-1">
               <Text variant="bodyMedium" color={theme.accent}>
-                {t('bookings.new.customOptions.title', 'Options personnalisables')}
+                {t(
+                  "bookings.new.customOptions.title",
+                  "Options personnalisables",
+                )}
               </Text>
               <Text variant="bodySmall" color={theme.textSecondary}>
                 {t(
-                  'bookings.new.customOptions.subtitle',
-                  'Assurances, chauffeur, siège auto et options propres à chaque agence',
+                  "bookings.new.customOptions.subtitle",
+                  "Assurances, chauffeur, siège auto et options propres à chaque agence",
                 )}
               </Text>
             </View>
           </Pressable>
 
           {options.map((option) => {
-            const isDelivery = option.id === 'delivery';
-            const isCustomPickup = option.id === 'custom-pickup';
+            const isDelivery = option.id === "delivery";
+            const isCustomPickup = option.id === "custom-pickup";
             const isDistance = isDistanceOption(option.id);
-            const optionAddress = routeAddresses[option.id] ?? '';
+            const optionAddress = routeAddresses[option.id] ?? "";
             const optionComputing = !!routeComputing[option.id];
             const optionError = routeErrors[option.id] ?? null;
-            const OptionIcon = isDelivery ? Truck : optionIcons[option.id] ?? Shield;
+            const OptionIcon = isDelivery
+              ? Truck
+              : (optionIcons[option.id] ?? Shield);
             const label = getOptionLabel(option);
             return (
               <React.Fragment key={option.id}>
@@ -1362,20 +1510,21 @@ export default function NewBookingScreen() {
                     >
                       <OptionIcon
                         size={18}
-                        color={option.enabled ? theme.accent : theme.textTertiary}
+                        color={
+                          option.enabled ? theme.accent : theme.textTertiary
+                        }
                       />
                     </View>
                     <View className="flex-1">
                       <Text variant="bodyMedium">{label}</Text>
                       <Text variant="bodySmall" color={theme.textTertiary}>
                         {isDistance
-                          ? t('bookings.new.delivery.rateInfo', {
-                              defaultValue:
-                                'Rate: {{rate}} {{currency}} / km',
+                          ? t("bookings.new.delivery.rateInfo", {
+                              defaultValue: "Rate: {{rate}} {{currency}} / km",
                               rate: agencyDelivery.ratePerKm.toFixed(2),
                               currency: agencyDelivery.currency,
                             })
-                          : `+${'\u20AC'}${option.price}/day`}
+                          : `+${"\u20AC"}${option.price}/day`}
                       </Text>
                     </View>
                   </View>
@@ -1389,7 +1538,7 @@ export default function NewBookingScreen() {
                       backgroundColor: option.enabled
                         ? theme.accent
                         : theme.surfaceTertiary,
-                      justifyContent: 'center',
+                      justifyContent: "center",
                       paddingHorizontal: 2,
                     }}
                   >
@@ -1398,8 +1547,8 @@ export default function NewBookingScreen() {
                       style={{
                         width: 24,
                         height: 24,
-                        backgroundColor: '#FFFFFF',
-                        alignSelf: option.enabled ? 'flex-end' : 'flex-start',
+                        backgroundColor: "#FFFFFF",
+                        alignSelf: option.enabled ? "flex-end" : "flex-start",
                       }}
                     />
                   </View>
@@ -1420,73 +1569,93 @@ export default function NewBookingScreen() {
                       label={
                         isCustomPickup
                           ? t(
-                              'bookings.new.customPickup.addressLabel',
-                              'Recovery address',
+                              "bookings.new.customPickup.addressLabel",
+                              "Recovery address",
                             )
                           : t(
-                              'bookings.new.delivery.addressLabel',
-                              'Delivery address',
+                              "bookings.new.delivery.addressLabel",
+                              "Delivery address",
                             )
                       }
                       placeholder={
                         isCustomPickup
                           ? t(
-                              'bookings.new.customPickup.addressPlaceholder',
-                              'Client return address',
+                              "bookings.new.customPickup.addressPlaceholder",
+                              "Client return address",
                             )
                           : t(
-                              'bookings.new.delivery.addressPlaceholder',
-                              'Street, number, postcode, city',
+                              "bookings.new.delivery.addressPlaceholder",
+                              "Street, number, postcode, city",
                             )
                       }
                       value={optionAddress}
-                      onChangeText={(text) => handleRouteAddressChange(option.id, text)}
+                      onChangeText={(text) =>
+                        handleRouteAddressChange(option.id, text)
+                      }
                       leftIcon={MapPin}
                       error={optionError ?? undefined}
                     />
 
-                    {optionAddress.trim().length > 0 && !option.deliveryDetails && (
-                      <View style={{ gap: 6 }}>
-                        {ADDRESS_SUGGESTIONS.filter((suggestion) =>
-                          suggestion.toLowerCase().includes(optionAddress.trim().toLowerCase().split(' ')[0] ?? ''),
-                        )
-                          .slice(0, 3)
-                          .map((suggestion) => (
-                            <Pressable
-                              key={`${option.id}-${suggestion}`}
-                              onPress={() => handleRouteAddressChange(option.id, suggestion)}
-                              className="flex-row items-center rounded-xl px-3 py-2"
-                              style={{ backgroundColor: theme.surface }}
-                            >
-                              <MapPin size={14} color={theme.accent} />
-                              <Text
-                                variant="bodySmall"
-                                color={theme.textSecondary}
-                                className="ml-2 flex-1"
-                                numberOfLines={1}
+                    {optionAddress.trim().length > 0 &&
+                      !option.deliveryDetails && (
+                        <View style={{ gap: 6 }}>
+                          {ADDRESS_SUGGESTIONS.filter((suggestion) =>
+                            suggestion
+                              .toLowerCase()
+                              .includes(
+                                optionAddress
+                                  .trim()
+                                  .toLowerCase()
+                                  .split(" ")[0] ?? "",
+                              ),
+                          )
+                            .slice(0, 3)
+                            .map((suggestion) => (
+                              <Pressable
+                                key={`${option.id}-${suggestion}`}
+                                onPress={() =>
+                                  handleRouteAddressChange(
+                                    option.id,
+                                    suggestion,
+                                  )
+                                }
+                                className="flex-row items-center rounded-xl px-3 py-2"
+                                style={{ backgroundColor: theme.surface }}
                               >
-                                {suggestion}
-                              </Text>
-                            </Pressable>
-                          ))}
-                      </View>
-                    )}
+                                <MapPin size={14} color={theme.accent} />
+                                <Text
+                                  variant="bodySmall"
+                                  color={theme.textSecondary}
+                                  className="ml-2 flex-1"
+                                  numberOfLines={1}
+                                >
+                                  {suggestion}
+                                </Text>
+                              </Pressable>
+                            ))}
+                        </View>
+                      )}
 
                     <Button
                       variant="secondary"
                       size="md"
                       leftIcon={Calculator}
                       disabled={
-                        optionComputing ||
-                        optionAddress.trim().length === 0
+                        optionComputing || optionAddress.trim().length === 0
                       }
                       onPress={() => handleCalculateRoute(option.id)}
                     >
                       {optionComputing
-                        ? t('bookings.new.delivery.calculating', 'Calculating…')
+                        ? t("bookings.new.delivery.calculating", "Calculating…")
                         : option.deliveryDetails
-                          ? t('bookings.new.delivery.recalculate', 'Recalculate')
-                          : t('bookings.new.delivery.calculate', 'Calculate route')}
+                          ? t(
+                              "bookings.new.delivery.recalculate",
+                              "Recalculate",
+                            )
+                          : t(
+                              "bookings.new.delivery.calculate",
+                              "Calculate route",
+                            )}
                     </Button>
 
                     {option.deliveryDetails && (
@@ -1500,22 +1669,25 @@ export default function NewBookingScreen() {
                       >
                         <View className="flex-row items-center justify-between">
                           <Text variant="bodySmall" color={theme.textSecondary}>
-                            {t('bookings.new.delivery.distance', 'Distance')}
+                            {t("bookings.new.delivery.distance", "Distance")}
                           </Text>
-                          <Text variant="bodyMedium" style={{ fontWeight: '600' }}>
+                          <Text
+                            variant="bodyMedium"
+                            style={{ fontWeight: "600" }}
+                          >
                             {option.deliveryDetails.distanceKm.toFixed(2)} km
                           </Text>
                         </View>
                         <View className="flex-row items-center justify-between">
                           <Text variant="bodySmall" color={theme.textSecondary}>
-                            {t('bookings.new.delivery.fee', 'Fee')}
+                            {t("bookings.new.delivery.fee", "Fee")}
                           </Text>
                           <Text
                             variant="bodyMedium"
                             color={theme.accent}
-                            style={{ fontWeight: '700' }}
+                            style={{ fontWeight: "700" }}
                           >
-                            {option.deliveryDetails.fee.toFixed(2)}{' '}
+                            {option.deliveryDetails.fee.toFixed(2)}{" "}
                             {agencyDelivery.currency}
                           </Text>
                         </View>
@@ -1525,12 +1697,16 @@ export default function NewBookingScreen() {
                             agencyDelivery.minFee && (
                             <Text variant="caption" color={theme.textTertiary}>
                               {t(
-                                'bookings.new.delivery.minFeeApplied',
-                                'Minimum fee applied',
+                                "bookings.new.delivery.minFeeApplied",
+                                "Minimum fee applied",
                               )}
                             </Text>
                           )}
-                        <Text variant="caption" color={theme.textTertiary} numberOfLines={2}>
+                        <Text
+                          variant="caption"
+                          color={theme.textTertiary}
+                          numberOfLines={2}
+                        >
                           {option.deliveryDetails.address}
                         </Text>
                       </View>
@@ -1546,17 +1722,18 @@ export default function NewBookingScreen() {
           {/* Deposit */}
           <View className="flex-row items-center justify-between mb-2">
             <Text variant="bodyMedium" color={theme.textSecondary}>
-              {t('bookings.new.deposit', 'Deposit')}
+              {t("bookings.new.deposit", "Deposit")}
             </Text>
             <Text variant="bodyMedium">
-              {'\u20AC'}{pricing.deposit}
+              {"\u20AC"}
+              {pricing.deposit}
             </Text>
           </View>
 
           {pricing.deliveryFee > 0 && (
             <View className="flex-row items-center justify-between mb-2">
               <Text variant="bodyMedium" color={theme.textSecondary}>
-                {t('bookings.new.distanceFees', 'Delivery / recovery fees')}
+                {t("bookings.new.distanceFees", "Delivery / recovery fees")}
               </Text>
               <Text variant="bodyMedium">
                 {pricing.deliveryFee.toFixed(2)} {agencyDelivery.currency}
@@ -1570,7 +1747,8 @@ export default function NewBookingScreen() {
           <View className="flex-row items-center justify-between">
             <Text variant="headlineMedium">Total</Text>
             <Text variant="headlineMedium" color={theme.accent}>
-              {'\u20AC'}{pricing.total}
+              {"\u20AC"}
+              {pricing.total}
             </Text>
           </View>
         </View>
@@ -1580,7 +1758,9 @@ export default function NewBookingScreen() {
 
   const renderStep5 = () => {
     const enabledOptions = options.filter((o) => o.enabled);
-    const heroImage = selectedVehicle ? getVehicleImage(selectedVehicle.id) : null;
+    const heroImage = selectedVehicle
+      ? resolveVehicleImageSource(selectedVehicle)
+      : null;
 
     return (
       <Animated.View
@@ -1592,7 +1772,7 @@ export default function NewBookingScreen() {
           <View
             style={{
               borderRadius: 22,
-              overflow: 'hidden',
+              overflow: "hidden",
               backgroundColor: theme.surfaceTertiary,
               height: 160,
             }}
@@ -1600,7 +1780,7 @@ export default function NewBookingScreen() {
             {heroImage ? (
               <Image
                 source={heroImage}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: "100%", height: "100%" }}
                 contentFit="cover"
                 transition={300}
               />
@@ -1610,9 +1790,9 @@ export default function NewBookingScreen() {
               </View>
             )}
             <LinearGradient
-              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
+              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 left: 0,
                 right: 0,
                 bottom: 0,
@@ -1622,13 +1802,13 @@ export default function NewBookingScreen() {
             />
             <View
               style={{
-                position: 'absolute',
+                position: "absolute",
                 left: 16,
                 right: 16,
                 bottom: 14,
-                flexDirection: 'row',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
+                flexDirection: "row",
+                alignItems: "flex-end",
+                justifyContent: "space-between",
               }}
             >
               <View style={{ flex: 1, paddingRight: 10 }}>
@@ -1666,7 +1846,7 @@ export default function NewBookingScreen() {
                   color="#FFFFFF"
                   style={{ fontFamily: fontFamilies.bold, fontSize: 12 }}
                 >
-                  €{selectedVehicle.dailyRate}/{t('bookings.new.perDay', 'day')}
+                  €{selectedVehicle.dailyRate}/{t("bookings.new.perDay", "day")}
                 </Text>
               </View>
             </View>
@@ -1688,22 +1868,22 @@ export default function NewBookingScreen() {
             color={theme.textTertiary}
             style={{
               fontSize: 11,
-              textTransform: 'uppercase',
+              textTransform: "uppercase",
               letterSpacing: 1,
               fontFamily: fontFamilies.medium,
               marginBottom: 12,
             }}
           >
-            {t('bookings.new.summary', 'Booking Summary')}
+            {t("bookings.new.summary", "Booking Summary")}
           </Text>
 
           {/* Client */}
           <SummaryRow
-            label={t('bookings.new.client', 'Client')}
+            label={t("bookings.new.client", "Client")}
             primary={
               selectedClient
                 ? `${selectedClient.firstName} ${selectedClient.lastName}`
-                : ''
+                : ""
             }
             secondary={selectedClient?.email}
             theme={theme}
@@ -1719,11 +1899,11 @@ export default function NewBookingScreen() {
 
           {/* Dates */}
           <SummaryRow
-            label={t('bookings.new.dates', 'Dates')}
+            label={t("bookings.new.dates", "Dates")}
             primary={`${formatDisplayDate(startDateObj)} → ${formatDisplayDate(endDateObj)}`}
-            secondary={t('bookings.new.duration', {
+            secondary={t("bookings.new.duration", {
               count: days,
-              defaultValue: '{{count}} days',
+              defaultValue: "{{count}} days",
             })}
             theme={theme}
           />
@@ -1737,11 +1917,11 @@ export default function NewBookingScreen() {
             }}
           />
           <SummaryRow
-            label={t('bookings.new.times', 'Schedule')}
-            primary={`${t('bookings.new.pickup', 'Pickup')}: ${formatDisplayTime(
+            label={t("bookings.new.times", "Schedule")}
+            primary={`${t("bookings.new.pickup", "Pickup")}: ${formatDisplayTime(
               pickupTime,
             )}`}
-            secondary={`${t('bookings.new.return', 'Return')}: ${formatDisplayTime(returnTime)}`}
+            secondary={`${t("bookings.new.return", "Return")}: ${formatDisplayTime(returnTime)}`}
             theme={theme}
           />
 
@@ -1760,7 +1940,7 @@ export default function NewBookingScreen() {
                 color={theme.textTertiary}
                 style={{ fontSize: 12, marginBottom: 8 }}
               >
-                {t('bookings.new.options', 'Options')}
+                {t("bookings.new.options", "Options")}
               </Text>
               <View className="flex-row flex-wrap" style={{ gap: 6 }}>
                 {enabledOptions.map((opt) => (
@@ -1798,26 +1978,26 @@ export default function NewBookingScreen() {
             }}
           />
           <PricingLine
-            label={`€${selectedVehicle?.dailyRate ?? 0} × ${days} ${t('bookings.new.days', 'days')}`}
+            label={`€${selectedVehicle?.dailyRate ?? 0} × ${days} ${t("bookings.new.days", "days")}`}
             value={`€${pricing.subtotal}`}
             theme={theme}
           />
           {pricing.optionsTotal > 0 && (
             <PricingLine
-              label={t('bookings.new.optionsTotal', 'Options')}
+              label={t("bookings.new.optionsTotal", "Options")}
               value={`€${pricing.optionsTotal}`}
               theme={theme}
             />
           )}
           {pricing.deliveryFee > 0 && (
             <PricingLine
-              label={t('bookings.new.distanceFees', 'Delivery / recovery fees')}
+              label={t("bookings.new.distanceFees", "Delivery / recovery fees")}
               value={`€${pricing.deliveryFee.toFixed(2)}`}
               theme={theme}
             />
           )}
           <PricingLine
-            label={t('bookings.new.deposit', 'Deposit')}
+            label={t("bookings.new.deposit", "Deposit")}
             value={`€${pricing.deposit}`}
             theme={theme}
           />
@@ -1829,9 +2009,9 @@ export default function NewBookingScreen() {
               paddingTop: 12,
               borderTopWidth: 1,
               borderTopColor: theme.border,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
             <Text
@@ -1841,7 +2021,7 @@ export default function NewBookingScreen() {
                 fontSize: 15,
               }}
             >
-              {t('bookings.new.total', 'Total')}
+              {t("bookings.new.total", "Total")}
             </Text>
             <Text
               variant="headlineMedium"
@@ -1861,8 +2041,8 @@ export default function NewBookingScreen() {
               height: 54,
               borderRadius: 9999,
               backgroundColor: theme.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               shadowColor: theme.accent,
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.25,
@@ -1876,7 +2056,7 @@ export default function NewBookingScreen() {
               color="#FFFFFF"
               style={{ fontFamily: fontFamilies.semiBold, fontSize: 15 }}
             >
-              {t('bookings.new.confirm', 'Confirm Booking')}
+              {t("bookings.new.confirm", "Confirm Booking")}
             </Text>
           </Pressable>
           <Pressable
@@ -1887,8 +2067,8 @@ export default function NewBookingScreen() {
               backgroundColor: theme.surface,
               borderWidth: 1.5,
               borderColor: theme.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               transform: [{ scale: pressed ? 0.98 : 1 }],
             })}
           >
@@ -1897,7 +2077,7 @@ export default function NewBookingScreen() {
               color={theme.accent}
               style={{ fontFamily: fontFamilies.semiBold, fontSize: 15 }}
             >
-              {t('bookings.new.saveDraft', 'Save as Draft')}
+              {t("bookings.new.saveDraft", "Save as Draft")}
             </Text>
           </Pressable>
         </View>
@@ -1932,7 +2112,11 @@ export default function NewBookingScreen() {
       <View style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingBottom: showNextBtn ? 180 : 120 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: 16,
+            paddingBottom: showNextBtn ? 180 : 120,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
@@ -1950,14 +2134,12 @@ export default function NewBookingScreen() {
               )}
               <View>
                 <Text variant="bodySmall" color={theme.textTertiary}>
-                  {t('bookings.new.stepOf', 'Step {{current}} of {{total}}', {
+                  {t("bookings.new.stepOf", "Step {{current}} of {{total}}", {
                     current: step,
                     total: STEP_COUNT,
                   })}
                 </Text>
-                <Text variant="headlineSmall">
-                  {stepTitles[step]}
-                </Text>
+                <Text variant="headlineSmall">{stepTitles[step]}</Text>
               </View>
             </View>
 
@@ -1969,16 +2151,23 @@ export default function NewBookingScreen() {
           {/* Step Indicator */}
           <StepIndicator currentStep={step} theme={theme} />
 
+          {/* Selected vehicle reminder strip (steps 2-4) */}
+          {selectedVehicle && step >= 2 && step <= 4 && (
+            <SelectedVehicleStrip
+              vehicle={selectedVehicle}
+              theme={theme}
+              t={t}
+            />
+          )}
+
           {/* Step Content */}
-          <View className="flex-1">
-            {renderCurrentStep()}
-          </View>
+          <View className="flex-1">{renderCurrentStep()}</View>
         </ScrollView>
 
         {/* Sticky bottom button — OUTSIDE ScrollView */}
         {showNextBtn && (
           <StickyButton variant="primary" onPress={handleNext}>
-            {t('bookings.new.next', 'Next')}
+            {t("bookings.new.next", "Next")}
           </StickyButton>
         )}
 
@@ -1994,8 +2183,8 @@ export default function NewBookingScreen() {
           <View
             style={{
               flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.55)',
-              justifyContent: 'flex-end',
+              backgroundColor: "rgba(0,0,0,0.55)",
+              justifyContent: "flex-end",
             }}
           >
             <View
@@ -2004,7 +2193,7 @@ export default function NewBookingScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 padding: 20,
-                maxHeight: '80%',
+                maxHeight: "80%",
               }}
             >
               <View className="flex-row items-center mb-2" style={{ gap: 10 }}>
@@ -2014,14 +2203,14 @@ export default function NewBookingScreen() {
                     height: 40,
                     borderRadius: 12,
                     backgroundColor: theme.dangerSoft,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
                   <AlertTriangle size={20} color={theme.danger} />
                 </View>
                 <Text variant="headlineSmall" className="flex-1">
-                  {t('bookings.conflict.modalTitle', 'Booking conflict')}
+                  {t("bookings.conflict.modalTitle", "Booking conflict")}
                 </Text>
               </View>
               <Text
@@ -2030,8 +2219,8 @@ export default function NewBookingScreen() {
                 className="mb-3"
               >
                 {t(
-                  'bookings.conflict.modalSubtitle',
-                  'This vehicle is already booked over the following periods:',
+                  "bookings.conflict.modalSubtitle",
+                  "This vehicle is already booked over the following periods:",
                 )}
               </Text>
 
@@ -2074,8 +2263,8 @@ export default function NewBookingScreen() {
                   onPress={handleConflictCreateAnyway}
                 >
                   {t(
-                    'bookings.conflict.createAnyway',
-                    'Create anyway (conflict)',
+                    "bookings.conflict.createAnyway",
+                    "Create anyway (conflict)",
                   )}
                 </Button>
                 <Button
@@ -2083,14 +2272,14 @@ export default function NewBookingScreen() {
                   fullWidth
                   onPress={handleConflictModifyDates}
                 >
-                  {t('bookings.conflict.modifyDates', 'Modify dates')}
+                  {t("bookings.conflict.modifyDates", "Modify dates")}
                 </Button>
                 <Pressable
                   onPress={handleConflictAbandon}
-                  style={{ paddingVertical: 10, alignItems: 'center' }}
+                  style={{ paddingVertical: 10, alignItems: "center" }}
                 >
                   <Text variant="titleSmall" color={theme.textSecondary}>
-                    {t('bookings.conflict.abandon', 'Cancel')}
+                    {t("bookings.conflict.abandon", "Cancel")}
                   </Text>
                 </Pressable>
               </View>
@@ -2108,8 +2297,8 @@ export default function NewBookingScreen() {
           <View
             style={{
               flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.55)',
-              justifyContent: 'flex-end',
+              backgroundColor: "rgba(0,0,0,0.55)",
+              justifyContent: "flex-end",
             }}
           >
             <View
@@ -2118,38 +2307,47 @@ export default function NewBookingScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 padding: 20,
-                maxHeight: '88%',
+                maxHeight: "88%",
               }}
             >
               <View className="flex-row items-center justify-between mb-3">
                 <View className="flex-1">
                   <Text variant="headlineSmall">
-                    {t('bookings.new.counterClient.title', 'Nouveau client comptoir')}
+                    {t(
+                      "bookings.new.counterClient.title",
+                      "Nouveau client comptoir",
+                    )}
                   </Text>
                   <Text variant="bodySmall" color={theme.textSecondary}>
                     {t(
-                      'bookings.new.counterClient.subtitle',
+                      "bookings.new.counterClient.subtitle",
                       "Créez le client sans quitter la réservation.",
                     )}
                   </Text>
                 </View>
-                <Pressable onPress={() => setShowCounterClientModal(false)} className="p-2">
+                <Pressable
+                  onPress={() => setShowCounterClientModal(false)}
+                  className="p-2"
+                >
                   <X size={22} color={theme.textPrimary} />
                 </Pressable>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
                 <View className="flex-row" style={{ gap: 10 }}>
                   <Input
                     className="flex-1"
-                    label={t('bookings.new.counterClient.firstName', 'Prénom')}
+                    label={t("bookings.new.counterClient.firstName", "Prénom")}
                     value={counterFirstName}
                     onChangeText={setCounterFirstName}
                     placeholder="Ahmed"
                   />
                   <Input
                     className="flex-1"
-                    label={t('bookings.new.counterClient.lastName', 'Nom')}
+                    label={t("bookings.new.counterClient.lastName", "Nom")}
                     value={counterLastName}
                     onChangeText={setCounterLastName}
                     placeholder="Benali"
@@ -2158,7 +2356,7 @@ export default function NewBookingScreen() {
 
                 <Input
                   className="mt-3"
-                  label={t('bookings.new.counterClient.phone', 'Téléphone')}
+                  label={t("bookings.new.counterClient.phone", "Téléphone")}
                   value={counterPhone}
                   onChangeText={setCounterPhone}
                   keyboardType="phone-pad"
@@ -2166,7 +2364,7 @@ export default function NewBookingScreen() {
                 />
                 <Input
                   className="mt-3"
-                  label={t('bookings.new.counterClient.email', 'Email')}
+                  label={t("bookings.new.counterClient.email", "Email")}
                   value={counterEmail}
                   onChangeText={setCounterEmail}
                   keyboardType="email-address"
@@ -2174,7 +2372,10 @@ export default function NewBookingScreen() {
                 />
                 <Input
                   className="mt-3"
-                  label={t('bookings.new.counterClient.address', 'Adresse complète')}
+                  label={t(
+                    "bookings.new.counterClient.address",
+                    "Adresse complète",
+                  )}
                   value={counterAddress}
                   onChangeText={setCounterAddress}
                   leftIcon={MapPin}
@@ -2190,7 +2391,11 @@ export default function NewBookingScreen() {
                         style={{ backgroundColor: theme.surface }}
                       >
                         <MapPin size={14} color={theme.accent} />
-                        <Text variant="bodySmall" color={theme.textSecondary} className="ml-2 flex-1">
+                        <Text
+                          variant="bodySmall"
+                          color={theme.textSecondary}
+                          className="ml-2 flex-1"
+                        >
                           {suggestion}
                         </Text>
                       </Pressable>
@@ -2199,7 +2404,7 @@ export default function NewBookingScreen() {
                 )}
                 <Input
                   className="mt-3"
-                  label={t('bookings.new.counterClient.license', 'N° permis')}
+                  label={t("bookings.new.counterClient.license", "N° permis")}
                   value={counterLicense}
                   onChangeText={setCounterLicense}
                   placeholder="Permis de conduire"
@@ -2207,9 +2412,27 @@ export default function NewBookingScreen() {
 
                 <View className="mt-4" style={{ gap: 8 }}>
                   {[
-                    { icon: FileText, label: t('bookings.new.counterClient.idFront', 'Pièce identité recto') },
-                    { icon: FileText, label: t('bookings.new.counterClient.idBack', 'Pièce identité verso') },
-                    { icon: CreditCard, label: t('bookings.new.counterClient.card', 'Carte bancaire') },
+                    {
+                      icon: FileText,
+                      label: t(
+                        "bookings.new.counterClient.idFront",
+                        "Pièce identité recto",
+                      ),
+                    },
+                    {
+                      icon: FileText,
+                      label: t(
+                        "bookings.new.counterClient.idBack",
+                        "Pièce identité verso",
+                      ),
+                    },
+                    {
+                      icon: CreditCard,
+                      label: t(
+                        "bookings.new.counterClient.card",
+                        "Carte bancaire",
+                      ),
+                    },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -2223,7 +2446,10 @@ export default function NewBookingScreen() {
                           {item.label}
                         </Text>
                         <Badge variant="warning" size="sm">
-                          {t('bookings.new.counterClient.toCapture', 'À capturer')}
+                          {t(
+                            "bookings.new.counterClient.toCapture",
+                            "À capturer",
+                          )}
                         </Badge>
                       </View>
                     );
@@ -2231,11 +2457,36 @@ export default function NewBookingScreen() {
                 </View>
 
                 <View className="mt-5 mb-2" style={{ gap: 10 }}>
-                  <Button variant="primary" fullWidth leftIcon={UserPlus} onPress={handleCreateCounterClient}>
-                    {t('bookings.new.counterClient.create', 'Créer et sélectionner')}
+                  {__DEV__ && (
+                    <Button
+                      variant="ghost"
+                      fullWidth
+                      onPress={handleFillFakeCounterClient}
+                      disabled={createClientMutation.isPending}
+                    >
+                      🧪 Fill with fake data (dev)
+                    </Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    leftIcon={UserPlus}
+                    onPress={handleCreateCounterClient}
+                    loading={createClientMutation.isPending}
+                    disabled={createClientMutation.isPending}
+                  >
+                    {t(
+                      "bookings.new.counterClient.create",
+                      "Créer et sélectionner",
+                    )}
                   </Button>
-                  <Button variant="ghost" fullWidth onPress={() => setShowCounterClientModal(false)}>
-                    {t('common.cancel', 'Annuler')}
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    onPress={() => setShowCounterClientModal(false)}
+                    disabled={createClientMutation.isPending}
+                  >
+                    {t("common.cancel", "Annuler")}
                   </Button>
                 </View>
               </ScrollView>
@@ -2247,6 +2498,80 @@ export default function NewBookingScreen() {
   );
 }
 
+// ── SelectedVehicleStrip (Steps 2–4 reminder) ───────────────────────────────
+
+interface SelectedVehicleStripProps {
+  vehicle: Vehicle;
+  theme: ReturnType<typeof useTheme>;
+  t: ReturnType<typeof useTranslation>["t"];
+}
+
+function SelectedVehicleStrip({
+  vehicle,
+  theme,
+  t,
+}: SelectedVehicleStripProps) {
+  const img = resolveVehicleImageSource(vehicle);
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: theme.surface,
+        borderWidth: 1,
+        borderColor: theme.borderLight,
+        borderRadius: 16,
+        padding: 10,
+        marginBottom: 14,
+        gap: 12,
+      }}
+    >
+      <View
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 12,
+          overflow: "hidden",
+          backgroundColor: theme.surfaceTertiary,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {img ? (
+          <Image
+            source={img}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : (
+          <Car size={24} color={theme.textTertiary} strokeWidth={1.5} />
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="titleSmall" numberOfLines={1}>
+          {vehicle.name}
+        </Text>
+        <Text
+          variant="bodySmall"
+          color={theme.textSecondary}
+          numberOfLines={1}
+          style={{ marginTop: 2 }}
+        >
+          {vehicle.category} · {vehicle.licensePlate}
+        </Text>
+      </View>
+      <Text
+        variant="labelSmall"
+        color={theme.accent}
+        style={{ fontFamily: fontFamilies.bold, fontSize: 12 }}
+      >
+        €{vehicle.dailyRate}/{t("bookings.new.perDay", "day")}
+      </Text>
+    </View>
+  );
+}
+
 // ── VehicleHeroCard (Step 1) ─────────────────────────────────────────────────
 
 interface VehicleHeroCardProps {
@@ -2254,7 +2579,7 @@ interface VehicleHeroCardProps {
   index: number;
   selected: boolean;
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
   onPress: () => void;
 }
 
@@ -2266,14 +2591,14 @@ function VehicleHeroCard({
   t,
   onPress,
 }: VehicleHeroCardProps) {
-  const img = getVehicleImage(vehicle.id);
+  const img = resolveVehicleImageSource(vehicle);
   return (
     <Animated.View entering={FadeInDown.duration(320).delay(index * 40)}>
       <Pressable
         onPress={onPress}
         style={({ pressed }) => ({
           borderRadius: 22,
-          overflow: 'hidden',
+          overflow: "hidden",
           height: 160,
           backgroundColor: theme.surfaceTertiary,
           borderWidth: selected ? 2 : 1,
@@ -2284,7 +2609,7 @@ function VehicleHeroCard({
         {img ? (
           <Image
             source={img}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: "100%", height: "100%" }}
             contentFit="cover"
             transition={260}
           />
@@ -2297,11 +2622,11 @@ function VehicleHeroCard({
         {/* Bottom gradient for legibility */}
         <LinearGradient
           colors={[
-            'rgba(0,0,0,0)',
-            selected ? 'rgba(124,58,237,0.55)' : 'rgba(0,0,0,0.7)',
+            "rgba(0,0,0,0)",
+            selected ? "rgba(124,58,237,0.55)" : "rgba(0,0,0,0.7)",
           ]}
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 0,
             right: 0,
             bottom: 0,
@@ -2313,7 +2638,7 @@ function VehicleHeroCard({
         {/* Top-right price pill */}
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 12,
             right: 12,
             backgroundColor: theme.accent,
@@ -2332,7 +2657,7 @@ function VehicleHeroCard({
             color="#FFFFFF"
             style={{ fontFamily: fontFamilies.bold, fontSize: 12 }}
           >
-            €{vehicle.dailyRate}/{t('bookings.new.perDay', 'day')}
+            €{vehicle.dailyRate}/{t("bookings.new.perDay", "day")}
           </Text>
         </View>
 
@@ -2340,15 +2665,15 @@ function VehicleHeroCard({
         {selected && (
           <View
             style={{
-              position: 'absolute',
+              position: "absolute",
               top: 12,
               left: 12,
               width: 28,
               height: 28,
               borderRadius: 14,
               backgroundColor: theme.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               shadowColor: theme.accent,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.35,
@@ -2362,7 +2687,7 @@ function VehicleHeroCard({
         {/* Bottom info strip */}
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 14,
             right: 14,
             bottom: 12,
@@ -2388,10 +2713,7 @@ function VehicleHeroCard({
           >
             {vehicle.category} · {vehicle.licensePlate}
           </Text>
-          <View
-            className="flex-row flex-wrap"
-            style={{ gap: 6, marginTop: 8 }}
-          >
+          <View className="flex-row flex-wrap" style={{ gap: 6, marginTop: 8 }}>
             <MiniPill label={String(vehicle.year)} />
             <MiniPill label={vehicle.transmission} />
             <MiniPill label={vehicle.fuelType} />
@@ -2409,9 +2731,9 @@ function MiniPill({ label }: { label: string }) {
         paddingHorizontal: 9,
         paddingVertical: 3,
         borderRadius: 9999,
-        backgroundColor: 'rgba(255,255,255,0.18)',
+        backgroundColor: "rgba(255,255,255,0.18)",
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.25)',
+        borderColor: "rgba(255,255,255,0.25)",
       }}
     >
       <Text
@@ -2444,7 +2766,7 @@ function SummaryRow({
 }) {
   return (
     <View
-      style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}
+      style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}
     >
       <Text
         variant="bodySmall"
@@ -2453,7 +2775,7 @@ function SummaryRow({
       >
         {label}
       </Text>
-      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+      <View style={{ flex: 1, alignItems: "flex-end" }}>
         <Text
           variant="bodyMedium"
           style={{
@@ -2492,8 +2814,8 @@ function PricingLine({
   return (
     <View
       style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        justifyContent: "space-between",
         marginBottom: 6,
       }}
     >

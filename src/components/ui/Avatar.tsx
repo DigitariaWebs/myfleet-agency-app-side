@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from './Image';
 
 import { useTheme } from '@/hooks/useTheme';
 

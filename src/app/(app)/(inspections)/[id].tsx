@@ -1,20 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from "react";
 import {
   View,
   Pressable,
   Modal,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
   type DimensionValue,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { Image } from 'expo-image';
-import * as Haptics from 'expo-haptics';
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { Image } from "@/components/ui/Image";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Camera,
@@ -30,26 +34,26 @@ import {
   GitCompareArrows,
   X as XIcon,
   type LucideIcon,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { useTheme } from '@/hooks/useTheme';
-import { useToastStore } from '@/components/ui/Toast';
-import { formatDate, formatMileage } from '@/utils/format';
-import { useInspectionStore } from '@/stores/useInspectionStore';
-import { getVehicleImage } from '@/data/vehicleImages';
-import { fontFamilies } from '@/theme/typography';
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useTheme } from "@/hooks/useTheme";
+import { useToastStore } from "@/components/ui/Toast";
+import { formatDate, formatMileage } from "@/utils/format";
+import { useInspection, useInspections } from "@/hooks/useInspections";
+import { getVehicleImage } from "@/data/vehicleImages";
+import { fontFamilies } from "@/theme/typography";
 import type {
   Inspection,
   CapturedPhoto,
   DamageSeverity,
-} from '@/types/inspection';
-import { PHOTO_ANGLES } from '@/types/inspection';
+} from "@/types/inspection";
+import { PHOTO_ANGLES } from "@/types/inspection";
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 const HERO_HEIGHT = Math.round(SCREEN_WIDTH * 0.6);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -57,30 +61,30 @@ const HERO_HEIGHT = Math.round(SCREEN_WIDTH * 0.6);
 type TypeTone = { fg: string; bg: string };
 
 function typeTone(
-  type: Inspection['type'],
+  type: Inspection["type"],
   theme: ReturnType<typeof useTheme>,
 ): TypeTone {
   switch (type) {
-    case 'pre-rental':
+    case "pre-rental":
       return { fg: theme.info, bg: theme.infoSoft };
-    case 'post-rental':
+    case "post-rental":
       return { fg: theme.warning, bg: theme.warningSoft };
-    case 'routine':
+    case "routine":
       return { fg: theme.accent, bg: theme.accentSoft };
   }
 }
 
 function typeLabel(
-  type: Inspection['type'],
-  t: ReturnType<typeof useTranslation>['t'],
+  type: Inspection["type"],
+  t: ReturnType<typeof useTranslation>["t"],
 ): string {
   switch (type) {
-    case 'pre-rental':
-      return t('inspections.preRental', 'Pre-rental');
-    case 'post-rental':
-      return t('inspections.postRental', 'Post-rental');
-    case 'routine':
-      return t('inspections.routine', 'Routine');
+    case "pre-rental":
+      return t("inspections.preRental", "Pre-rental");
+    case "post-rental":
+      return t("inspections.postRental", "Post-rental");
+    case "routine":
+      return t("inspections.routine", "Routine");
   }
 }
 
@@ -89,11 +93,11 @@ function severityTone(
   theme: ReturnType<typeof useTheme>,
 ): { fg: string; bg: string } {
   switch (severity) {
-    case 'minor':
+    case "minor":
       return { fg: theme.info, bg: theme.infoSoft };
-    case 'moderate':
+    case "moderate":
       return { fg: theme.warning, bg: theme.warningSoft };
-    case 'severe':
+    case "severe":
       return { fg: theme.danger, bg: theme.dangerSoft };
   }
 }
@@ -129,8 +133,8 @@ function collectDamages(inspection: Inspection): DamageEntry[] {
       for (let i = 0; i < Math.max(0, aiOnly); i++) {
         damages.push({
           angleLabel,
-          severity: 'moderate',
-          description: 'AI detected',
+          severity: "moderate",
+          description: "AI detected",
         });
       }
     }
@@ -155,7 +159,7 @@ function SectionLabel({
       style={{
         fontFamily: fontFamilies.medium,
         fontSize: 11,
-        textTransform: 'uppercase',
+        textTransform: "uppercase",
         letterSpacing: 1,
         marginBottom: 8,
         marginLeft: 4,
@@ -186,10 +190,10 @@ function Chip({
         paddingVertical: 4,
         borderRadius: 9999,
         backgroundColor: bg,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         gap: 4,
-        alignSelf: 'flex-start',
+        alignSelf: "flex-start",
       }}
     >
       {Icon && <Icon size={11} color={fg} strokeWidth={2.2} />}
@@ -219,27 +223,27 @@ export default function InspectionDetailScreen() {
   const insets = useSafeAreaInsets();
   const showToast = useToastStore((s) => s.show);
 
-  const allInspections = useInspectionStore((s) => s.inspections);
-  const inspection = useMemo(
-    () => allInspections.find((i) => i.id === id),
-    [allInspections, id],
+  const { data: inspection, isLoading, isError, refetch } = useInspection(id);
+
+  const { data: relatedInspections = [] } = useInspections(
+    inspection?.bookingId ? { bookingId: inspection.bookingId } : undefined,
   );
 
   const pair = useMemo(() => {
     if (!inspection?.bookingId) return null;
-    const related = allInspections.filter(
+    const related = relatedInspections.filter(
       (i) => i.bookingId === inspection.bookingId && i.id !== inspection.id,
     );
-    if (inspection.type === 'pre-rental') {
-      const post = related.find((i) => i.type === 'post-rental');
+    if (inspection.type === "pre-rental") {
+      const post = related.find((i) => i.type === "post-rental");
       return post ? { pre: inspection, post } : null;
     }
-    if (inspection.type === 'post-rental') {
-      const pre = related.find((i) => i.type === 'pre-rental');
+    if (inspection.type === "post-rental") {
+      const pre = related.find((i) => i.type === "pre-rental");
       return pre ? { pre, post: inspection } : null;
     }
     return null;
-  }, [inspection, allInspections]);
+  }, [inspection, relatedInspections]);
 
   const [compareMode, setCompareMode] = useState(false);
   const [fullscreen, setFullscreen] = useState<FullscreenTarget | null>(null);
@@ -268,17 +272,49 @@ export default function InspectionDetailScreen() {
   }, [inspection]);
 
   if (!inspection) {
+    if (isLoading) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+          <View className="flex-1 items-center justify-center px-4 py-20">
+            <ActivityIndicator size="large" color={theme.accent} />
+          </View>
+        </SafeAreaView>
+      );
+    }
+    if (isError) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+          <View className="flex-1 items-center justify-center px-4 py-20">
+            <EmptyState
+              icon={ScanLine}
+              title={t(
+                "inspections.detail.errorTitle",
+                "Couldn't load inspection",
+              )}
+              subtitle={t(
+                "inspections.detail.errorSubtitle",
+                "Check your connection and try again.",
+              )}
+              actionLabel={t("common.retry", "Retry")}
+              onAction={() => {
+                void refetch();
+              }}
+            />
+          </View>
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
         <View className="flex-1 items-center justify-center px-4 py-20">
           <EmptyState
             icon={ScanLine}
-            title={t('inspections.detail.notFound', 'Inspection not found')}
+            title={t("inspections.detail.notFound", "Inspection not found")}
             subtitle={t(
-              'inspections.detail.notFoundDesc',
-              'The inspection you are looking for does not exist.',
+              "inspections.detail.notFoundDesc",
+              "The inspection you are looking for does not exist.",
             )}
-            actionLabel={t('common.back', 'Back')}
+            actionLabel={t("common.back", "Back")}
             onAction={() => router.back()}
           />
         </View>
@@ -286,7 +322,8 @@ export default function InspectionDetailScreen() {
     );
   }
 
-  const totalDamages = inspection.totalDamagesAI + inspection.totalDamagesManual;
+  const totalDamages =
+    inspection.totalDamagesAI + inspection.totalDamagesManual;
   const vehicleImageUri = getVehicleImage(inspection.vehicleId);
   const heroTotalHeight = HERO_HEIGHT + insets.top;
 
@@ -307,23 +344,28 @@ export default function InspectionDetailScreen() {
           width,
           aspectRatio,
           borderRadius: 14,
-          overflow: 'hidden',
+          overflow: "hidden",
           backgroundColor: theme.surfaceTertiary,
         }}
       >
-        <View className="flex-1 items-center justify-center">
-          <Camera
-            size={26}
-            color={photo ? theme.textTertiary : theme.border}
-            strokeWidth={photo ? 1.5 : 1}
+        {photo?.url || photo?.uri ? (
+          <Image
+            source={{ uri: (photo.url ?? photo.uri) as string }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            transition={200}
           />
-        </View>
+        ) : (
+          <View className="flex-1 items-center justify-center">
+            <Camera size={26} color={theme.border} strokeWidth={1} />
+          </View>
+        )}
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 6,
             left: 6,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: "rgba(0,0,0,0.5)",
             borderRadius: 9999,
             paddingHorizontal: 7,
             paddingVertical: 2,
@@ -339,12 +381,12 @@ export default function InspectionDetailScreen() {
           </Text>
         </View>
         {photo && (
-          <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
+          <View style={{ position: "absolute", bottom: 6, right: 6 }}>
             {hasDamages ? (
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
                   backgroundColor: theme.dangerSoft,
                   borderRadius: 9999,
                   paddingHorizontal: 7,
@@ -364,8 +406,8 @@ export default function InspectionDetailScreen() {
             ) : (
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
                   backgroundColor: theme.successSoft,
                   borderRadius: 9999,
                   paddingHorizontal: 7,
@@ -388,12 +430,12 @@ export default function InspectionDetailScreen() {
         {annotationCount > 0 && (
           <View
             style={{
-              position: 'absolute',
+              position: "absolute",
               bottom: 6,
               left: 6,
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: 'rgba(0,0,0,0.5)',
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
               borderRadius: 9999,
               paddingHorizontal: 6,
               paddingVertical: 2,
@@ -428,18 +470,21 @@ export default function InspectionDetailScreen() {
           color={theme.textSecondary}
           style={{ fontSize: 12 }}
         >
-          {formatDate(insp.date, 'long')} · {insp.inspectorName}
+          {formatDate(insp.date, "long")} · {insp.inspectorName}
         </Text>
 
         <MileageFuelCard inspection={insp} theme={theme} t={t} />
 
         <View>
-          <View className="flex-row items-center justify-between" style={{ marginBottom: 8 }}>
+          <View
+            className="flex-row items-center justify-between"
+            style={{ marginBottom: 8 }}
+          >
             <Text
               variant="titleMedium"
               style={{ fontFamily: fontFamilies.semiBold, fontSize: 14 }}
             >
-              {t('inspections.detail.photosSection', 'Photos')}
+              {t("inspections.detail.photosSection", "Photos")}
             </Text>
             <Chip
               label={`${insp.photos.length}/8`}
@@ -449,7 +494,7 @@ export default function InspectionDetailScreen() {
           </View>
           <View className="flex-row flex-wrap" style={{ gap: 8 }}>
             {PHOTO_ANGLES.map((a) =>
-              renderPhotoTile(a.label, photoMap.get(a.key), '48.5%', 4 / 3),
+              renderPhotoTile(a.label, photoMap.get(a.key), "48.5%", 4 / 3),
             )}
           </View>
         </View>
@@ -463,7 +508,7 @@ export default function InspectionDetailScreen() {
               marginBottom: 8,
             }}
           >
-            {t('inspections.detail.damageSummary', 'Damage Summary')}
+            {t("inspections.detail.damageSummary", "Damage Summary")}
           </Text>
           {dmg.length === 0 ? (
             <View
@@ -471,8 +516,8 @@ export default function InspectionDetailScreen() {
                 backgroundColor: theme.successSoft,
                 borderRadius: 14,
                 padding: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
+                flexDirection: "row",
+                alignItems: "center",
                 gap: 8,
               }}
             >
@@ -482,7 +527,7 @@ export default function InspectionDetailScreen() {
                 color={theme.success}
                 style={{ fontFamily: fontFamilies.semiBold, fontSize: 12 }}
               >
-                {t('inspections.detail.noDamage', 'No damage detected')}
+                {t("inspections.detail.noDamage", "No damage detected")}
               </Text>
             </View>
           ) : (
@@ -504,7 +549,7 @@ export default function InspectionDetailScreen() {
               backgroundColor: theme.surface,
               borderRadius: 14,
               padding: 14,
-              flexDirection: 'row',
+              flexDirection: "row",
               gap: 10,
               borderWidth: 1,
               borderColor: theme.borderLight,
@@ -542,14 +587,14 @@ export default function InspectionDetailScreen() {
           <View style={{ width: 28 }} />
           <View className="flex-1 items-center">
             <Chip
-              label={t('inspections.detail.preRentalTitle', 'Before')}
+              label={t("inspections.detail.preRentalTitle", "Before")}
               fg={theme.info}
               bg={theme.infoSoft}
             />
           </View>
           <View className="flex-1 items-center">
             <Chip
-              label={t('inspections.detail.postRentalTitle', 'After')}
+              label={t("inspections.detail.postRentalTitle", "After")}
               fg={theme.warning}
               bg={theme.warningSoft}
             />
@@ -568,7 +613,7 @@ export default function InspectionDetailScreen() {
                 color={theme.textSecondary}
                 style={{
                   fontSize: 10,
-                  textAlign: 'center',
+                  textAlign: "center",
                   fontFamily: fontFamilies.medium,
                 }}
                 numberOfLines={2}
@@ -577,10 +622,10 @@ export default function InspectionDetailScreen() {
               </Text>
             </View>
             <View className="flex-1">
-              {renderPhotoTile(a.label, preMap.get(a.key), '100%', 4 / 3)}
+              {renderPhotoTile(a.label, preMap.get(a.key), "100%", 4 / 3)}
             </View>
             <View className="flex-1">
-              {renderPhotoTile(a.label, postMap.get(a.key), '100%', 4 / 3)}
+              {renderPhotoTile(a.label, postMap.get(a.key), "100%", 4 / 3)}
             </View>
           </View>
         ))}
@@ -589,7 +634,7 @@ export default function InspectionDetailScreen() {
           <View style={{ flex: 1 }}>
             <StatDuoCard
               title={formatMileage(pre.mileage)}
-              subtitle={`${t('inspections.detail.fuel', 'Fuel')}: ${pre.fuelLevel}%`}
+              subtitle={`${t("inspections.detail.fuel", "Fuel")}: ${pre.fuelLevel}%`}
               tone="info"
               theme={theme}
               t={t}
@@ -598,7 +643,7 @@ export default function InspectionDetailScreen() {
           <View style={{ flex: 1 }}>
             <StatDuoCard
               title={formatMileage(post.mileage)}
-              subtitle={`${t('inspections.detail.fuel', 'Fuel')}: ${post.fuelLevel}%`}
+              subtitle={`${t("inspections.detail.fuel", "Fuel")}: ${post.fuelLevel}%`}
               tone="warning"
               theme={theme}
               t={t}
@@ -621,8 +666,8 @@ export default function InspectionDetailScreen() {
       <View
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.92)',
-          justifyContent: 'center',
+          backgroundColor: "rgba(0,0,0,0.92)",
+          justifyContent: "center",
         }}
       >
         <View
@@ -638,7 +683,7 @@ export default function InspectionDetailScreen() {
             color="#FFFFFF"
             style={{ fontFamily: fontFamilies.semiBold }}
           >
-            {fullscreen?.angleLabel ?? ''}
+            {fullscreen?.angleLabel ?? ""}
           </Text>
           <Pressable
             onPress={() => setFullscreen(null)}
@@ -646,9 +691,9 @@ export default function InspectionDetailScreen() {
               width: 40,
               height: 40,
               borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.14)',
-              alignItems: 'center',
-              justifyContent: 'center',
+              backgroundColor: "rgba(255,255,255,0.14)",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <XIcon size={20} color="#FFFFFF" />
@@ -660,23 +705,35 @@ export default function InspectionDetailScreen() {
         >
           <View
             style={{
-              width: '90%',
+              width: "90%",
               aspectRatio: 4 / 3,
               borderRadius: 20,
-              backgroundColor: '#1f2937',
-              alignItems: 'center',
-              justifyContent: 'center',
+              backgroundColor: "#1f2937",
+              alignItems: "center",
+              justifyContent: "center",
               gap: 12,
+              overflow: "hidden",
             }}
           >
-            <Camera size={64} color="#FFFFFF" strokeWidth={1.2} />
+            {fullscreen?.photo?.url || fullscreen?.photo?.uri ? (
+              <Image
+                source={{
+                  uri: (fullscreen.photo.url ?? fullscreen.photo.uri) as string,
+                }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit="contain"
+                transition={200}
+              />
+            ) : (
+              <Camera size={64} color="#FFFFFF" strokeWidth={1.2} />
+            )}
             {fullscreen?.photo?.aiResult?.damagesFound ? (
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
                   gap: 6,
-                  backgroundColor: 'rgba(239,68,68,0.3)',
+                  backgroundColor: "rgba(239,68,68,0.3)",
                   paddingHorizontal: 10,
                   paddingVertical: 6,
                   borderRadius: 9999,
@@ -694,10 +751,10 @@ export default function InspectionDetailScreen() {
             ) : fullscreen?.photo ? (
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
                   gap: 6,
-                  backgroundColor: 'rgba(16,185,129,0.3)',
+                  backgroundColor: "rgba(16,185,129,0.3)",
                   paddingHorizontal: 10,
                   paddingVertical: 6,
                   borderRadius: 9999,
@@ -714,12 +771,12 @@ export default function InspectionDetailScreen() {
               </View>
             ) : (
               <Text variant="bodySmall" color="#9CA3AF">
-                {t('inspections.detail.noNotes', 'No photo available')}
+                {t("inspections.detail.noNotes", "No photo available")}
               </Text>
             )}
           </View>
           <Text variant="caption" color="#9CA3AF" className="mt-4">
-            {t('inspections.detail.closeFullscreen', 'Tap anywhere to close')}
+            {t("inspections.detail.closeFullscreen", "Tap anywhere to close")}
           </Text>
         </Pressable>
       </View>
@@ -740,7 +797,7 @@ export default function InspectionDetailScreen() {
         {vehicleImageUri ? (
           <Image
             source={vehicleImageUri}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: "100%", height: "100%" }}
             contentFit="cover"
             transition={300}
           />
@@ -751,9 +808,9 @@ export default function InspectionDetailScreen() {
         )}
 
         <LinearGradient
-          colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0)']}
+          colors={["rgba(0,0,0,0.5)", "rgba(0,0,0,0)"]}
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 0,
             left: 0,
             right: 0,
@@ -769,15 +826,15 @@ export default function InspectionDetailScreen() {
           }}
           hitSlop={10}
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: insets.top + 8,
             left: 16,
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: 'rgba(255,255,255,0.92)',
-            alignItems: 'center',
-            justifyContent: 'center',
+            backgroundColor: "rgba(255,255,255,0.92)",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <ChevronLeft size={22} color="#111" strokeWidth={2.2} />
@@ -787,25 +844,25 @@ export default function InspectionDetailScreen() {
           onPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             showToast({
-              variant: 'info',
-              title: t('inspections.detail.comingSoon', 'Coming soon'),
+              variant: "info",
+              title: t("inspections.detail.comingSoon", "Coming soon"),
               message: t(
-                'inspections.detail.shareMessage',
-                'Report sharing will be available soon.',
+                "inspections.detail.shareMessage",
+                "Report sharing will be available soon.",
               ),
             });
           }}
           hitSlop={10}
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: insets.top + 8,
             right: 16,
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: 'rgba(255,255,255,0.92)',
-            alignItems: 'center',
-            justifyContent: 'center',
+            backgroundColor: "rgba(255,255,255,0.92)",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <Share2 size={18} color="#111" strokeWidth={2} />
@@ -813,13 +870,13 @@ export default function InspectionDetailScreen() {
 
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             bottom: 14,
-            alignSelf: 'center',
+            alignSelf: "center",
             paddingHorizontal: 12,
             paddingVertical: 5,
             borderRadius: 9999,
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            backgroundColor: "rgba(0,0,0,0.55)",
           }}
         >
           <Text
@@ -856,7 +913,7 @@ export default function InspectionDetailScreen() {
               padding: 18,
               borderWidth: 1,
               borderColor: theme.borderLight,
-              shadowColor: '#000',
+              shadowColor: "#000",
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.08,
               shadowRadius: 16,
@@ -881,23 +938,26 @@ export default function InspectionDetailScreen() {
               numberOfLines={1}
             >
               {pair.pre.vehicleId}
-              {pair.pre.clientName ? ` · ${pair.pre.clientName}` : ''}
+              {pair.pre.clientName ? ` · ${pair.pre.clientName}` : ""}
             </Text>
-            <View className="flex-row flex-wrap" style={{ gap: 6, marginTop: 10 }}>
+            <View
+              className="flex-row flex-wrap"
+              style={{ gap: 6, marginTop: 10 }}
+            >
               <Chip
-                label={t('inspections.preRental', 'Pre-rental')}
+                label={t("inspections.preRental", "Pre-rental")}
                 fg={theme.info}
                 bg={theme.infoSoft}
               />
               <Chip
-                label={t('inspections.postRental', 'Post-rental')}
+                label={t("inspections.postRental", "Post-rental")}
                 fg={theme.warning}
                 bg={theme.warningSoft}
               />
               <Chip
                 label={t(
-                  'inspections.detail.pairedSubtitle',
-                  'Pre + Post-rental',
+                  "inspections.detail.pairedSubtitle",
+                  "Pre + Post-rental",
                 )}
                 fg={theme.accent}
                 bg={theme.accentSoft}
@@ -912,7 +972,7 @@ export default function InspectionDetailScreen() {
           >
             <View
               style={{
-                flexDirection: 'row',
+                flexDirection: "row",
                 padding: 4,
                 borderRadius: 9999,
                 backgroundColor: theme.surfaceTertiary,
@@ -920,7 +980,7 @@ export default function InspectionDetailScreen() {
             >
               <CompareModePill
                 active={!compareMode}
-                label={t('inspections.detail.stackedView', 'Stacked')}
+                label={t("inspections.detail.stackedView", "Stacked")}
                 theme={theme}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -929,7 +989,7 @@ export default function InspectionDetailScreen() {
               />
               <CompareModePill
                 active={compareMode}
-                label={t('inspections.detail.compare', 'Compare')}
+                label={t("inspections.detail.compare", "Compare")}
                 icon={GitCompareArrows}
                 theme={theme}
                 onPress={() => {
@@ -974,8 +1034,8 @@ export default function InspectionDetailScreen() {
                     }}
                   >
                     {t(
-                      'inspections.detail.preRentalTitle',
-                      'State before rental',
+                      "inspections.detail.preRentalTitle",
+                      "State before rental",
                     )}
                   </Text>
                 </View>
@@ -1015,8 +1075,8 @@ export default function InspectionDetailScreen() {
                     }}
                   >
                     {t(
-                      'inspections.detail.postRentalTitle',
-                      'State after rental',
+                      "inspections.detail.postRentalTitle",
+                      "State after rental",
                     )}
                   </Text>
                 </View>
@@ -1030,17 +1090,21 @@ export default function InspectionDetailScreen() {
             entering={FadeInDown.duration(400).delay(380)}
             style={{ marginTop: 28, marginHorizontal: 16 }}
           >
-            <ShareReportButton theme={theme} t={t} onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              showToast({
-                variant: 'info',
-                title: t('inspections.detail.comingSoon', 'Coming soon'),
-                message: t(
-                  'inspections.detail.shareMessage',
-                  'Report sharing will be available soon.',
-                ),
-              });
-            }} />
+            <ShareReportButton
+              theme={theme}
+              t={t}
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                showToast({
+                  variant: "info",
+                  title: t("inspections.detail.comingSoon", "Coming soon"),
+                  message: t(
+                    "inspections.detail.shareMessage",
+                    "Report sharing will be available soon.",
+                  ),
+                });
+              }}
+            />
           </Animated.View>
         </ScrollView>
         {fullscreenModal}
@@ -1052,7 +1116,7 @@ export default function InspectionDetailScreen() {
 
   const tone = typeTone(inspection.type, theme);
   const statusTone =
-    inspection.status === 'draft'
+    inspection.status === "draft"
       ? { fg: theme.warning, bg: theme.warningSoft }
       : { fg: theme.success, bg: theme.successSoft };
 
@@ -1076,7 +1140,7 @@ export default function InspectionDetailScreen() {
             padding: 18,
             borderWidth: 1,
             borderColor: theme.borderLight,
-            shadowColor: '#000',
+            shadowColor: "#000",
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.08,
             shadowRadius: 16,
@@ -1100,10 +1164,13 @@ export default function InspectionDetailScreen() {
             style={{ fontSize: 12, marginTop: 4 }}
             numberOfLines={1}
           >
-            {formatDate(inspection.date, 'long')} · {inspection.inspectorName}
-            {inspection.clientName ? ` · ${inspection.clientName}` : ''}
+            {formatDate(inspection.date, "long")} · {inspection.inspectorName}
+            {inspection.clientName ? ` · ${inspection.clientName}` : ""}
           </Text>
-          <View className="flex-row flex-wrap" style={{ gap: 6, marginTop: 10 }}>
+          <View
+            className="flex-row flex-wrap"
+            style={{ gap: 6, marginTop: 10 }}
+          >
             <Chip
               label={typeLabel(inspection.type, t)}
               fg={tone.fg}
@@ -1111,9 +1178,9 @@ export default function InspectionDetailScreen() {
             />
             <Chip
               label={
-                inspection.status === 'draft'
-                  ? t('inspections.draft', 'Draft')
-                  : t('inspections.completed', 'Completed')
+                inspection.status === "draft"
+                  ? t("inspections.draft", "Draft")
+                  : t("inspections.completed", "Completed")
               }
               fg={statusTone.fg}
               bg={statusTone.bg}
@@ -1125,14 +1192,14 @@ export default function InspectionDetailScreen() {
             <MiniStat
               icon={Camera}
               value={`${inspection.photos.length}/8`}
-              label={t('inspections.detail.photos', 'Photos')}
+              label={t("inspections.detail.photos", "Photos")}
               tone={{ fg: theme.accent, bg: theme.accentSoft }}
               theme={theme}
             />
             <MiniStat
               icon={ScanLine}
               value={String(inspection.totalDamagesAI)}
-              label={t('inspections.detail.aiDamages', 'AI')}
+              label={t("inspections.detail.aiDamages", "AI")}
               tone={
                 inspection.totalDamagesAI > 0
                   ? { fg: theme.danger, bg: theme.dangerSoft }
@@ -1143,7 +1210,7 @@ export default function InspectionDetailScreen() {
             <MiniStat
               icon={PenTool}
               value={String(inspection.totalDamagesManual)}
-              label={t('inspections.detail.manual', 'Manual')}
+              label={t("inspections.detail.manual", "Manual")}
               tone={{ fg: theme.info, bg: theme.infoSoft }}
               theme={theme}
             />
@@ -1169,7 +1236,7 @@ export default function InspectionDetailScreen() {
                   color={theme.success}
                   style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
                 >
-                  {t('inspections.detail.clean', 'Clean inspection')}
+                  {t("inspections.detail.clean", "Clean inspection")}
                 </Text>
               </>
             ) : (
@@ -1180,8 +1247,8 @@ export default function InspectionDetailScreen() {
                   color={theme.danger}
                   style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
                 >
-                  {totalDamages}{' '}
-                  {t('inspections.detail.damagesFound', 'damages found')}
+                  {totalDamages}{" "}
+                  {t("inspections.detail.damagesFound", "damages found")}
                 </Text>
               </>
             )}
@@ -1194,7 +1261,7 @@ export default function InspectionDetailScreen() {
           style={{ marginTop: 16, marginHorizontal: 16 }}
         >
           <SectionLabel theme={theme}>
-            {t('inspections.detail.mileageFuel', 'Vehicle State')}
+            {t("inspections.detail.mileageFuel", "Vehicle State")}
           </SectionLabel>
           <MileageFuelCard inspection={inspection} theme={theme} t={t} />
         </Animated.View>
@@ -1209,7 +1276,7 @@ export default function InspectionDetailScreen() {
             style={{ marginBottom: 8 }}
           >
             <SectionLabel theme={theme}>
-              {t('inspections.detail.photosSection', 'Photos')}
+              {t("inspections.detail.photosSection", "Photos")}
             </SectionLabel>
             <View style={{ marginBottom: 8, marginRight: 4 }}>
               <Chip
@@ -1221,11 +1288,11 @@ export default function InspectionDetailScreen() {
           </View>
           <View className="flex-row flex-wrap" style={{ gap: 10 }}>
             {PHOTO_ANGLES.map((angle) => (
-              <View key={angle.key} style={{ width: '48.5%' }}>
+              <View key={angle.key} style={{ width: "48.5%" }}>
                 {renderPhotoTile(
                   angle.label,
                   photoByAngle.get(angle.key),
-                  '100%',
+                  "100%",
                   4 / 3,
                 )}
               </View>
@@ -1239,47 +1306,47 @@ export default function InspectionDetailScreen() {
           style={{ marginTop: 22, marginHorizontal: 16 }}
         >
           <SectionLabel theme={theme}>
-            {t('inspections.detail.damageSummary', 'Damage Summary')}
+            {t("inspections.detail.damageSummary", "Damage Summary")}
           </SectionLabel>
 
           {damages.length === 0 ? (
             <View className="py-6">
               <EmptyState
                 icon={CheckCircle}
-                title={t('inspections.detail.noDamage', 'No damage detected')}
+                title={t("inspections.detail.noDamage", "No damage detected")}
                 subtitle={t(
-                  'inspections.detail.noDamageDesc',
-                  'All angles passed AI inspection',
+                  "inspections.detail.noDamageDesc",
+                  "All angles passed AI inspection",
                 )}
               />
             </View>
           ) : (
             <View>
-              {(severityCounts.severe +
+              {severityCounts.severe +
                 severityCounts.moderate +
                 severityCounts.minor >
-                0) && (
+                0 && (
                 <View
                   className="flex-row"
-                  style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}
+                  style={{ gap: 6, marginBottom: 12, flexWrap: "wrap" }}
                 >
                   {severityCounts.severe > 0 && (
                     <Chip
-                      label={`${severityCounts.severe} ${t('inspections.detail.severe', 'Severe')}`}
+                      label={`${severityCounts.severe} ${t("inspections.detail.severe", "Severe")}`}
                       fg={theme.danger}
                       bg={theme.dangerSoft}
                     />
                   )}
                   {severityCounts.moderate > 0 && (
                     <Chip
-                      label={`${severityCounts.moderate} ${t('inspections.detail.moderate', 'Moderate')}`}
+                      label={`${severityCounts.moderate} ${t("inspections.detail.moderate", "Moderate")}`}
                       fg={theme.warning}
                       bg={theme.warningSoft}
                     />
                   )}
                   {severityCounts.minor > 0 && (
                     <Chip
-                      label={`${severityCounts.minor} ${t('inspections.detail.minor', 'Minor')}`}
+                      label={`${severityCounts.minor} ${t("inspections.detail.minor", "Minor")}`}
                       fg={theme.info}
                       bg={theme.infoSoft}
                     />
@@ -1306,7 +1373,7 @@ export default function InspectionDetailScreen() {
           style={{ marginTop: 22, marginHorizontal: 16 }}
         >
           <SectionLabel theme={theme}>
-            {t('inspections.detail.notes', 'Notes')}
+            {t("inspections.detail.notes", "Notes")}
           </SectionLabel>
           <View
             style={{
@@ -1331,7 +1398,7 @@ export default function InspectionDetailScreen() {
                 color={theme.textTertiary}
                 style={{ fontSize: 13 }}
               >
-                {t('inspections.detail.noNotes', 'No notes added')}
+                {t("inspections.detail.noNotes", "No notes added")}
               </Text>
             )}
           </View>
@@ -1348,26 +1415,26 @@ export default function InspectionDetailScreen() {
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               showToast({
-                variant: 'info',
-                title: t('inspections.detail.comingSoon', 'Coming soon'),
+                variant: "info",
+                title: t("inspections.detail.comingSoon", "Coming soon"),
                 message: t(
-                  'inspections.detail.shareMessage',
-                  'Report sharing will be available soon.',
+                  "inspections.detail.shareMessage",
+                  "Report sharing will be available soon.",
                 ),
               });
             }}
           />
 
-          {inspection.status === 'draft' && (
+          {inspection.status === "draft" && (
             <View style={{ marginTop: 10 }}>
               <Button
                 variant="secondary"
                 fullWidth
                 size="lg"
                 leftIcon={Play}
-                onPress={() => router.push('/(inspections)/new')}
+                onPress={() => router.push("/(inspections)/new")}
               >
-                {t('inspections.detail.resume', 'Resume Inspection')}
+                {t("inspections.detail.resume", "Resume Inspection")}
               </Button>
             </View>
           )}
@@ -1401,7 +1468,7 @@ function MiniStat({
         borderRadius: 12,
         paddingVertical: 10,
         paddingHorizontal: 8,
-        alignItems: 'center',
+        alignItems: "center",
       }}
     >
       <View
@@ -1410,8 +1477,8 @@ function MiniStat({
           height: 24,
           borderRadius: 12,
           backgroundColor: tone.bg,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           marginBottom: 4,
         }}
       >
@@ -1442,7 +1509,7 @@ function MileageFuelCard({
 }: {
   inspection: Inspection;
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   const fuelColor =
     inspection.fuelLevel <= 25
@@ -1465,7 +1532,7 @@ function MileageFuelCard({
         padding: 16,
         borderWidth: 1,
         borderColor: theme.borderLight,
-        flexDirection: 'row',
+        flexDirection: "row",
         gap: 14,
       }}
     >
@@ -1477,8 +1544,8 @@ function MileageFuelCard({
               height: 22,
               borderRadius: 11,
               backgroundColor: theme.accentSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Gauge size={12} color={theme.accent} strokeWidth={2.2} />
@@ -1488,7 +1555,7 @@ function MileageFuelCard({
             color={theme.textTertiary}
             style={{ fontSize: 11 }}
           >
-            {t('inspections.detail.mileage', 'Mileage')}
+            {t("inspections.detail.mileage", "Mileage")}
           </Text>
         </View>
         <Text
@@ -1516,8 +1583,8 @@ function MileageFuelCard({
               height: 22,
               borderRadius: 11,
               backgroundColor: fuelBg,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Fuel size={12} color={fuelColor} strokeWidth={2.2} />
@@ -1527,7 +1594,7 @@ function MileageFuelCard({
             color={theme.textTertiary}
             style={{ fontSize: 11 }}
           >
-            {t('inspections.detail.fuel', 'Fuel Level')}
+            {t("inspections.detail.fuel", "Fuel Level")}
           </Text>
         </View>
         <Text
@@ -1567,8 +1634,8 @@ function DamageRow({
         padding: 12,
         borderWidth: 1,
         borderColor: theme.borderLight,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
       }}
     >
       <View
@@ -1597,11 +1664,7 @@ function DamageRow({
           {damage.description}
         </Text>
       </View>
-      <Chip
-        label={capitalize(damage.severity)}
-        fg={tone.fg}
-        bg={tone.bg}
-      />
+      <Chip label={capitalize(damage.severity)} fg={tone.fg} bg={tone.bg} />
     </View>
   );
 }
@@ -1624,12 +1687,12 @@ function CompareModePill({
       onPress={onPress}
       style={({ pressed }) => ({
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         paddingVertical: 9,
         borderRadius: 9999,
-        backgroundColor: active ? theme.surface : 'transparent',
+        backgroundColor: active ? theme.surface : "transparent",
         gap: 6,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
@@ -1661,9 +1724,9 @@ function StatDuoCard({
 }: {
   title: string;
   subtitle: string;
-  tone: 'info' | 'warning';
+  tone: "info" | "warning";
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   return (
     <View
@@ -1680,7 +1743,7 @@ function StatDuoCard({
         color={theme.textTertiary}
         style={{ fontSize: 11 }}
       >
-        {t('inspections.detail.mileage', 'Mileage')}
+        {t("inspections.detail.mileage", "Mileage")}
       </Text>
       <Text
         variant="titleMedium"
@@ -1694,7 +1757,7 @@ function StatDuoCard({
       </Text>
       <Text
         variant="caption"
-        color={tone === 'info' ? theme.info : theme.warning}
+        color={tone === "info" ? theme.info : theme.warning}
         style={{
           fontSize: 11,
           marginTop: 6,
@@ -1713,7 +1776,7 @@ function ShareReportButton({
   onPress,
 }: {
   theme: ReturnType<typeof useTheme>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: ReturnType<typeof useTranslation>["t"];
   onPress: () => void;
 }) {
   return (
@@ -1723,9 +1786,9 @@ function ShareReportButton({
         borderRadius: 9999,
         backgroundColor: theme.accent,
         height: 52,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         gap: 8,
         shadowColor: theme.accent,
         shadowOffset: { width: 0, height: 6 },
@@ -1741,7 +1804,7 @@ function ShareReportButton({
         color="#FFFFFF"
         style={{ fontFamily: fontFamilies.semiBold, fontSize: 15 }}
       >
-        {t('inspections.detail.shareReport', 'Share Report')}
+        {t("inspections.detail.shareReport", "Share Report")}
       </Text>
     </Pressable>
   );

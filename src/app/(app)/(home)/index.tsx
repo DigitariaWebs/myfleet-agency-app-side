@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, View, type ListRenderItem } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   CalendarPlus,
@@ -25,16 +26,43 @@ import { Avatar } from "@/components/ui/Avatar";
 import { FabMenu } from "@/components/ui/FabMenu";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useConflictCount } from "@/stores/useBookingStore";
+import { fleetKeys, useFleetStats, useVehicles } from "@/hooks/useFleet";
+import {
+  bookingKeys,
+  useActiveRentals,
+  useBookingConflicts,
+  useUpcomingReturns,
+} from "@/hooks/useBookings";
 import { fontFamilies } from "@/theme/typography";
 import { getVehicleImage } from "@/data/vehicleImages";
-import {
-  activeRentals,
-  upcomingReturns,
-  fleetStats,
-  type ActiveRental,
-  type UpcomingReturn,
-} from "@/data/dashboard";
+import type { Booking } from "@/types/booking";
+
+interface ActiveRental {
+  id: string;
+  bookingId: string;
+  vehicle: { id: string; name: string; licensePlate: string };
+  client: { firstName: string; lastName: string };
+  returnDate: string;
+}
+
+interface UpcomingReturn {
+  id: string;
+  bookingId: string;
+  vehicle: { id: string; name: string };
+  client: { firstName: string; lastName: string };
+  returnTime: string;
+}
+
+function splitName(full: string): { firstName: string; lastName: string } {
+  const trimmed = (full ?? "").trim();
+  if (!trimmed) return { firstName: "", lastName: "" };
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,13 +81,14 @@ function getFormattedDate(): string {
   });
 }
 
-function countOverdue(returns: UpcomingReturn[]): number {
-  // returnTime is like "14:00" — consider overdue when current local time
-  // has passed the scheduled return time (mock heuristic for demo).
-  const nowHours = new Date("2026-04-08T08:00:00").getHours();
-  return returns.filter((r) => {
-    const [hh] = r.returnTime.split(":").map((n) => parseInt(n, 10));
-    return Number.isFinite(hh) && hh < nowHours;
+function countOverdue(active: Booking[]): number {
+  const now = new Date();
+  const todayIso = now.toISOString().slice(0, 10);
+  const nowHHmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return active.filter((b) => {
+    if (!b.endDate) return false;
+    if (b.endDate < todayIso) return true;
+    return b.endDate === todayIso && (b.returnTime ?? "23:59") < nowHHmm;
   }).length;
 }
 
@@ -70,12 +99,70 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
-  const conflictCount = useConflictCount();
+  const { data: fleetStatsData } = useFleetStats();
+  const { data: vehicles = [] } = useVehicles();
+  const { data: activeBookings = [] } = useActiveRentals();
+  const { data: returnBookings = [] } = useUpcomingReturns();
+  const { data: conflicts = [] } = useBookingConflicts();
+
+  const fleetStats = fleetStatsData ?? {
+    total: 0,
+    rented: 0,
+    available: 0,
+    maintenance: 0,
+  };
+  const conflictCount = conflicts.length;
+
+  const vehicleById = useMemo(() => {
+    const map = new Map<string, { licensePlate: string }>();
+    for (const v of vehicles) {
+      map.set(v.id, { licensePlate: v.licensePlate ?? "" });
+    }
+    return map;
+  }, [vehicles]);
+
+  const activeRentals: ActiveRental[] = useMemo(
+    () =>
+      activeBookings.map((b) => {
+        const name = splitName(b.clientName ?? "");
+        return {
+          id: b.id,
+          bookingId: b.id,
+          vehicle: {
+            id: b.vehicleId,
+            name: b.vehicleName ?? "",
+            licensePlate: vehicleById.get(b.vehicleId)?.licensePlate ?? "",
+          },
+          client: name,
+          returnDate: b.endDate ?? "",
+        };
+      }),
+    [activeBookings, vehicleById],
+  );
+
+  const upcomingReturns: UpcomingReturn[] = useMemo(
+    () =>
+      returnBookings.map((b) => {
+        const name = splitName(b.clientName ?? "");
+        return {
+          id: b.id,
+          bookingId: b.id,
+          vehicle: { id: b.vehicleId, name: b.vehicleName ?? "" },
+          client: name,
+          returnTime: b.returnTime ?? "",
+        };
+      }),
+    [returnBookings],
+  );
 
   const dateStr = useMemo(getFormattedDate, []);
-  const overdueCount = useMemo(() => countOverdue(upcomingReturns), []);
+  const overdueCount = useMemo(
+    () => countOverdue(activeBookings),
+    [activeBookings],
+  );
   const returnsToday = upcomingReturns.length;
 
   const total = fleetStats.total || 1;
@@ -83,10 +170,17 @@ export default function HomeScreen() {
   const availablePct = (fleetStats.available / total) * 100;
   const maintenancePct = (fleetStats.maintenance / total) * 100;
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: fleetKeys.all }),
+        queryClient.invalidateQueries({ queryKey: bookingKeys.all }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient]);
 
   // ── Callbacks ──────────────────────────────────────────────
 

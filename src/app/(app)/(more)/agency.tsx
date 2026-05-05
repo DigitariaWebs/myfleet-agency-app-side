@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { View, Pressable, Switch, ActivityIndicator } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import {

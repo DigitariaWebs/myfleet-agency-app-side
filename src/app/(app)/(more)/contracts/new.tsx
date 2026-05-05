@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, ScrollView } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   CalendarDays,
@@ -15,22 +15,22 @@ import {
   User,
   Building2,
   FileText,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Divider } from '@/components/ui/Divider';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useToastStore } from '@/components/ui/Toast';
-import { useTheme } from '@/hooks/useTheme';
-import { formatDate, formatCurrency } from '@/utils/format';
-import { useContractStore } from '@/stores/useContractStore';
-import { useBookingStore } from '@/stores/useBookingStore';
-import { CONTRACT_CLAUSES } from '@/data/contracts';
-import type { Booking } from '@/types/booking';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Divider } from "@/components/ui/Divider";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useToastStore } from "@/components/ui/Toast";
+import { useTheme } from "@/hooks/useTheme";
+import { formatDate, formatCurrency } from "@/utils/format";
+import { useContractStore } from "@/stores/useContractStore";
+import { useBookings } from "@/hooks/useBookings";
+import { CONTRACT_CLAUSES } from "@/data/contracts";
+import type { Booking } from "@/types/booking";
 
 // ── Booking Picker Card ─────────────────────────────────────────────────────
 
@@ -55,7 +55,11 @@ function BookingPickerCard({
   }, [onPress]);
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+    <Animated.View
+      entering={FadeInDown.delay(index * 60)
+        .duration(400)
+        .springify()}
+    >
       <Pressable
         onPress={handlePress}
         className="rounded-xl p-3 mb-2 flex-row items-center"
@@ -73,10 +77,7 @@ function BookingPickerCard({
             backgroundColor: selected ? theme.accent : theme.surface,
           }}
         >
-          <Car
-            size={18}
-            color={selected ? '#0A0A0F' : theme.textTertiary}
-          />
+          <Car size={18} color={selected ? "#0A0A0F" : theme.textTertiary} />
         </View>
 
         <View className="flex-1">
@@ -90,9 +91,13 @@ function BookingPickerCard({
           >
             {booking.clientName}
           </Text>
-          <Text variant="bodySmall" color={theme.textTertiary} className="mt-0.5">
-            {formatDate(booking.startDate, 'short')} {'\u2192'}{' '}
-            {formatDate(booking.endDate, 'short')}
+          <Text
+            variant="bodySmall"
+            color={theme.textTertiary}
+            className="mt-0.5"
+          >
+            {formatDate(booking.startDate, "short")} {"\u2192"}{" "}
+            {formatDate(booking.endDate, "short")}
           </Text>
         </View>
 
@@ -124,7 +129,9 @@ function SectionHeader({ title, index }: SectionHeaderProps) {
   const theme = useTheme();
   return (
     <Animated.View
-      entering={FadeInDown.delay(index * 80).duration(400).springify()}
+      entering={FadeInDown.delay(index * 80)
+        .duration(400)
+        .springify()}
       className="mt-6 mb-3"
     >
       <Text variant="titleMedium" color={theme.textSecondary}>
@@ -151,11 +158,7 @@ function SignaturePlaceholder({ label }: SignaturePlaceholderProps) {
       }}
     >
       <PenLine size={28} color={theme.textTertiary} strokeWidth={1.5} />
-      <Text
-        variant="bodySmall"
-        color={theme.textTertiary}
-        className="mt-2"
-      >
+      <Text variant="bodySmall" color={theme.textTertiary} className="mt-2">
         {label}
       </Text>
       <Text variant="labelSmall" color={theme.textTertiary} className="mt-1">
@@ -192,7 +195,7 @@ export default function NewContractScreen() {
   const router = useRouter();
   const showToast = useToastStore((s) => s.show);
 
-  const bookings = useBookingStore((s) => s.bookings);
+  const { data: bookings = [] } = useBookings();
   const createContractFromBooking = useContractStore(
     (s) => s.createContractFromBooking,
   );
@@ -214,7 +217,7 @@ export default function NewContractScreen() {
     () =>
       bookings.filter(
         (b) =>
-          (b.status === 'confirmed' || b.status === 'pending') &&
+          (b.status === "confirmed" || b.status === "pending") &&
           !bookingIdsWithContracts.has(b.id),
       ),
     [bookings, bookingIdsWithContracts],
@@ -244,9 +247,9 @@ export default function NewContractScreen() {
     const result = createContractFromBooking(selectedBookingId);
     if (result) {
       showToast({
-        variant: 'success',
-        title: 'Email envoyé',
-        message: 'Le contrat a été envoyé pour signature.',
+        variant: "success",
+        title: "Email envoyé",
+        message: "Le contrat a été envoyé pour signature.",
       });
       router.back();
     }
@@ -260,8 +263,8 @@ export default function NewContractScreen() {
     setSaving(false);
     if (result) {
       showToast({
-        variant: 'success',
-        title: 'Brouillon enregistré',
+        variant: "success",
+        title: "Brouillon enregistré",
         message: `Contrat ${result.reference} créé avec succès.`,
       });
       router.back();
@@ -271,7 +274,7 @@ export default function NewContractScreen() {
   // ── Contract date ─────────────────────────────────────────────────────
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const nextRef = `MF-2026-${String(contracts.length + 1).padStart(4, '0')}`;
+  const nextRef = `MF-2026-${String(contracts.length + 1).padStart(4, "0")}`;
 
   // ── Render ────────────────────────────────────────────────────────────
 
@@ -283,7 +286,7 @@ export default function NewContractScreen() {
           <ChevronLeft size={24} color={theme.textPrimary} strokeWidth={2} />
         </Pressable>
         <Text variant="headlineLarge" className="flex-1">
-          {t('contracts.new', { defaultValue: 'Nouveau contrat' })}
+          {t("contracts.new", { defaultValue: "Nouveau contrat" })}
         </Text>
       </View>
 
@@ -291,7 +294,9 @@ export default function NewContractScreen() {
       <SectionHeader title="Sélectionner une réservation" index={0} />
 
       {eligibleBookings.length === 0 ? (
-        <Animated.View entering={FadeInDown.delay(80).duration(400).springify()}>
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(400).springify()}
+        >
           <EmptyState
             icon={CalendarDays}
             title="Aucune réservation disponible"
@@ -317,7 +322,9 @@ export default function NewContractScreen() {
           <SectionHeader title="Aperçu du contrat" index={1} />
 
           {/* Contract Header */}
-          <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(400).springify()}
+          >
             <Card className="mb-3">
               <View className="items-center py-3">
                 <Text variant="headlineMedium" align="center">
@@ -337,7 +344,7 @@ export default function NewContractScreen() {
                     Réf: {nextRef}
                   </Text>
                   <Text variant="bodySmall" color={theme.textTertiary}>
-                    {formatDate(todayStr, 'long')}
+                    {formatDate(todayStr, "long")}
                   </Text>
                 </View>
               </View>
@@ -345,7 +352,9 @@ export default function NewContractScreen() {
           </Animated.View>
 
           {/* Parties */}
-          <Animated.View entering={FadeInDown.delay(160).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(160).duration(400).springify()}
+          >
             <Card className="mb-3">
               {/* Lessor */}
               <View className="flex-row items-center mb-2">
@@ -387,7 +396,9 @@ export default function NewContractScreen() {
           </Animated.View>
 
           {/* Vehicle */}
-          <Animated.View entering={FadeInDown.delay(220).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(220).duration(400).springify()}
+          >
             <Card className="mb-3">
               <View className="flex-row items-center mb-2">
                 <Car
@@ -405,7 +416,9 @@ export default function NewContractScreen() {
           </Animated.View>
 
           {/* Terms */}
-          <Animated.View entering={FadeInDown.delay(280).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(280).duration(400).springify()}
+          >
             <Card className="mb-3">
               <View className="flex-row items-center mb-2">
                 <CalendarDays
@@ -418,7 +431,7 @@ export default function NewContractScreen() {
               <View className="ml-6">
                 <InfoRow
                   label="Période"
-                  value={`${formatDate(selectedBooking.startDate, 'short')} \u2192 ${formatDate(selectedBooking.endDate, 'short')}`}
+                  value={`${formatDate(selectedBooking.startDate, "short")} \u2192 ${formatDate(selectedBooking.endDate, "short")}`}
                 />
                 <InfoRow
                   label="Tarif journalier"
@@ -445,7 +458,9 @@ export default function NewContractScreen() {
           </Animated.View>
 
           {/* Clauses */}
-          <Animated.View entering={FadeInDown.delay(340).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(340).duration(400).springify()}
+          >
             <Card className="mb-3">
               <View className="flex-row items-center mb-3">
                 <FileText
@@ -456,7 +471,7 @@ export default function NewContractScreen() {
                 <Text variant="titleSmall">Clauses contractuelles</Text>
               </View>
               {CONTRACT_CLAUSES.map((clause, idx) => (
-                <View key={clause.id} className={idx > 0 ? 'mt-3' : ''}>
+                <View key={clause.id} className={idx > 0 ? "mt-3" : ""}>
                   <Text variant="titleSmall">
                     {idx + 1}. {clause.title}
                   </Text>
@@ -473,7 +488,9 @@ export default function NewContractScreen() {
           </Animated.View>
 
           {/* Signature Area */}
-          <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(400).springify()}
+          >
             <Card className="mb-3">
               <Text variant="titleSmall" className="mb-3">
                 Signatures
@@ -493,7 +510,7 @@ export default function NewContractScreen() {
                     borderColor: termsAccepted ? theme.accent : theme.border,
                     backgroundColor: termsAccepted
                       ? theme.accent
-                      : 'transparent',
+                      : "transparent",
                   }}
                 >
                   {termsAccepted && (

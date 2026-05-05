@@ -2,7 +2,7 @@ import React from "react";
 import { Dimensions, Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";

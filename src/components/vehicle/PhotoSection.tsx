@@ -6,7 +6,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import {
   Camera,

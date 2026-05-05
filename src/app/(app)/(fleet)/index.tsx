@@ -8,7 +8,7 @@ import {
   TextInput,
   type ListRenderItemInfo,
 } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { useTranslation } from "react-i18next";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -158,18 +158,21 @@ export default function FleetScreen() {
               backgroundColor: theme.surfaceTertiary,
             }}
           >
-            {item.thumbnailUrl ? (
-              <Image
-                source={{ uri: item.thumbnailUrl }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <View className="flex-1 items-center justify-center">
-                <Car size={32} color={theme.textTertiary} strokeWidth={1.4} />
-              </View>
-            )}
+            {(() => {
+              const uri = item.thumbnailUrl ?? item.images?.[0]?.url ?? null;
+              return uri ? (
+                <Image
+                  source={{ uri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <View className="flex-1 items-center justify-center">
+                  <Car size={32} color={theme.textTertiary} strokeWidth={1.4} />
+                </View>
+              );
+            })()}
           </View>
 
           <View style={{ padding: 12 }}>
@@ -258,18 +261,21 @@ export default function FleetScreen() {
               overflow: "hidden",
             }}
           >
-            {item.thumbnailUrl ? (
-              <Image
-                source={{ uri: item.thumbnailUrl }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <View className="flex-1 items-center justify-center">
-                <Car size={22} color={theme.textTertiary} strokeWidth={1.5} />
-              </View>
-            )}
+            {(() => {
+              const uri = item.thumbnailUrl ?? item.images?.[0]?.url ?? null;
+              return uri ? (
+                <Image
+                  source={{ uri }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <View className="flex-1 items-center justify-center">
+                  <Car size={22} color={theme.textTertiary} strokeWidth={1.5} />
+                </View>
+              );
+            })()}
           </View>
 
           <View style={{ flex: 1, marginLeft: 12 }}>

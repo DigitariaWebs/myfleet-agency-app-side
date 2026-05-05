@@ -8,44 +8,52 @@ import {
   ChevronLeft,
   CircleCheck,
   KeyRound,
-  TrendingUp,
   Wrench,
 } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { useShallow } from 'zustand/react/shallow';
 import type { LucideIcon } from "lucide-react-native";
 
 import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/hooks/useTheme";
-import { useBookingStore } from "@/stores/useBookingStore";
+import { useBookings } from "@/hooks/useBookings";
+import { useFleetStats } from "@/hooks/useFleet";
 import { fontFamilies } from "@/theme/typography";
-import { fleetStats } from "@/data/dashboard";
 
 export default function StatisticsScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
 
-  const { active, upcoming, completed } = useBookingStore(
-    useShallow((s) => ({
-      active: s.bookings.filter((b) => b.status === "active").length,
-      upcoming: s.bookings.filter(
-        (b) => b.status === "confirmed" || b.status === "pending"
+  const { data: fleetStatsData } = useFleetStats();
+  const stats = fleetStatsData ?? {
+    total: 0,
+    rented: 0,
+    available: 0,
+    maintenance: 0,
+  };
+
+  const { data: bookings = [] } = useBookings();
+  const { active, upcoming, completed } = useMemo(
+    () => ({
+      active: bookings.filter((b) => b.status === "active").length,
+      upcoming: bookings.filter(
+        (b) => b.status === "confirmed" || b.status === "pending",
       ).length,
-      completed: s.bookings.filter((b) => b.status === "completed").length,
-    }))
+      completed: bookings.filter((b) => b.status === "completed").length,
+    }),
+    [bookings],
   );
 
   const { rentedPct, availablePct, maintenancePct } = useMemo(() => {
-    const total = fleetStats.total || 1;
+    const total = stats.total || 1;
     return {
-      rentedPct: Math.round((fleetStats.rented / total) * 100),
-      availablePct: Math.round((fleetStats.available / total) * 100),
-      maintenancePct: Math.round((fleetStats.maintenance / total) * 100),
+      rentedPct: Math.round((stats.rented / total) * 100),
+      availablePct: Math.round((stats.available / total) * 100),
+      maintenancePct: Math.round((stats.maintenance / total) * 100),
     };
-  }, []);
+  }, [stats]);
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -53,24 +61,57 @@ export default function StatisticsScreen() {
   }, [router]);
 
   const goToFleet = useCallback(() => router.push("/(app)/(fleet)"), [router]);
-  
-  const goToFleetRented = useCallback(() => 
-    router.push({ pathname: "/(app)/(fleet)", params: { status: "rented" } }), [router]);
 
-  const goToFleetAvailable = useCallback(() => 
-    router.push({ pathname: "/(app)/(fleet)", params: { status: "available" } }), [router]);
+  const goToFleetRented = useCallback(
+    () =>
+      router.push({ pathname: "/(app)/(fleet)", params: { status: "rented" } }),
+    [router],
+  );
 
-  const goToFleetMaintenance = useCallback(() => 
-    router.push({ pathname: "/(app)/(fleet)", params: { status: "maintenance" } }), [router]);
+  const goToFleetAvailable = useCallback(
+    () =>
+      router.push({
+        pathname: "/(app)/(fleet)",
+        params: { status: "available" },
+      }),
+    [router],
+  );
 
-  const goToBookingsActive = useCallback(() => 
-    router.push({ pathname: "/(app)/(bookings)", params: { filter: "active" } }), [router]);
+  const goToFleetMaintenance = useCallback(
+    () =>
+      router.push({
+        pathname: "/(app)/(fleet)",
+        params: { status: "maintenance" },
+      }),
+    [router],
+  );
 
-  const goToBookingsUpcoming = useCallback(() => 
-    router.push({ pathname: "/(app)/(bookings)", params: { filter: "upcoming" } }), [router]);
+  const goToBookingsActive = useCallback(
+    () =>
+      router.push({
+        pathname: "/(app)/(bookings)",
+        params: { filter: "active" },
+      }),
+    [router],
+  );
 
-  const goToBookingsCompleted = useCallback(() => 
-    router.push({ pathname: "/(app)/(bookings)", params: { filter: "completed" } }), [router]);
+  const goToBookingsUpcoming = useCallback(
+    () =>
+      router.push({
+        pathname: "/(app)/(bookings)",
+        params: { filter: "upcoming" },
+      }),
+    [router],
+  );
+
+  const goToBookingsCompleted = useCallback(
+    () =>
+      router.push({
+        pathname: "/(app)/(bookings)",
+        params: { filter: "completed" },
+      }),
+    [router],
+  );
 
   return (
     <ScreenWrapper scroll padded={false}>
@@ -120,7 +161,7 @@ export default function StatisticsScreen() {
         <View style={{ flexDirection: "row", gap: 10 }}>
           <Tile
             icon={Car}
-            value={fleetStats.total}
+            value={stats.total}
             label={t("dashboard.stats.totalFleet")}
             color={theme.accent}
             bg={theme.accentSoft}
@@ -129,7 +170,7 @@ export default function StatisticsScreen() {
           />
           <Tile
             icon={KeyRound}
-            value={fleetStats.rented}
+            value={stats.rented}
             label={t("dashboard.stats.inRental")}
             color={theme.success}
             bg={theme.successSoft}
@@ -140,7 +181,7 @@ export default function StatisticsScreen() {
         <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
           <Tile
             icon={CircleCheck}
-            value={fleetStats.available}
+            value={stats.available}
             label={t("dashboard.stats.available")}
             color={theme.info}
             bg={theme.infoSoft}
@@ -149,7 +190,7 @@ export default function StatisticsScreen() {
           />
           <Tile
             icon={Wrench}
-            value={fleetStats.maintenance}
+            value={stats.maintenance}
             label={t("dashboard.stats.inRepair")}
             color={theme.warning}
             bg={theme.warningSoft}
@@ -191,19 +232,19 @@ export default function StatisticsScreen() {
           >
             <View
               style={{
-                flex: fleetStats.rented,
+                flex: stats.rented,
                 backgroundColor: theme.success,
               }}
             />
             <View
               style={{
-                flex: fleetStats.available,
+                flex: stats.available,
                 backgroundColor: theme.info,
               }}
             />
             <View
               style={{
-                flex: fleetStats.maintenance,
+                flex: stats.maintenance,
                 backgroundColor: theme.warning,
               }}
             />
@@ -212,19 +253,19 @@ export default function StatisticsScreen() {
           <LegendRow
             color={theme.success}
             label={t("dashboard.stats.inRental")}
-            value={`${fleetStats.rented} · ${rentedPct}%`}
+            value={`${stats.rented} · ${rentedPct}%`}
             theme={theme}
           />
           <LegendRow
             color={theme.info}
             label={t("dashboard.stats.available")}
-            value={`${fleetStats.available} · ${availablePct}%`}
+            value={`${stats.available} · ${availablePct}%`}
             theme={theme}
           />
           <LegendRow
             color={theme.warning}
             label={t("dashboard.stats.inRepair")}
-            value={`${fleetStats.maintenance} · ${maintenancePct}%`}
+            value={`${stats.maintenance} · ${maintenancePct}%`}
             theme={theme}
             isLast
           />
@@ -236,33 +277,13 @@ export default function StatisticsScreen() {
         entering={FadeInDown.delay(200).duration(400)}
         className="mt-5 px-4"
       >
-        <View className="flex-row items-center justify-between mb-2">
+        <View className="mb-2">
           <Text
             variant="titleMedium"
             style={{ fontFamily: fontFamilies.semiBold }}
           >
             {t("dashboard.statsScreen.bookings")}
           </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderRadius: 9999,
-              backgroundColor: theme.successSoft,
-            }}
-          >
-            <TrendingUp size={12} color={theme.success} strokeWidth={2.2} />
-            <Text
-              variant="labelSmall"
-              color={theme.success}
-              style={{ fontFamily: fontFamilies.semiBold, fontSize: 11 }}
-            >
-              +12%
-            </Text>
-          </View>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
           <Tile
@@ -308,7 +329,15 @@ interface TileProps {
   onPress?: () => void;
 }
 
-const Tile = React.memo(function Tile({ icon: Icon, value, label, color, bg, theme, onPress }: TileProps) {
+const Tile = React.memo(function Tile({
+  icon: Icon,
+  value,
+  label,
+  color,
+  bg,
+  theme,
+  onPress,
+}: TileProps) {
   return (
     <Pressable
       onPress={() => {
@@ -371,7 +400,13 @@ interface LegendRowProps {
   isLast?: boolean;
 }
 
-const LegendRow = React.memo(function LegendRow({ color, label, value, theme, isLast }: LegendRowProps) {
+const LegendRow = React.memo(function LegendRow({
+  color,
+  label,
+  value,
+  theme,
+  isLast,
+}: LegendRowProps) {
   return (
     <View
       style={{

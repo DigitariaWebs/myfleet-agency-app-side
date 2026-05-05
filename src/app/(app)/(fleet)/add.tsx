@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { ChevronLeft, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 
 import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
 import { Text } from "@/components/ui/Text";
@@ -33,6 +33,7 @@ import type {
   FuelType,
   Transmission,
 } from "@/types/vehicle";
+import { mockVehicles } from "@/data/vehicles";
 
 const stagger = (index: number) =>
   FadeInDown.delay(index * 60)
@@ -174,6 +175,31 @@ export default function AddVehicleScreen() {
     },
     [cancelUpload, removePhoto],
   );
+
+  const handleDevFillRandom = useCallback(() => {
+    const sample =
+      mockVehicles[Math.floor(Math.random() * mockVehicles.length)];
+    if (!sample) return;
+    setName(sample.name);
+    setBrand(sample.brand);
+    setCategory(sample.category);
+    setYear(String(sample.year));
+    setColor(sample.color);
+    // Append a random suffix so repeated fills don't collide on the unique plate.
+    const suffix = Math.random().toString(36).slice(2, 5).toUpperCase();
+    setLicensePlate(`${sample.licensePlate}-${suffix}`);
+    setMileage(String(sample.mileage));
+    setFuelType(sample.fuelType);
+    setTransmission(sample.transmission);
+    setSeats(String(sample.seats));
+    setDailyRate(String(sample.dailyRate));
+    setFieldErrors({});
+    showToast({
+      variant: "success",
+      title: "Form filled",
+      message: `Seeded with ${sample.brand} ${sample.name}`,
+    });
+  }, [showToast]);
 
   const handleSubmit = useCallback(async () => {
     const parsed = vehicleFormSchema.safeParse({
@@ -352,6 +378,30 @@ export default function AddVehicleScreen() {
             <Text variant="headlineLarge">
               {t("fleet.addVehicle", { defaultValue: "Add Vehicle" })}
             </Text>
+            {__DEV__ && (
+              <Pressable
+                onPress={handleDevFillRandom}
+                style={({ pressed }) => ({
+                  alignSelf: "flex-start",
+                  marginTop: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 9999,
+                  borderWidth: 1,
+                  borderStyle: "dashed",
+                  borderColor: theme.accent,
+                  backgroundColor: pressed ? theme.accentSoft : "transparent",
+                })}
+              >
+                <Text
+                  variant="labelSmall"
+                  color={theme.accent}
+                  style={{ fontSize: 11 }}
+                >
+                  DEV · Fill with random vehicle
+                </Text>
+              </Pressable>
+            )}
           </Animated.View>
 
           <VehicleFormFields

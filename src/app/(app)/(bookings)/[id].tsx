@@ -1,6 +1,13 @@
 import React from "react";
-import { View, Pressable, Dimensions, ScrollView } from "react-native";
-import { Image } from "expo-image";
+import {
+  View,
+  Pressable,
+  Dimensions,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import { Image } from "@/components/ui/Image";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   SafeAreaView,
@@ -40,8 +47,15 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { useToastStore } from "@/components/ui/Toast";
-import { useBookingStore } from "@/stores/useBookingStore";
-import { getVehicleImage } from "@/data/vehicleImages";
+import {
+  useBooking,
+  useBookings,
+  useCancelBooking,
+  useExtendBooking,
+  useUpdateBooking,
+} from "@/hooks/useBookings";
+import { resolveVehicleImageSource } from "@/data/vehicleImages";
+import { useVehicle } from "@/hooks/useFleet";
 import type { Booking, BookingStatus, TimelineStep } from "@/types/booking";
 import { mockClients } from "@/data/clients";
 import { fontFamilies } from "@/theme/typography";
@@ -174,8 +188,43 @@ export default function BookingDetailScreen() {
   const insets = useSafeAreaInsets();
   const showToast = useToastStore((s) => s.show);
 
-  const bookings = useBookingStore((s) => s.bookings);
-  const booking = bookings.find((b) => b.id === id);
+  const { data: booking, isLoading, isError, refetch } = useBooking(id);
+  const { data: vehicle } = useVehicle(booking?.vehicleId ?? "");
+  // For the conflict banner we need to resolve referenced booking ids; only fetch
+  // the list when the current booking actually has conflicts.
+  const { data: allBookings = [] } = useBookings(
+    booking?.conflict ? undefined : undefined,
+  );
+  const bookings = booking?.conflict ? allBookings : [];
+
+  if (isLoading && !booking) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="small" color={theme.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError && !booking) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <View className="flex-1 items-center justify-center px-4 py-20">
+          <EmptyState
+            icon={ClipboardList}
+            title={t("common.errorTitle", "Something went wrong")}
+            subtitle={t(
+              "common.errorRetry",
+              "Please check your connection and try again.",
+            )}
+            actionLabel={t("common.retry", "Retry")}
+            onAction={() => void refetch()}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!booking) {
     return (
@@ -216,7 +265,9 @@ export default function BookingDetailScreen() {
   const total = subtotal + optionsTotal + deliveryFee;
 
   const tone = toneColors(statusTone(booking.status), theme);
-  const heroImage = getVehicleImage(booking.vehicleId);
+  const heroImage = resolveVehicleImageSource(
+    vehicle ?? { id: booking.vehicleId },
+  );
   const heroTotalHeight = HERO_HEIGHT + insets.top;
 
   return (
@@ -1522,24 +1573,76 @@ interface ActionButtonsProps {
   t: ReturnType<typeof useTranslation>["t"];
 }
 
-function ActionButtons({
-  booking,
-  theme,
-  router,
-  showToast,
-  t,
-}: ActionButtonsProps) {
+function ActionButtons({ booking, router, showToast, t }: ActionButtonsProps) {
+  const cancelMutation = useCancelBooking();
+  const updateMutation = useUpdateBooking();
+  const extendMutation = useExtendBooking();
+
   const handleCancel = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    useBookingStore.getState().cancelBooking(booking.id);
-    showToast({
-      variant: "success",
-      title: t("bookings.detail.cancelled", "Booking cancelled"),
-      message: t(
-        "bookings.detail.cancelledMsg",
-        "The booking has been cancelled.",
-      ),
+    cancelMutation.mutate(booking.id, {
+      onSuccess: () =>
+        showToast({
+          variant: "success",
+          title: t("bookings.detail.cancelled", "Booking cancelled"),
+          message: t(
+            "bookings.detail.cancelledMsg",
+            "The booking has been cancelled.",
+          ),
+        }),
+      onError: (err) =>
+        showToast({
+          variant: "error",
+          title: t("common.errorTitle", "Something went wrong"),
+          message: err instanceof Error ? err.message : undefined,
+        }),
     });
+  };
+
+  const handleExtend = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const submit = (extraDays: number) => {
+      const current = new Date(booking.endDate + "T00:00:00Z");
+      current.setUTCDate(current.getUTCDate() + extraDays);
+      const newEndDate = current.toISOString().slice(0, 10);
+      extendMutation.mutate(
+        { id: booking.id, payload: { newEndDate } },
+        {
+          onSuccess: (result) => {
+            if (result.conflict) {
+              showToast({
+                variant: "error",
+                title: t(
+                  "bookings.detail.extendConflict",
+                  "Extension conflicts with another booking",
+                ),
+              });
+            } else {
+              showToast({
+                variant: "success",
+                title: t("bookings.detail.extended", "Rental extended"),
+                message: `+${extraDays} ${t("bookings.detail.days", "days")}`,
+              });
+            }
+          },
+          onError: (err) =>
+            showToast({
+              variant: "error",
+              title: t("common.errorTitle", "Something went wrong"),
+              message: err instanceof Error ? err.message : undefined,
+            }),
+        },
+      );
+    };
+    Alert.alert(
+      t("bookings.detail.extendRental", "Extend Rental"),
+      t("bookings.detail.extendPrompt", "Extend this rental by:"),
+      [
+        { text: "+3 days", onPress: () => submit(3) },
+        { text: "+7 days", onPress: () => submit(7) },
+        { text: t("common.cancel", "Cancel"), style: "cancel" },
+      ],
+    );
   };
 
   switch (booking.status) {
@@ -1552,13 +1655,25 @@ function ActionButtons({
             leftIcon={CalendarCheck}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              useBookingStore
-                .getState()
-                .updateBookingStatus(booking.id, "confirmed");
-              showToast({
-                variant: "success",
-                title: t("bookings.detail.confirmed", "Booking confirmed"),
-              });
+              updateMutation.mutate(
+                { id: booking.id, patch: { status: "confirmed" } },
+                {
+                  onSuccess: () =>
+                    showToast({
+                      variant: "success",
+                      title: t(
+                        "bookings.detail.confirmed",
+                        "Booking confirmed",
+                      ),
+                    }),
+                  onError: (err) =>
+                    showToast({
+                      variant: "error",
+                      title: t("common.errorTitle", "Something went wrong"),
+                      message: err instanceof Error ? err.message : undefined,
+                    }),
+                },
+              );
             }}
           >
             {t("bookings.detail.confirm", "Confirm")}
@@ -1617,17 +1732,7 @@ function ActionButtons({
             variant="secondary"
             fullWidth
             leftIcon={Calendar}
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              showToast({
-                variant: "info",
-                title: t("bookings.detail.extendRental", "Extend Rental"),
-                message: t(
-                  "bookings.detail.extendRentalMsg",
-                  "Rental extension will be available soon.",
-                ),
-              });
-            }}
+            onPress={handleExtend}
           >
             {t("bookings.detail.extendRental", "Extend Rental")}
           </Button>

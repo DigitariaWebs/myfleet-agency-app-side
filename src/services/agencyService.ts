@@ -1,32 +1,27 @@
-import { apiRequest } from "@/services/api";
-import { getAuthHeader } from "@/services/authHeader";
-import type { Agency, AgencyDocument, AgencyDocumentType, AgencySettings, AgencyUser } from "@/types/agency";
+import { authedRequest } from "@/services/api";
+import type {
+  Agency,
+  AgencyDocument,
+  AgencyDocumentType,
+  AgencySettings,
+  AgencyUser,
+} from "@/types/agency";
 
 export async function getAgency(): Promise<Agency> {
-  return apiRequest<Agency>("/agency/me", {
-    method: "GET",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<Agency>("/agency/me", { method: "GET" });
 }
 
 export async function getAgencySettings(): Promise<AgencySettings> {
-  return apiRequest<AgencySettings>("/agency/settings", {
-    method: "GET",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<AgencySettings>("/agency/settings", { method: "GET" });
 }
 
 export async function getTeam(): Promise<AgencyUser[]> {
-  return apiRequest<AgencyUser[]>("/agency/team", {
-    method: "GET",
-    headers: await getAuthHeader(),
-  });
+  return authedRequest<AgencyUser[]>("/agency/team", { method: "GET" });
 }
 
 export async function getAgencyDocuments(): Promise<AgencyDocument[]> {
-  return apiRequest<AgencyDocument[]>("/agency/documents", {
+  return authedRequest<AgencyDocument[]>("/agency/documents", {
     method: "GET",
-    headers: await getAuthHeader(),
   });
 }
 
@@ -41,20 +36,16 @@ export async function updateAgencyDocument(
     type: file.mimeType,
   } as unknown as Blob);
 
-  return apiRequest<AgencyDocument>(`/agency/documents/${type}`, {
+  return authedRequest<AgencyDocument>(`/agency/documents/${type}`, {
     method: "PATCH",
-    headers: await getAuthHeader(),
     body: formData,
   });
 }
 
 export async function getSignedDocumentUrl(key: string): Promise<string> {
-  const result = await apiRequest<{ url: string }>(
+  const result = await authedRequest<{ url: string }>(
     `/storage/signed-url/${encodeURIComponent(key)}`,
-    {
-      method: "GET",
-      headers: await getAuthHeader(),
-    },
+    { method: "GET" },
   );
   return result.url;
 }
@@ -93,15 +84,14 @@ export async function updateAgency(data: UpdateAgencyInput): Promise<Agency> {
     } as unknown as Blob);
   }
 
-  return apiRequest<Agency>("/agency/me", {
+  return authedRequest<Agency>("/agency/me", {
     method: "PATCH",
-    headers: await getAuthHeader(),
     body: formData,
   });
 }
 
 export interface UpdateAgencySettingsInput {
-  defaultLanguage?: 'fr' | 'en';
+  defaultLanguage?: "fr" | "en";
   invoicePrefix?: string;
   adminFee?: number;
   weekendSurcharge?: number;
@@ -126,12 +116,9 @@ export interface UpdateAgencySettingsInput {
 export async function updateAgencySettings(
   data: UpdateAgencySettingsInput,
 ): Promise<AgencySettings> {
-  return apiRequest<AgencySettings>("/agency/settings", {
+  return authedRequest<AgencySettings>("/agency/settings", {
     method: "PATCH",
-    headers: {
-      ...(await getAuthHeader()),
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 }

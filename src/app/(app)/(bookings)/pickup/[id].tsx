@@ -1,17 +1,17 @@
-import React, { useState, useCallback } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useCallback } from "react";
+import { View, Pressable, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
 import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
   ZoomIn,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Check,
@@ -28,62 +28,75 @@ import {
   PenTool,
   Car,
   Gauge,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { Text } from '@/components/ui/Text';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Divider } from '@/components/ui/Divider';
-import { IconButton } from '@/components/ui/IconButton';
-import { Input } from '@/components/ui/Input';
-import { useToastStore } from '@/components/ui/Toast';
-import { useBookingStore } from '@/stores/useBookingStore';
-import { useTheme } from '@/hooks/useTheme';
-import { shadows } from '@/theme/shadows';
-
-// ── Mock Data ───────────────────────────────────────────────────────────────
-
-const MOCK_BOOKING = {
-  id: 'BK-2024-0042',
-  client: {
-    name: 'Mohammed Benali',
-    phone: '+212 6 12 34 56 78',
-    licenseNo: 'D-4892731',
-  },
-  vehicle: {
-    name: 'Mercedes C-Class 2024',
-    plate: '12345-A-67',
-    color: 'Black',
-    vin: 'WDD2050012R123456',
-  },
-  dates: {
-    start: '2024-12-15',
-    end: '2024-12-22',
-    days: 7,
-  },
-  pricing: {
-    daily: 450,
-    total: 3150,
-    deposit: 5000,
-    currency: 'MAD',
-  },
-  insurance: 'all-inclusive' as const,
-};
+import { Text } from "@/components/ui/Text";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Divider } from "@/components/ui/Divider";
+import { IconButton } from "@/components/ui/IconButton";
+import { Input } from "@/components/ui/Input";
+import { useToastStore } from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Image } from "@/components/ui/Image";
+import { resolveVehicleImageSource } from "@/data/vehicleImages";
+import {
+  useBooking,
+  useRecordStartMileage,
+  useStartPickup,
+} from "@/hooks/useBookings";
+import { useVehicle } from "@/hooks/useFleet";
+import { useClient } from "@/hooks/useClients";
+import { useContracts, useCreateContract } from "@/hooks/useContracts";
+import { useCreateInspection } from "@/hooks/useInspections";
+import { useTheme } from "@/hooks/useTheme";
+import { shadows } from "@/theme/shadows";
+import { ActivityIndicator } from "react-native";
 
 const MOCK_AI_DETECTIONS = [
-  { id: '1', location: 'Front Bumper', type: 'Scratch', confidence: 94, severity: 'minor' },
-  { id: '2', location: 'Rear Left Door', type: 'Dent', confidence: 78, severity: 'moderate' },
-  { id: '3', location: 'Front Right Fender', type: 'Scratch', confidence: 55, severity: 'minor' },
-  { id: '4', location: 'Roof', type: 'Paint chip', confidence: 42, severity: 'minor' },
+  {
+    id: "1",
+    location: "Front Bumper",
+    type: "Scratch",
+    confidence: 94,
+    severity: "minor",
+  },
+  {
+    id: "2",
+    location: "Rear Left Door",
+    type: "Dent",
+    confidence: 78,
+    severity: "moderate",
+  },
+  {
+    id: "3",
+    location: "Front Right Fender",
+    type: "Scratch",
+    confidence: 55,
+    severity: "minor",
+  },
+  {
+    id: "4",
+    location: "Roof",
+    type: "Paint chip",
+    confidence: 42,
+    severity: "minor",
+  },
 ];
 
 const CAMERA_ANGLES = [
-  'Front', 'Front Right', 'Right', 'Rear Right',
-  'Rear', 'Rear Left', 'Left', 'Front Left',
+  "Front",
+  "Front Right",
+  "Right",
+  "Rear Right",
+  "Rear",
+  "Rear Left",
+  "Left",
+  "Front Left",
 ] as const;
 
-const STEPS = ['Reservation', 'Inspection', 'Contract'] as const;
+const STEPS = ["Reservation", "Inspection", "Contract"] as const;
 
 // ── Step Progress Component ─────────────────────────────────────────────────
 
@@ -98,9 +111,9 @@ function StepProgress({ currentStep, steps }: StepProgressProps) {
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         paddingVertical: 20,
         paddingHorizontal: 24,
       }}
@@ -113,7 +126,7 @@ function StepProgress({ currentStep, steps }: StepProgressProps) {
         const circleColor =
           isCompleted || isActive ? theme.accent : theme.surfaceTertiary;
         const textColor =
-          isCompleted || isActive ? '#FFFFFF' : theme.textTertiary;
+          isCompleted || isActive ? "#FFFFFF" : theme.textTertiary;
 
         return (
           <React.Fragment key={label}>
@@ -123,23 +136,21 @@ function StepProgress({ currentStep, steps }: StepProgressProps) {
                   flex: 1,
                   height: 2,
                   backgroundColor:
-                    index <= currentStep
-                      ? theme.accent
-                      : theme.surfaceTertiary,
+                    index <= currentStep ? theme.accent : theme.surfaceTertiary,
                   marginHorizontal: 4,
                 }}
               />
             )}
 
-            <View style={{ alignItems: 'center' }}>
+            <View style={{ alignItems: "center" }}>
               <View
                 style={{
                   width: circleSize,
                   height: circleSize,
                   borderRadius: circleSize / 2,
                   backgroundColor: circleColor,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 {isCompleted ? (
@@ -148,7 +159,7 @@ function StepProgress({ currentStep, steps }: StepProgressProps) {
                   <Text
                     variant="bodySmall"
                     color={textColor}
-                    style={{ fontWeight: '700', fontSize: 13 }}
+                    style={{ fontWeight: "700", fontSize: 13 }}
                   >
                     {index + 1}
                   </Text>
@@ -159,7 +170,7 @@ function StepProgress({ currentStep, steps }: StepProgressProps) {
                 color={isActive ? theme.accent : theme.textTertiary}
                 style={{
                   marginTop: 4,
-                  fontWeight: isActive ? '600' : '400',
+                  fontWeight: isActive ? "600" : "400",
                   fontSize: 11,
                 }}
               >
@@ -182,7 +193,12 @@ interface ChecklistItemProps {
   onToggle: () => void;
 }
 
-function ChecklistItem({ icon: Icon, label, checked, onToggle }: ChecklistItemProps) {
+function ChecklistItem({
+  icon: Icon,
+  label,
+  checked,
+  onToggle,
+}: ChecklistItemProps) {
   const theme = useTheme();
 
   return (
@@ -192,8 +208,8 @@ function ChecklistItem({ icon: Icon, label, checked, onToggle }: ChecklistItemPr
         onToggle();
       }}
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         paddingVertical: 14,
         paddingHorizontal: 16,
         gap: 12,
@@ -205,8 +221,8 @@ function ChecklistItem({ icon: Icon, label, checked, onToggle }: ChecklistItemPr
           height: 40,
           borderRadius: 12,
           backgroundColor: checked ? theme.accentSoft : theme.surfaceSecondary,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <Icon size={20} color={checked ? theme.accent : theme.textTertiary} />
@@ -214,7 +230,7 @@ function ChecklistItem({ icon: Icon, label, checked, onToggle }: ChecklistItemPr
       <Text
         variant="bodyMedium"
         color={checked ? theme.textPrimary : theme.textSecondary}
-        style={{ flex: 1, fontWeight: checked ? '600' : '400' }}
+        style={{ flex: 1, fontWeight: checked ? "600" : "400" }}
       >
         {label}
       </Text>
@@ -225,9 +241,9 @@ function ChecklistItem({ icon: Icon, label, checked, onToggle }: ChecklistItemPr
           borderRadius: 12,
           borderWidth: 2,
           borderColor: checked ? theme.accent : theme.border,
-          backgroundColor: checked ? theme.accent : 'transparent',
-          alignItems: 'center',
-          justifyContent: 'center',
+          backgroundColor: checked ? theme.accent : "transparent",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         {checked && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
@@ -252,7 +268,7 @@ function SignatureBox({ label, signed, onSign }: SignatureBoxProps) {
       <Text
         variant="bodySmall"
         color={theme.textSecondary}
-        style={{ marginBottom: 8, fontWeight: '600' }}
+        style={{ marginBottom: 8, fontWeight: "600" }}
       >
         {label}
       </Text>
@@ -266,17 +282,21 @@ function SignatureBox({ label, signed, onSign }: SignatureBoxProps) {
           borderRadius: 16,
           borderWidth: 2,
           borderColor: signed ? theme.accent : theme.border,
-          borderStyle: signed ? 'solid' : 'dashed',
+          borderStyle: signed ? "solid" : "dashed",
           backgroundColor: signed ? theme.accentSoft : theme.surfaceSecondary,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           gap: 6,
         }}
       >
         {signed ? (
           <>
             <CheckCircle size={24} color={theme.accent} />
-            <Text variant="bodySmall" color={theme.accent} style={{ fontWeight: '600' }}>
+            <Text
+              variant="bodySmall"
+              color={theme.accent}
+              style={{ fontWeight: "600" }}
+            >
               Signed
             </Text>
           </>
@@ -300,8 +320,49 @@ export default function PickupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const theme = useTheme();
-  const recordStartMileage = useBookingStore((s) => s.recordStartMileage);
   const showToast = useToastStore((s) => s.show);
+
+  const {
+    data: realBooking,
+    isLoading: isLoadingBooking,
+    isError: isBookingError,
+    refetch: refetchBooking,
+  } = useBooking(id);
+  const { data: vehicle } = useVehicle(realBooking?.vehicleId ?? "");
+  const { data: client } = useClient(realBooking?.clientId ?? "");
+
+  const startPickupMutation = useStartPickup();
+  const recordStartMileageMutation = useRecordStartMileage();
+  const createInspectionMutation = useCreateInspection();
+  const createContractMutation = useCreateContract();
+
+  // Look up an existing contract for this booking so we don't create duplicates.
+  const { data: existingContracts = [] } = useContracts(
+    realBooking?.id ? { bookingId: realBooking.id } : undefined,
+  );
+
+  // Stamp pickupStartedAt on the booking when this screen first opens.
+  // Also kick off a pre-rental Inspection so photos can be uploaded against it.
+  const [preInspectionId, setPreInspectionId] = useState<string | null>(null);
+  React.useEffect(() => {
+    if (!realBooking?.id) return;
+    if (realBooking.workflow?.pickupStartedAt == null) {
+      startPickupMutation.mutate(realBooking.id);
+    }
+    if (realBooking.workflow?.preInspectionId) {
+      setPreInspectionId(realBooking.workflow.preInspectionId);
+    } else if (preInspectionId == null) {
+      createInspectionMutation.mutate(
+        {
+          vehicleId: realBooking.vehicleId,
+          bookingId: realBooking.id,
+          type: "pre-rental",
+        },
+        { onSuccess: (insp) => setPreInspectionId(insp.id) },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realBooking?.id]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(false);
@@ -310,7 +371,7 @@ export default function PickupScreen() {
   const [identityVerified, setIdentityVerified] = useState(false);
   const [paymentReceived, setPaymentReceived] = useState(false);
   const [keysReady, setKeysReady] = useState(false);
-  const [startMileageInput, setStartMileageInput] = useState('');
+  const [startMileageInput, setStartMileageInput] = useState("");
 
   // Step 2 state
   const [capturedAngles, setCapturedAngles] = useState<Set<number>>(new Set());
@@ -321,32 +382,82 @@ export default function PickupScreen() {
   // Step 3 state
   const [contractSigned, setContractSigned] = useState(false);
 
-  const booking = MOCK_BOOKING;
+  // Derive the view-model that the existing JSX expects from real backend data.
+  // Some fields (vin, license number) are not yet on the typed entities and fall
+  // back to placeholders until those types are extended.
+  const days =
+    realBooking != null
+      ? Math.max(
+          1,
+          Math.round(
+            (Date.parse(realBooking.endDate) -
+              Date.parse(realBooking.startDate)) /
+              (1000 * 60 * 60 * 24),
+          ) + 1,
+        )
+      : 0;
+  const booking = realBooking
+    ? {
+        id: realBooking.id,
+        client: {
+          name: realBooking.clientName,
+          phone: client?.phone ?? "—",
+          licenseNo: "—",
+        },
+        vehicle: {
+          name: realBooking.vehicleName,
+          plate: vehicle?.licensePlate ?? "—",
+          color: vehicle?.color ?? "—",
+          vin: "—",
+        },
+        dates: {
+          start: realBooking.startDate,
+          end: realBooking.endDate,
+          days,
+        },
+        pricing: {
+          daily: realBooking.dailyRate,
+          total: realBooking.totalAmount,
+          deposit: realBooking.deposit,
+          currency: "MAD",
+        },
+        insurance:
+          realBooking.insurance?.tier === "all_inclusive"
+            ? ("all-inclusive" as const)
+            : ("basic" as const),
+      }
+    : null;
 
-  const parsedStartMileage = Number.parseInt(startMileageInput.replace(/[^0-9]/g, ''), 10);
+  const parsedStartMileage = Number.parseInt(
+    startMileageInput.replace(/[^0-9]/g, ""),
+    10,
+  );
   const isStartMileageValid =
-    startMileageInput.trim().length > 0 && Number.isFinite(parsedStartMileage) && parsedStartMileage > 0;
+    startMileageInput.trim().length > 0 &&
+    Number.isFinite(parsedStartMileage) &&
+    parsedStartMileage > 0;
 
   const allChecked =
     identityVerified && paymentReceived && keysReady && isStartMileageValid;
 
-  const confirmDetections = MOCK_AI_DETECTIONS.filter((d) => d.confidence >= 90);
+  const confirmDetections = MOCK_AI_DETECTIONS.filter(
+    (d) => d.confidence >= 90,
+  );
   const reviewDetections = MOCK_AI_DETECTIONS.filter(
-    (d) => d.confidence >= 70 && d.confidence < 90
+    (d) => d.confidence >= 70 && d.confidence < 90,
   );
-  const uncertainDetections = MOCK_AI_DETECTIONS.filter((d) => d.confidence < 70);
+  const uncertainDetections = MOCK_AI_DETECTIONS.filter(
+    (d) => d.confidence < 70,
+  );
 
-  const handleCapture = useCallback(
-    (index: number) => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setCapturedAngles((prev) => {
-        const next = new Set(prev);
-        next.add(index);
-        return next;
-      });
-    },
-    []
-  );
+  const handleCapture = useCallback((index: number) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setCapturedAngles((prev) => {
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
+  }, []);
 
   const handleNext = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -363,35 +474,78 @@ export default function PickupScreen() {
     }
   }, [currentStep, router]);
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
     if (!id || !isStartMileageValid) {
       showToast({
-        variant: 'error',
-        title: t('bookings.mileage.startMileageRequired', 'Departure mileage required'),
+        variant: "error",
+        title: t(
+          "bookings.mileage.startMileageRequired",
+          "Departure mileage required",
+        ),
       });
       return;
     }
 
-    const result = recordStartMileage(id, parsedStartMileage);
-    if (!result.ok) {
-      const messageKey =
-        result.error === 'invalidMileage'
-          ? 'bookings.mileage.errorInvalid'
-          : result.error === 'bookingNotFound'
-            ? 'bookings.mileage.errorBookingNotFound'
-            : 'bookings.mileage.errorInvalid';
+    try {
+      await recordStartMileageMutation.mutateAsync({
+        id,
+        km: parsedStartMileage,
+      });
+    } catch (err) {
       showToast({
-        variant: 'error',
-        title: t(messageKey, result.error),
+        variant: "error",
+        title: t("bookings.mileage.errorInvalid", "Invalid mileage"),
+        message: err instanceof Error ? err.message : undefined,
       });
       return;
+    }
+
+    // Persist the contract record so signatures (added in a follow-up UI iteration)
+    // can be uploaded against the existing /contracts/:id/sign endpoint.
+    if (realBooking && existingContracts.length === 0) {
+      createContractMutation.mutate({ bookingId: realBooking.id });
     }
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCompleted(true);
-  }, [id, isStartMileageValid, parsedStartMileage, recordStartMileage, showToast, t]);
+  }, [
+    id,
+    isStartMileageValid,
+    parsedStartMileage,
+    recordStartMileageMutation,
+    realBooking,
+    existingContracts,
+    createContractMutation,
+    showToast,
+    t,
+  ]);
 
   // ── Success Screen ──────────────────────────────────────────────────────
+
+  if (isLoadingBooking && !realBooking) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="small" color={theme.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if ((isBookingError && !realBooking) || !booking) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <View className="flex-1 items-center justify-center px-4 py-20">
+          <EmptyState
+            icon={Car}
+            title={t("bookings.detail.notFound", "Booking not found")}
+            actionLabel={t("common.retry", "Retry")}
+            onAction={() => void refetchBooking()}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (completed) {
     return (
@@ -400,8 +554,8 @@ export default function PickupScreen() {
         <View
           style={{
             flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: "center",
+            justifyContent: "center",
             paddingHorizontal: 32,
           }}
         >
@@ -412,8 +566,8 @@ export default function PickupScreen() {
                 height: 120,
                 borderRadius: 60,
                 backgroundColor: theme.accentSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
+                alignItems: "center",
+                justifyContent: "center",
                 marginBottom: 24,
               }}
             >
@@ -425,8 +579,8 @@ export default function PickupScreen() {
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <Check size={40} color="#FFFFFF" strokeWidth={3} />
@@ -440,7 +594,7 @@ export default function PickupScreen() {
               align="center"
               style={{ marginBottom: 8 }}
             >
-              {t('pickup.success.title', { defaultValue: 'Vehicle Departed!' })}
+              {t("pickup.success.title", { defaultValue: "Vehicle Departed!" })}
             </Text>
             <Text
               variant="bodyMedium"
@@ -448,8 +602,8 @@ export default function PickupScreen() {
               align="center"
               style={{ marginBottom: 8 }}
             >
-              {t('pickup.success.subtitle', {
-                defaultValue: 'Pickup process completed successfully',
+              {t("pickup.success.subtitle", {
+                defaultValue: "Pickup process completed successfully",
               })}
             </Text>
             <Text
@@ -458,8 +612,8 @@ export default function PickupScreen() {
               align="center"
               style={{ marginBottom: 32 }}
             >
-              {t('pickup.success.booking', {
-                defaultValue: 'Booking {{id}}',
+              {t("pickup.success.booking", {
+                defaultValue: "Booking {{id}}",
                 id: booking.id,
               })}
             </Text>
@@ -467,10 +621,10 @@ export default function PickupScreen() {
 
           <Animated.View
             entering={FadeInUp.delay(500).springify()}
-            style={{ width: '100%' }}
+            style={{ width: "100%" }}
           >
             <Button fullWidth onPress={() => router.back()}>
-              {t('pickup.success.done', { defaultValue: 'Done' })}
+              {t("pickup.success.done", { defaultValue: "Done" })}
             </Button>
           </Animated.View>
         </View>
@@ -487,41 +641,51 @@ export default function PickupScreen() {
         <View style={{ gap: 12 }}>
           <View
             style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
             <Text variant="headlineSmall">
-              {t('pickup.reservation.title', { defaultValue: 'Booking Summary' })}
+              {t("pickup.reservation.title", {
+                defaultValue: "Booking Summary",
+              })}
             </Text>
             <Badge variant="accent">{booking.id}</Badge>
           </View>
 
+          <VehicleThumbnail vehicle={vehicle} theme={theme} />
+
           <Divider />
 
           <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.client', { defaultValue: 'Client' })}
+                {t("pickup.reservation.client", { defaultValue: "Client" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.client.name}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.phone', { defaultValue: 'Phone' })}
+                {t("pickup.reservation.phone", { defaultValue: "Phone" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.client.phone}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.license', { defaultValue: 'License' })}
+                {t("pickup.reservation.license", { defaultValue: "License" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.client.licenseNo}
               </Text>
             </View>
@@ -530,35 +694,48 @@ export default function PickupScreen() {
           <Divider />
 
           <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.vehicle', { defaultValue: 'Vehicle' })}
+                {t("pickup.reservation.vehicle", { defaultValue: "Vehicle" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.vehicle.name}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.plate', { defaultValue: 'Plate' })}
+                {t("pickup.reservation.plate", { defaultValue: "Plate" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.vehicle.plate}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.period', { defaultValue: 'Period' })}
+                {t("pickup.reservation.period", { defaultValue: "Period" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
-                {booking.dates.start} - {booking.dates.end} ({booking.dates.days}d)
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
+                {booking.dates.start} - {booking.dates.end} (
+                {booking.dates.days}d)
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.reservation.total', { defaultValue: 'Total' })}
+                {t("pickup.reservation.total", { defaultValue: "Total" })}
               </Text>
-              <Text variant="bodySmall" color={theme.accent} style={{ fontWeight: '700' }}>
+              <Text
+                variant="bodySmall"
+                color={theme.accent}
+                style={{ fontWeight: "700" }}
+              >
                 {booking.pricing.total} {booking.pricing.currency}
               </Text>
             </View>
@@ -568,44 +745,55 @@ export default function PickupScreen() {
 
       {/* Checklist */}
       <Card>
-        <Text
-          variant="titleLarge"
-          style={{ marginBottom: 4 }}
-        >
-          {t('pickup.checklist.title', { defaultValue: 'Pre-Departure Checklist' })}
+        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
+          {t("pickup.checklist.title", {
+            defaultValue: "Pre-Departure Checklist",
+          })}
         </Text>
         <Text
           variant="bodySmall"
           color={theme.textSecondary}
           style={{ marginBottom: 12 }}
         >
-          {t('pickup.checklist.subtitle', {
-            defaultValue: 'Verify all items before proceeding',
+          {t("pickup.checklist.subtitle", {
+            defaultValue: "Verify all items before proceeding",
           })}
         </Text>
 
         <ChecklistItem
           icon={UserCheck}
-          label={t('pickup.checklist.identity', {
-            defaultValue: 'Client identity verified',
+          label={t("pickup.checklist.identity", {
+            defaultValue: "Client identity verified",
           })}
           checked={identityVerified}
           onToggle={() => setIdentityVerified((v) => !v)}
         />
-        <View style={{ height: 1, backgroundColor: theme.borderLight, marginHorizontal: 16 }} />
+        <View
+          style={{
+            height: 1,
+            backgroundColor: theme.borderLight,
+            marginHorizontal: 16,
+          }}
+        />
         <ChecklistItem
           icon={CreditCard}
-          label={t('pickup.checklist.payment', {
-            defaultValue: 'Payment received',
+          label={t("pickup.checklist.payment", {
+            defaultValue: "Payment received",
           })}
           checked={paymentReceived}
           onToggle={() => setPaymentReceived((v) => !v)}
         />
-        <View style={{ height: 1, backgroundColor: theme.borderLight, marginHorizontal: 16 }} />
+        <View
+          style={{
+            height: 1,
+            backgroundColor: theme.borderLight,
+            marginHorizontal: 16,
+          }}
+        />
         <ChecklistItem
           icon={Key}
-          label={t('pickup.checklist.keys', {
-            defaultValue: 'Vehicle keys prepared',
+          label={t("pickup.checklist.keys", {
+            defaultValue: "Vehicle keys prepared",
           })}
           checked={keysReady}
           onToggle={() => setKeysReady((v) => !v)}
@@ -615,33 +803,37 @@ export default function PickupScreen() {
       {/* Start mileage (required) */}
       <Card>
         <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t('bookings.mileage.startMileageLabel', 'Departure mileage')}
+          {t("bookings.mileage.startMileageLabel", "Departure mileage")}
         </Text>
         <Text
           variant="bodySmall"
           color={theme.textSecondary}
           style={{ marginBottom: 12 }}
         >
-          {t('bookings.mileage.startMileageRequired', 'Departure mileage required')}
+          {t(
+            "bookings.mileage.startMileageRequired",
+            "Departure mileage required",
+          )}
         </Text>
         <Input
-          placeholder={t('bookings.mileage.startMileagePlaceholder', 'Enter mileage')}
+          placeholder={t(
+            "bookings.mileage.startMileagePlaceholder",
+            "Enter mileage",
+          )}
           value={startMileageInput}
-          onChangeText={(text) => setStartMileageInput(text.replace(/[^0-9]/g, ''))}
+          onChangeText={(text) =>
+            setStartMileageInput(text.replace(/[^0-9]/g, ""))
+          }
           keyboardType="number-pad"
           leftIcon={Gauge}
-          helperText={`${t('bookings.mileage.unit', 'km')}`}
+          helperText={`${t("bookings.mileage.unit", "km")}`}
         />
       </Card>
 
       {/* Continue Button */}
-      <Button
-        fullWidth
-        disabled={!allChecked}
-        onPress={handleNext}
-      >
-        {t('pickup.reservation.continue', {
-          defaultValue: 'Continue to Inspection',
+      <Button fullWidth disabled={!allChecked} onPress={handleNext}>
+        {t("pickup.reservation.continue", {
+          defaultValue: "Continue to Inspection",
         })}
       </Button>
     </Animated.View>
@@ -653,15 +845,19 @@ export default function PickupScreen() {
     <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
       {/* Banner */}
       <Card variant="accent" padding="md">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Car size={20} color="#FFFFFF" />
           <View style={{ flex: 1 }}>
             <Text variant="bodySmall" color="#FFFFFF" style={{ opacity: 0.8 }}>
-              {t('pickup.inspection.banner', {
-                defaultValue: 'Pre-departure inspection for',
+              {t("pickup.inspection.banner", {
+                defaultValue: "Pre-departure inspection for",
               })}
             </Text>
-            <Text variant="titleMedium" color="#FFFFFF" style={{ fontWeight: '700' }}>
+            <Text
+              variant="titleMedium"
+              color="#FFFFFF"
+              style={{ fontWeight: "700" }}
+            >
               {booking.vehicle.name} — {booking.client.name}
             </Text>
           </View>
@@ -671,8 +867,8 @@ export default function PickupScreen() {
       {/* 8-Angle Capture Grid */}
       <Card>
         <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t('pickup.inspection.captureTitle', {
-            defaultValue: 'Vehicle Photos',
+          {t("pickup.inspection.captureTitle", {
+            defaultValue: "Vehicle Photos",
           })}
         </Text>
         <Text
@@ -680,14 +876,14 @@ export default function PickupScreen() {
           color={theme.textSecondary}
           style={{ marginBottom: 12 }}
         >
-          {t('pickup.inspection.captureSubtitle', {
-            defaultValue: 'Capture all 8 angles of the vehicle',
+          {t("pickup.inspection.captureSubtitle", {
+            defaultValue: "Capture all 8 angles of the vehicle",
           })}
         </Text>
         <View
           style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
+            flexDirection: "row",
+            flexWrap: "wrap",
             gap: 10,
           }}
         >
@@ -698,17 +894,17 @@ export default function PickupScreen() {
                 key={angle}
                 onPress={() => handleCapture(index)}
                 style={{
-                  width: '23%',
+                  width: "23%",
                   aspectRatio: 1,
                   borderRadius: 12,
                   borderWidth: 2,
                   borderColor: isCaptured ? theme.accent : theme.border,
-                  borderStyle: isCaptured ? 'solid' : 'dashed',
+                  borderStyle: isCaptured ? "solid" : "dashed",
                   backgroundColor: isCaptured
                     ? theme.accentSoft
                     : theme.surfaceSecondary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                   gap: 4,
                 }}
               >
@@ -736,16 +932,16 @@ export default function PickupScreen() {
           align="center"
           style={{ marginTop: 8 }}
         >
-          {capturedAngles.size}/{CAMERA_ANGLES.length}{' '}
-          {t('pickup.inspection.captured', { defaultValue: 'captured' })}
+          {capturedAngles.size}/{CAMERA_ANGLES.length}{" "}
+          {t("pickup.inspection.captured", { defaultValue: "captured" })}
         </Text>
       </Card>
 
       {/* AI Detection Results */}
       <Card>
         <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t('pickup.inspection.aiTitle', {
-            defaultValue: 'AI Damage Detection',
+          {t("pickup.inspection.aiTitle", {
+            defaultValue: "AI Damage Detection",
           })}
         </Text>
         <Text
@@ -753,8 +949,8 @@ export default function PickupScreen() {
           color={theme.textSecondary}
           style={{ marginBottom: 12 }}
         >
-          {t('pickup.inspection.aiSubtitle', {
-            defaultValue: 'Automated analysis of captured photos',
+          {t("pickup.inspection.aiSubtitle", {
+            defaultValue: "Automated analysis of captured photos",
           })}
         </Text>
 
@@ -765,9 +961,9 @@ export default function PickupScreen() {
               <View
                 key={d.id}
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                   backgroundColor: theme.dangerSoft,
@@ -775,20 +971,20 @@ export default function PickupScreen() {
                 }}
               >
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                     {d.type} — {d.location}
                   </Text>
                   <Text variant="caption" color={theme.textTertiary}>
-                    {d.confidence}%{' '}
-                    {t('pickup.inspection.confidence', {
-                      defaultValue: 'confidence',
-                    })}{' '}
+                    {d.confidence}%{" "}
+                    {t("pickup.inspection.confidence", {
+                      defaultValue: "confidence",
+                    })}{" "}
                     · {d.severity}
                   </Text>
                 </View>
                 <Badge variant="danger" size="sm">
-                  {t('pickup.inspection.confirmed', {
-                    defaultValue: 'Confirmed',
+                  {t("pickup.inspection.confirmed", {
+                    defaultValue: "Confirmed",
                   })}
                 </Badge>
               </View>
@@ -803,9 +999,9 @@ export default function PickupScreen() {
               <View
                 key={d.id}
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                   backgroundColor: theme.warningSoft,
@@ -813,20 +1009,20 @@ export default function PickupScreen() {
                 }}
               >
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                     {d.type} — {d.location}
                   </Text>
                   <Text variant="caption" color={theme.textTertiary}>
-                    {d.confidence}%{' '}
-                    {t('pickup.inspection.confidence', {
-                      defaultValue: 'confidence',
-                    })}{' '}
+                    {d.confidence}%{" "}
+                    {t("pickup.inspection.confidence", {
+                      defaultValue: "confidence",
+                    })}{" "}
                     · {d.severity}
                   </Text>
                 </View>
                 <Badge variant="warning" size="sm">
-                  {t('pickup.inspection.review', {
-                    defaultValue: 'Review Required',
+                  {t("pickup.inspection.review", {
+                    defaultValue: "Review Required",
                   })}
                 </Badge>
               </View>
@@ -840,9 +1036,9 @@ export default function PickupScreen() {
             <Pressable
               onPress={() => setShowUncertain((v) => !v)}
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
                 paddingVertical: 8,
                 gap: 6,
               }}
@@ -854,12 +1050,12 @@ export default function PickupScreen() {
               )}
               <Text variant="bodySmall" color={theme.textTertiary}>
                 {showUncertain
-                  ? t('pickup.inspection.hideUncertain', {
-                      defaultValue: 'Hide uncertain',
+                  ? t("pickup.inspection.hideUncertain", {
+                      defaultValue: "Hide uncertain",
                     })
-                  : t('pickup.inspection.showUncertain', {
-                      defaultValue: 'Show uncertain',
-                    })}{' '}
+                  : t("pickup.inspection.showUncertain", {
+                      defaultValue: "Show uncertain",
+                    })}{" "}
                 ({uncertainDetections.length})
               </Text>
             </Pressable>
@@ -870,9 +1066,9 @@ export default function PickupScreen() {
                   <View
                     key={d.id}
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                       paddingVertical: 10,
                       paddingHorizontal: 12,
                       backgroundColor: theme.surfaceSecondary,
@@ -881,20 +1077,20 @@ export default function PickupScreen() {
                     }}
                   >
                     <View style={{ flex: 1, gap: 2 }}>
-                      <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+                      <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                         {d.type} — {d.location}
                       </Text>
                       <Text variant="caption" color={theme.textTertiary}>
-                        {d.confidence}%{' '}
-                        {t('pickup.inspection.confidence', {
-                          defaultValue: 'confidence',
-                        })}{' '}
+                        {d.confidence}%{" "}
+                        {t("pickup.inspection.confidence", {
+                          defaultValue: "confidence",
+                        })}{" "}
                         · {d.severity}
                       </Text>
                     </View>
                     <Badge variant="neutral" size="sm">
-                      {t('pickup.inspection.uncertain', {
-                        defaultValue: 'Uncertain',
+                      {t("pickup.inspection.uncertain", {
+                        defaultValue: "Uncertain",
                       })}
                     </Badge>
                   </View>
@@ -908,21 +1104,21 @@ export default function PickupScreen() {
       {/* Signatures */}
       <Card>
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>
-          {t('pickup.inspection.signatures', {
-            defaultValue: 'Signatures',
+          {t("pickup.inspection.signatures", {
+            defaultValue: "Signatures",
           })}
         </Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flexDirection: "row", gap: 12 }}>
           <SignatureBox
-            label={t('pickup.inspection.agentSignature', {
-              defaultValue: 'Agent',
+            label={t("pickup.inspection.agentSignature", {
+              defaultValue: "Agent",
             })}
             signed={agentSigned}
             onSign={() => setAgentSigned((v) => !v)}
           />
           <SignatureBox
-            label={t('pickup.inspection.clientSignature', {
-              defaultValue: 'Client',
+            label={t("pickup.inspection.clientSignature", {
+              defaultValue: "Client",
             })}
             signed={clientSigned}
             onSign={() => setClientSigned((v) => !v)}
@@ -932,8 +1128,8 @@ export default function PickupScreen() {
 
       {/* Continue Button */}
       <Button fullWidth onPress={handleNext}>
-        {t('pickup.inspection.continue', {
-          defaultValue: 'Continue to Contract',
+        {t("pickup.inspection.continue", {
+          defaultValue: "Continue to Contract",
         })}
       </Button>
     </Animated.View>
@@ -946,26 +1142,28 @@ export default function PickupScreen() {
       {/* Contract Preview */}
       <Card>
         <View style={{ gap: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View
               style={{
                 width: 40,
                 height: 40,
                 borderRadius: 12,
                 backgroundColor: theme.accentSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <FileText size={20} color={theme.accent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text variant="titleLarge">
-                {t('pickup.contract.title', { defaultValue: 'Rental Contract' })}
+                {t("pickup.contract.title", {
+                  defaultValue: "Rental Contract",
+                })}
               </Text>
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.subtitle', {
-                  defaultValue: 'Review and sign to complete',
+                {t("pickup.contract.subtitle", {
+                  defaultValue: "Review and sign to complete",
                 })}
               </Text>
             </View>
@@ -975,75 +1173,103 @@ export default function PickupScreen() {
 
           {/* Contract Details */}
           <View style={{ gap: 10 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.contractId', { defaultValue: 'Contract ID' })}
+                {t("pickup.contract.contractId", {
+                  defaultValue: "Contract ID",
+                })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
-                CTR-{booking.id.replace('BK-', '')}
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
+                CTR-{booking.id.replace("BK-", "")}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.renter', { defaultValue: 'Renter' })}
+                {t("pickup.contract.renter", { defaultValue: "Renter" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.client.name}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.vehicle', { defaultValue: 'Vehicle' })}
+                {t("pickup.contract.vehicle", { defaultValue: "Vehicle" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.vehicle.name}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.plateNumber', { defaultValue: 'Plate' })}
+                {t("pickup.contract.plateNumber", { defaultValue: "Plate" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.vehicle.plate}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.vin', { defaultValue: 'VIN' })}
+                {t("pickup.contract.vin", { defaultValue: "VIN" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.vehicle.vin}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.rentalPeriod', { defaultValue: 'Rental Period' })}
+                {t("pickup.contract.rentalPeriod", {
+                  defaultValue: "Rental Period",
+                })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.dates.start} - {booking.dates.end}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.dailyRate', { defaultValue: 'Daily Rate' })}
+                {t("pickup.contract.dailyRate", { defaultValue: "Daily Rate" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.pricing.daily} {booking.pricing.currency}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.totalAmount', { defaultValue: 'Total Amount' })}
+                {t("pickup.contract.totalAmount", {
+                  defaultValue: "Total Amount",
+                })}
               </Text>
-              <Text variant="bodySmall" color={theme.accent} style={{ fontWeight: '700' }}>
+              <Text
+                variant="bodySmall"
+                color={theme.accent}
+                style={{ fontWeight: "700" }}
+              >
                 {booking.pricing.total} {booking.pricing.currency}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <Text variant="bodySmall" color={theme.textSecondary}>
-                {t('pickup.contract.deposit', { defaultValue: 'Deposit' })}
+                {t("pickup.contract.deposit", { defaultValue: "Deposit" })}
               </Text>
-              <Text variant="bodySmall" style={{ fontWeight: '600' }}>
+              <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                 {booking.pricing.deposit} {booking.pricing.currency}
               </Text>
             </View>
@@ -1053,39 +1279,43 @@ export default function PickupScreen() {
 
       {/* Insurance Tier */}
       <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View
             style={{
               width: 40,
               height: 40,
               borderRadius: 12,
               backgroundColor: theme.successSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <Shield size={20} color={theme.success} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text variant="titleMedium" style={{ fontWeight: '600' }}>
-              {t('pickup.contract.insurance', { defaultValue: 'Insurance' })}
+            <Text variant="titleMedium" style={{ fontWeight: "600" }}>
+              {t("pickup.contract.insurance", { defaultValue: "Insurance" })}
             </Text>
             <Text variant="bodySmall" color={theme.textSecondary}>
-              {booking.insurance === 'all-inclusive'
-                ? t('pickup.contract.insuranceAllInclusive', {
-                    defaultValue: 'All-Inclusive Coverage',
+              {booking.insurance === "all-inclusive"
+                ? t("pickup.contract.insuranceAllInclusive", {
+                    defaultValue: "All-Inclusive Coverage",
                   })
-                : t('pickup.contract.insuranceBasic', {
-                    defaultValue: 'Basic Coverage',
+                : t("pickup.contract.insuranceBasic", {
+                    defaultValue: "Basic Coverage",
                   })}
             </Text>
           </View>
           <Badge
-            variant={booking.insurance === 'all-inclusive' ? 'success' : 'neutral'}
+            variant={
+              booking.insurance === "all-inclusive" ? "success" : "neutral"
+            }
           >
-            {booking.insurance === 'all-inclusive'
-              ? t('pickup.contract.allInclusive', { defaultValue: 'All-Inclusive' })
-              : t('pickup.contract.basic', { defaultValue: 'Basic' })}
+            {booking.insurance === "all-inclusive"
+              ? t("pickup.contract.allInclusive", {
+                  defaultValue: "All-Inclusive",
+                })
+              : t("pickup.contract.basic", { defaultValue: "Basic" })}
           </Badge>
         </View>
       </Card>
@@ -1093,8 +1323,8 @@ export default function PickupScreen() {
       {/* Contract Signature */}
       <Card>
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>
-          {t('pickup.contract.signatureTitle', {
-            defaultValue: 'Contract Signature',
+          {t("pickup.contract.signatureTitle", {
+            defaultValue: "Contract Signature",
           })}
         </Text>
         <Pressable
@@ -1107,12 +1337,12 @@ export default function PickupScreen() {
             borderRadius: 16,
             borderWidth: 2,
             borderColor: contractSigned ? theme.accent : theme.border,
-            borderStyle: contractSigned ? 'solid' : 'dashed',
+            borderStyle: contractSigned ? "solid" : "dashed",
             backgroundColor: contractSigned
               ? theme.accentSoft
               : theme.surfaceSecondary,
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: "center",
+            justifyContent: "center",
             gap: 8,
           }}
         >
@@ -1122,17 +1352,19 @@ export default function PickupScreen() {
               <Text
                 variant="bodyMedium"
                 color={theme.accent}
-                style={{ fontWeight: '600' }}
+                style={{ fontWeight: "600" }}
               >
-                {t('pickup.contract.signed', { defaultValue: 'Contract Signed' })}
+                {t("pickup.contract.signed", {
+                  defaultValue: "Contract Signed",
+                })}
               </Text>
             </>
           ) : (
             <>
               <PenTool size={24} color={theme.textTertiary} />
               <Text variant="bodyMedium" color={theme.textTertiary}>
-                {t('pickup.contract.tapToSign', {
-                  defaultValue: 'Tap to sign contract',
+                {t("pickup.contract.tapToSign", {
+                  defaultValue: "Tap to sign contract",
                 })}
               </Text>
             </>
@@ -1146,7 +1378,7 @@ export default function PickupScreen() {
           colors={[theme.accentGradientStart, theme.accentGradientEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={{ borderRadius: 9999, overflow: 'hidden' }}
+          style={{ borderRadius: 9999, overflow: "hidden" }}
         >
           <Pressable
             onPress={handleComplete}
@@ -1154,9 +1386,9 @@ export default function PickupScreen() {
             style={{
               height: 52,
               borderRadius: 9999,
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'row',
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
               gap: 8,
               opacity: contractSigned ? 1 : 0.5,
             }}
@@ -1165,10 +1397,10 @@ export default function PickupScreen() {
             <Text
               variant="bodyLarge"
               color="#FFFFFF"
-              style={{ fontWeight: '700' }}
+              style={{ fontWeight: "700" }}
             >
-              {t('pickup.contract.complete', {
-                defaultValue: 'Sign & Complete',
+              {t("pickup.contract.complete", {
+                defaultValue: "Sign & Complete",
               })}
             </Text>
           </Pressable>
@@ -1186,8 +1418,8 @@ export default function PickupScreen() {
       {/* Header */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           paddingHorizontal: 16,
           paddingVertical: 8,
           gap: 12,
@@ -1201,7 +1433,7 @@ export default function PickupScreen() {
         />
         <View style={{ flex: 1 }}>
           <Text variant="headlineSmall">
-            {t('pickup.title', { defaultValue: 'Vehicle Pickup' })}
+            {t("pickup.title", { defaultValue: "Vehicle Pickup" })}
           </Text>
           <Text variant="bodySmall" color={theme.textSecondary}>
             {booking.id}
@@ -1226,5 +1458,33 @@ export default function PickupScreen() {
         {currentStep === 2 && renderStep3()}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+interface VehicleThumbnailProps {
+  vehicle: Parameters<typeof resolveVehicleImageSource>[0];
+  theme: ReturnType<typeof useTheme>;
+}
+
+function VehicleThumbnail({ vehicle, theme }: VehicleThumbnailProps) {
+  const source = resolveVehicleImageSource(vehicle);
+  if (!source) return null;
+  return (
+    <View
+      style={{
+        width: "100%",
+        height: 140,
+        borderRadius: 14,
+        overflow: "hidden",
+        backgroundColor: theme.surfaceTertiary,
+      }}
+    >
+      <Image
+        source={source}
+        style={{ width: "100%", height: "100%" }}
+        contentFit="cover"
+        transition={200}
+      />
+    </View>
   );
 }
