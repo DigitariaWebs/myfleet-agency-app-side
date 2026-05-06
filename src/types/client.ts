@@ -1,6 +1,6 @@
-export type ClientTag = 'vip' | 'corporate' | 'frequent' | 'new' | 'flagged';
+export type ClientTag = "vip" | "corporate" | "frequent" | "new" | "flagged";
 
-export type IDType = 'passport' | 'national-id' | 'driving-license';
+export type IDType = "passport" | "national-id" | "driving-license";
 
 export interface ClientStats {
   totalRentals: number;
@@ -29,13 +29,8 @@ export interface Client {
   totalSpent: number;
   createdAt: string;
   notes: string;
-  documents?: {
-    idFront?: string;
-    idBack?: string;
-    licenseFront?: string;
-    licenseBack?: string;
-    creditCardFront?: string;
-  };
-  registrationMethod?: 'online' | 'walk-in';
+  registrationMethod?: "online" | "walk-in";
   registeredAt?: string;
+  /** ISO timestamp set when staff captures ID at pickup; null = unverified. */
+  verifiedAt?: string | null;
 }

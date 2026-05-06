@@ -1,26 +1,26 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, FlatList, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { ChevronLeft, FileText, Plus } from 'lucide-react-native';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, FlatList, RefreshControl } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { ChevronLeft, FileText, Plus } from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { Chip, ChipGroup } from '@/components/ui/Chip';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { IconButton } from '@/components/ui/IconButton';
-import { useTheme } from '@/hooks/useTheme';
-import { formatDate } from '@/utils/format';
-import { useContractStore } from '@/stores/useContractStore';
-import type { Contract, ContractStatus } from '@/types/contract';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Chip, ChipGroup } from "@/components/ui/Chip";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { IconButton } from "@/components/ui/IconButton";
+import { useTheme } from "@/hooks/useTheme";
+import { formatDate } from "@/utils/format";
+import { useContracts } from "@/hooks/useContracts";
+import type { Contract, ContractStatus } from "@/types/contract";
 
 // ── Status helpers ──────────────────────────────────────────────────────────
 
-type BadgeVariant = 'success' | 'warning' | 'info' | 'neutral' | 'danger';
+type BadgeVariant = "success" | "warning" | "info" | "neutral" | "danger";
 
 interface StatusConfig {
   label: string;
@@ -29,16 +29,16 @@ interface StatusConfig {
 
 function getStatusConfig(status: ContractStatus): StatusConfig {
   switch (status) {
-    case 'draft':
-      return { label: 'Brouillon', variant: 'neutral' };
-    case 'pending-signature':
-      return { label: 'En attente', variant: 'warning' };
-    case 'active':
-      return { label: 'Actif', variant: 'success' };
-    case 'expired':
-      return { label: 'Expiré', variant: 'info' };
-    case 'terminated':
-      return { label: 'Résilié', variant: 'danger' };
+    case "draft":
+      return { label: "Brouillon", variant: "neutral" };
+    case "pending-signature":
+      return { label: "En attente", variant: "warning" };
+    case "active":
+      return { label: "Actif", variant: "success" };
+    case "expired":
+      return { label: "Expiré", variant: "info" };
+    case "terminated":
+      return { label: "Résilié", variant: "danger" };
   }
 }
 
@@ -65,7 +65,9 @@ function ContractCard({ contract, index, onPress }: ContractCardProps) {
 
   return (
     <AnimatedPressable
-      entering={FadeInDown.delay(index * 50).duration(400).springify()}
+      entering={FadeInDown.delay(index * 50)
+        .duration(400)
+        .springify()}
       onPress={handlePress}
       className="rounded-2xl p-4 mb-3"
       style={{ backgroundColor: theme.surface }}
@@ -96,11 +98,12 @@ function ContractCard({ contract, index, onPress }: ContractCardProps) {
       {/* Date range + amount */}
       <View className="flex-row items-center justify-between mt-2">
         <Text variant="bodySmall" color={theme.textTertiary}>
-          {formatDate(contract.startDate, 'short')} {'\u2192'}{' '}
-          {formatDate(contract.endDate, 'short')}
+          {formatDate(contract.startDate, "short")} {"\u2192"}{" "}
+          {formatDate(contract.endDate, "short")}
         </Text>
         <Text variant="bodySmall" color={theme.accent}>
-          {'\u20AC'}{contract.totalAmount}
+          {"\u20AC"}
+          {contract.totalAmount}
         </Text>
       </View>
     </AnimatedPressable>
@@ -114,11 +117,15 @@ export default function ContractsScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const contracts = useContractStore((s) => s.contracts);
+  const {
+    data: contracts = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useContracts();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<ContractStatus | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Sort newest first
   const sortedContracts = useMemo(
@@ -152,9 +159,10 @@ export default function ContractsScreen() {
   const counts = useMemo(
     () => ({
       all: searchFiltered.length,
-      active: searchFiltered.filter((c) => c.status === 'active').length,
-      pending: searchFiltered.filter((c) => c.status === 'pending-signature').length,
-      expired: searchFiltered.filter((c) => c.status === 'expired').length,
+      active: searchFiltered.filter((c) => c.status === "active").length,
+      pending: searchFiltered.filter((c) => c.status === "pending-signature")
+        .length,
+      expired: searchFiltered.filter((c) => c.status === "expired").length,
     }),
     [searchFiltered],
   );
@@ -168,10 +176,9 @@ export default function ContractsScreen() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    void refetch();
+  }, [refetch]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -202,21 +209,21 @@ export default function ContractsScreen() {
             <ChevronLeft size={24} color={theme.textPrimary} strokeWidth={2} />
           </Pressable>
           <Text variant="headlineLarge" className="flex-1">
-            {t('contracts.title', { defaultValue: 'Contrats' })}
+            {t("contracts.title", { defaultValue: "Contrats" })}
           </Text>
           <IconButton
             icon={Plus}
             variant="filled"
             size="md"
-            onPress={() => router.push('/(app)/(more)/contracts/new')}
+            onPress={() => router.push("/(app)/(more)/contracts/new")}
           />
         </View>
 
         {/* Search */}
         <SearchBar
           placeholder={t(
-            'contracts.search',
-            'Rechercher client, véhicule, référence...',
+            "contracts.search",
+            "Rechercher client, véhicule, référence...",
           )}
           onSearch={handleSearch}
           className="mb-3"
@@ -231,18 +238,18 @@ export default function ContractsScreen() {
           />
           <Chip
             label={`Actifs (${counts.active})`}
-            selected={filter === 'active'}
-            onPress={() => handleFilterPress('active')}
+            selected={filter === "active"}
+            onPress={() => handleFilterPress("active")}
           />
           <Chip
             label={`En attente (${counts.pending})`}
-            selected={filter === 'pending-signature'}
-            onPress={() => handleFilterPress('pending-signature')}
+            selected={filter === "pending-signature"}
+            onPress={() => handleFilterPress("pending-signature")}
           />
           <Chip
             label={`Expirés (${counts.expired})`}
-            selected={filter === 'expired'}
-            onPress={() => handleFilterPress('expired')}
+            selected={filter === "expired"}
+            onPress={() => handleFilterPress("expired")}
           />
         </ChipGroup>
       </View>
@@ -254,10 +261,10 @@ export default function ContractsScreen() {
     () => (
       <EmptyState
         icon={FileText}
-        title={t('contracts.emptyTitle', 'Aucun contrat trouvé')}
+        title={t("contracts.emptyTitle", "Aucun contrat trouvé")}
         subtitle={t(
-          'contracts.emptySubtitle',
-          'Essayez de modifier votre recherche ou vos filtres.',
+          "contracts.emptySubtitle",
+          "Essayez de modifier votre recherche ou vos filtres.",
         )}
         className="mt-16"
       />
@@ -277,7 +284,7 @@ export default function ContractsScreen() {
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isFetching && !isLoading}
             onRefresh={handleRefresh}
             tintColor={theme.accent}
           />

@@ -781,7 +781,8 @@ export default function NewBookingScreen() {
     if (
       !counterFirstName.trim() ||
       !counterLastName.trim() ||
-      !counterPhone.trim()
+      !counterPhone.trim() ||
+      !counterEmail.trim()
     ) {
       showToast({
         variant: "warning",
@@ -791,7 +792,7 @@ export default function NewBookingScreen() {
         ),
         message: t(
           "bookings.new.counterClient.missingMessage",
-          "Nom, prénom et téléphone sont nécessaires pour créer le client.",
+          "Nom, prénom, email et téléphone sont nécessaires pour créer le client.",
         ),
       });
       return;
@@ -801,7 +802,7 @@ export default function NewBookingScreen() {
     const payload: CreateClientInput = {
       firstName: counterFirstName.trim(),
       lastName: counterLastName.trim(),
-      email: counterEmail.trim() || `${Date.now()}@walkin.myfleet.local`,
+      email: counterEmail.trim(),
       phone: counterPhone.trim(),
       address: counterAddress.trim(),
       ...(license ? { driverLicense: license } : {}),

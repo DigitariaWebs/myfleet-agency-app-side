@@ -45,6 +45,7 @@ import { Divider } from "@/components/ui/Divider";
 import { Avatar } from "@/components/ui/Avatar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { getPickupEligibility } from "@/utils/pickupEligibility";
 import { useTheme } from "@/hooks/useTheme";
 import { useToastStore } from "@/components/ui/Toast";
 import {
@@ -1689,13 +1690,16 @@ function ActionButtons({ booking, router, showToast, t }: ActionButtonsProps) {
         </View>
       );
 
-    case "confirmed":
+    case "confirmed": {
+      const eligibility = getPickupEligibility(booking);
+      const isTooEarly = eligibility.kind === "too-early";
       return (
         <View className="gap-3">
           <Button
             variant="primary"
             fullWidth
             leftIcon={Car}
+            disabled={isTooEarly}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               router.push(`/(app)/(bookings)/pickup/${booking.id}` as never);
@@ -1703,6 +1707,14 @@ function ActionButtons({ booking, router, showToast, t }: ActionButtonsProps) {
           >
             {t("pickup.title", "Start Pickup")}
           </Button>
+          {isTooEarly && (
+            <Text variant="bodySmall" align="center" color="#92400E">
+              {t("pickup.gate.notYet", {
+                defaultValue: "Pickup opens {{at}}",
+                at: eligibility.earliestAt.toLocaleString(),
+              })}
+            </Text>
+          )}
           <Button
             variant="danger"
             fullWidth
@@ -1713,6 +1725,7 @@ function ActionButtons({ booking, router, showToast, t }: ActionButtonsProps) {
           </Button>
         </View>
       );
+    }
 
     case "active":
       return (

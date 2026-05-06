@@ -1,6 +1,9 @@
 import React, { useState, useCallback } from "react";
 import { View, Pressable, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -15,15 +18,11 @@ import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Check,
-  Camera,
   CheckCircle,
   Fuel,
   Gauge,
   Key,
   AlertTriangle,
-  Eye,
-  EyeOff,
-  ArrowRight,
   PenTool,
   Car,
   RotateCcw,
@@ -39,7 +38,8 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/components/ui/Toast";
 import { useBooking, useCloseBooking } from "@/hooks/useBookings";
-import { useCreateInspection, useInspections } from "@/hooks/useInspections";
+import { useInspections } from "@/hooks/useInspections";
+import { BookingInspectionStep } from "@/components/inspection/BookingInspectionStep";
 import { useVehicle } from "@/hooks/useFleet";
 import { useClient } from "@/hooks/useClients";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -51,16 +51,6 @@ import { ActivityIndicator } from "react-native";
 
 const DEFAULT_INCLUDED_KM = 200;
 const DEFAULT_EXTRA_KM_RATE = 0.3;
-
-const MOCK_PICKUP_DAMAGES = [
-  {
-    id: "p1",
-    location: "Front Bumper",
-    type: "Scratch",
-    confidence: 94,
-    severity: "minor",
-  },
-];
 
 const MOCK_RETURN_DETECTIONS = [
   {
@@ -98,17 +88,6 @@ const MOCK_RETURN_DETECTIONS = [
 ];
 
 const FUEL_LEVELS = ["Empty", "1/4", "1/2", "3/4", "Full"] as const;
-
-const CAMERA_ANGLES = [
-  "Front",
-  "Front Right",
-  "Right",
-  "Rear Right",
-  "Rear",
-  "Rear Left",
-  "Left",
-  "Front Left",
-] as const;
 
 const STEPS = ["Checklist", "Inspection", "Comparison"] as const;
 
@@ -344,6 +323,7 @@ export default function ReturnScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const showToast = useToastStore((s) => s.show);
+  const insets = useSafeAreaInsets();
 
   const {
     data: storeBooking,
@@ -361,27 +341,11 @@ export default function ReturnScreen() {
   );
 
   const closeMutation = useCloseBooking();
-  const createInspectionMutation = useCreateInspection();
 
-  // Create the post-rental inspection on entry (one per booking).
   const [postInspectionId, setPostInspectionId] = useState<string | null>(null);
-  React.useEffect(() => {
-    if (!storeBooking?.id) return;
-    const existing = relatedInspections.find((i) => i.type === "post-rental");
-    if (existing) {
-      setPostInspectionId(existing.id);
-    } else if (postInspectionId == null) {
-      createInspectionMutation.mutate(
-        {
-          vehicleId: storeBooking.vehicleId,
-          bookingId: storeBooking.id,
-          type: "post-rental",
-        },
-        { onSuccess: (insp) => setPostInspectionId(insp.id) },
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeBooking?.id, relatedInspections.length]);
+  const existingPostInspectionId = relatedInspections.find(
+    (i) => i.type === "post-rental",
+  )?.id;
 
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(false);
@@ -390,10 +354,6 @@ export default function ReturnScreen() {
   const [fuelLevel, setFuelLevel] = useState<number | null>(null);
   const [keysReturned, setKeysReturned] = useState(false);
   const [mileageValue, setMileageValue] = useState("");
-
-  // Step 2 state
-  const [capturedAngles, setCapturedAngles] = useState<Set<number>>(new Set());
-  const [showUncertain, setShowUncertain] = useState(false);
 
   // Step 3 state
   const [agentSigned, setAgentSigned] = useState(false);
@@ -453,31 +413,12 @@ export default function ReturnScreen() {
 
   const allChecked = fuelLevel !== null && isReturnMileageValid && keysReturned;
 
-  const confirmDetections = MOCK_RETURN_DETECTIONS.filter(
-    (d) => d.confidence >= 90,
-  );
-  const reviewDetections = MOCK_RETURN_DETECTIONS.filter(
-    (d) => d.confidence >= 70 && d.confidence < 90,
-  );
-  const uncertainDetections = MOCK_RETURN_DETECTIONS.filter(
-    (d) => d.confidence < 70,
-  );
-
   const newDamages = MOCK_RETURN_DETECTIONS.filter(
     (d) => !d.preExisting && d.confidence >= 70,
   );
   const preExistingDamages = MOCK_RETURN_DETECTIONS.filter(
     (d) => d.preExisting && d.confidence >= 70,
   );
-
-  const handleCapture = useCallback((index: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setCapturedAngles((prev) => {
-      const next = new Set(prev);
-      next.add(index);
-      return next;
-    });
-  }, []);
 
   const handleNext = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1039,274 +980,22 @@ export default function ReturnScreen() {
 
   // ── Step 2: Post-Return Inspection ──────────────────────────────────────
 
-  const renderStep2 = () => (
-    <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
-      {/* Banner */}
-      <Card variant="accent" padding="md">
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Car size={20} color="#FFFFFF" />
-          <View style={{ flex: 1 }}>
-            <Text variant="bodySmall" color="#FFFFFF" style={{ opacity: 0.8 }}>
-              {t("return.inspection.banner", {
-                defaultValue: "Post-return inspection for",
-              })}
-            </Text>
-            <Text
-              variant="titleMedium"
-              color="#FFFFFF"
-              style={{ fontWeight: "700" }}
-            >
-              {booking.vehicle.name} — {booking.client.name}
-            </Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* 8-Angle Capture Grid */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t("return.inspection.captureTitle", {
-            defaultValue: "Vehicle Photos",
-          })}
-        </Text>
-        <Text
-          variant="bodySmall"
-          color={theme.textSecondary}
-          style={{ marginBottom: 12 }}
-        >
-          {t("return.inspection.captureSubtitle", {
-            defaultValue: "Capture all 8 angles of the vehicle",
-          })}
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 10,
-          }}
-        >
-          {CAMERA_ANGLES.map((angle, index) => {
-            const isCaptured = capturedAngles.has(index);
-            return (
-              <Pressable
-                key={angle}
-                onPress={() => handleCapture(index)}
-                style={{
-                  width: "23%",
-                  aspectRatio: 1,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: isCaptured ? theme.accent : theme.border,
-                  borderStyle: isCaptured ? "solid" : "dashed",
-                  backgroundColor: isCaptured
-                    ? theme.accentSoft
-                    : theme.surfaceSecondary,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                }}
-              >
-                {isCaptured ? (
-                  <CheckCircle size={20} color={theme.accent} />
-                ) : (
-                  <Camera size={20} color={theme.textTertiary} />
-                )}
-                <Text
-                  variant="labelSmall"
-                  color={isCaptured ? theme.accent : theme.textTertiary}
-                  align="center"
-                  numberOfLines={1}
-                  style={{ fontSize: 9, paddingHorizontal: 2 }}
-                >
-                  {angle}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text
-          variant="bodySmall"
-          color={theme.textTertiary}
-          align="center"
-          style={{ marginTop: 8 }}
-        >
-          {capturedAngles.size}/{CAMERA_ANGLES.length}{" "}
-          {t("return.inspection.captured", { defaultValue: "captured" })}
-        </Text>
-      </Card>
-
-      {/* AI Detection Results */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t("return.inspection.aiTitle", {
-            defaultValue: "AI Damage Detection",
-          })}
-        </Text>
-        <Text
-          variant="bodySmall"
-          color={theme.textSecondary}
-          style={{ marginBottom: 12 }}
-        >
-          {t("return.inspection.aiSubtitle", {
-            defaultValue: "Automated analysis of captured photos",
-          })}
-        </Text>
-
-        {/* Confirmed */}
-        {confirmDetections.length > 0 && (
-          <View style={{ gap: 8, marginBottom: 12 }}>
-            {confirmDetections.map((d) => (
-              <View
-                key={d.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  backgroundColor: theme.dangerSoft,
-                  borderRadius: 12,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                    {d.type} — {d.location}
-                  </Text>
-                  <Text variant="caption" color={theme.textTertiary}>
-                    {d.confidence}%{" "}
-                    {t("return.inspection.confidence", {
-                      defaultValue: "confidence",
-                    })}{" "}
-                    · {d.severity}
-                  </Text>
-                </View>
-                <Badge variant="danger" size="sm">
-                  {t("return.inspection.confirmed", {
-                    defaultValue: "Confirmed",
-                  })}
-                </Badge>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Review */}
-        {reviewDetections.length > 0 && (
-          <View style={{ gap: 8, marginBottom: 12 }}>
-            {reviewDetections.map((d) => (
-              <View
-                key={d.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  backgroundColor: theme.warningSoft,
-                  borderRadius: 12,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                    {d.type} — {d.location}
-                  </Text>
-                  <Text variant="caption" color={theme.textTertiary}>
-                    {d.confidence}%{" "}
-                    {t("return.inspection.confidence", {
-                      defaultValue: "confidence",
-                    })}{" "}
-                    · {d.severity}
-                  </Text>
-                </View>
-                <Badge variant="warning" size="sm">
-                  {t("return.inspection.review", {
-                    defaultValue: "Review Required",
-                  })}
-                </Badge>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Uncertain */}
-        {uncertainDetections.length > 0 && (
-          <View>
-            <Pressable
-              onPress={() => setShowUncertain((v) => !v)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 8,
-                gap: 6,
-              }}
-            >
-              {showUncertain ? (
-                <EyeOff size={14} color={theme.textTertiary} />
-              ) : (
-                <Eye size={14} color={theme.textTertiary} />
-              )}
-              <Text variant="bodySmall" color={theme.textTertiary}>
-                {showUncertain
-                  ? t("return.inspection.hideUncertain", {
-                      defaultValue: "Hide uncertain",
-                    })
-                  : t("return.inspection.showUncertain", {
-                      defaultValue: "Show uncertain",
-                    })}{" "}
-                ({uncertainDetections.length})
-              </Text>
-            </Pressable>
-
-            {showUncertain && (
-              <View style={{ gap: 8, marginTop: 8 }}>
-                {uncertainDetections.map((d) => (
-                  <View
-                    key={d.id}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      backgroundColor: theme.surfaceSecondary,
-                      borderRadius: 12,
-                      opacity: 0.7,
-                    }}
-                  >
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                        {d.type} — {d.location}
-                      </Text>
-                      <Text variant="caption" color={theme.textTertiary}>
-                        {d.confidence}%{" "}
-                        {t("return.inspection.confidence", {
-                          defaultValue: "confidence",
-                        })}{" "}
-                        · {d.severity}
-                      </Text>
-                    </View>
-                    <Badge variant="neutral" size="sm">
-                      {t("return.inspection.uncertain", {
-                        defaultValue: "Uncertain",
-                      })}
-                    </Badge>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-      </Card>
-
-      {/* Continue */}
-      <Button fullWidth onPress={handleNext}>
-        {t("return.inspection.continue", {
+  const renderStep2 = () =>
+    storeBooking ? (
+      <BookingInspectionStep
+        bookingId={storeBooking.id}
+        vehicleId={storeBooking.vehicleId}
+        vehicleName={booking.vehicle.name}
+        clientName={booking.client.name}
+        type="post-rental"
+        existingInspectionId={existingPostInspectionId}
+        continueLabel={t("return.inspection.continue", {
           defaultValue: "Continue to Comparison",
         })}
-      </Button>
-    </Animated.View>
-  );
+        onInspectionReady={setPostInspectionId}
+        onContinue={handleNext}
+      />
+    ) : null;
 
   // ── Step 3: Damage Comparison + Sign-off ────────────────────────────────
 
@@ -1665,7 +1354,7 @@ export default function ReturnScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 32,
+          paddingBottom: 110 + insets.bottom,
         }}
         bounces
       >

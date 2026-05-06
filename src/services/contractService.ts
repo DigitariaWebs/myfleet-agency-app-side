@@ -38,7 +38,7 @@ export async function signContract(
   id: string,
   payload: {
     role: "lessee" | "lessor";
-    base64: string;
+    svg: string;
     signerName: string;
   },
 ): Promise<ApiResponse<Contract>> {

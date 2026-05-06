@@ -11,7 +11,6 @@ import {
   Check,
   PenLine,
   Send,
-  Save,
   User,
   Building2,
   FileText,
@@ -27,7 +26,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useToastStore } from "@/components/ui/Toast";
 import { useTheme } from "@/hooks/useTheme";
 import { formatDate, formatCurrency } from "@/utils/format";
-import { useContractStore } from "@/stores/useContractStore";
+import { useContracts, useCreateContract } from "@/hooks/useContracts";
 import { useBookings } from "@/hooks/useBookings";
 import { CONTRACT_CLAUSES } from "@/data/contracts";
 import type { Booking } from "@/types/booking";
@@ -196,18 +195,15 @@ export default function NewContractScreen() {
   const showToast = useToastStore((s) => s.show);
 
   const { data: bookings = [] } = useBookings();
-  const createContractFromBooking = useContractStore(
-    (s) => s.createContractFromBooking,
-  );
+  const { data: contracts = [] } = useContracts();
+  const createContractMutation = useCreateContract();
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null,
   );
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   // Bookings eligible for contract creation (confirmed/pending without existing contracts)
-  const contracts = useContractStore((s) => s.contracts);
   const bookingIdsWithContracts = useMemo(
     () => new Set(contracts.map((c) => c.bookingId).filter(Boolean)),
     [contracts],
@@ -241,35 +237,29 @@ export default function NewContractScreen() {
     setTermsAccepted((prev) => !prev);
   }, []);
 
-  const handleSendForSignature = useCallback(() => {
+  const handleCreateContract = useCallback(() => {
     if (!selectedBookingId) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const result = createContractFromBooking(selectedBookingId);
-    if (result) {
-      showToast({
-        variant: "success",
-        title: "Email envoyé",
-        message: "Le contrat a été envoyé pour signature.",
-      });
-      router.back();
-    }
-  }, [selectedBookingId, createContractFromBooking, showToast, router]);
-
-  const handleSaveAsDraft = useCallback(() => {
-    if (!selectedBookingId) return;
-    setSaving(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const result = createContractFromBooking(selectedBookingId);
-    setSaving(false);
-    if (result) {
-      showToast({
-        variant: "success",
-        title: "Brouillon enregistré",
-        message: `Contrat ${result.reference} créé avec succès.`,
-      });
-      router.back();
-    }
-  }, [selectedBookingId, createContractFromBooking, showToast, router]);
+    createContractMutation.mutate(
+      { bookingId: selectedBookingId },
+      {
+        onSuccess: (contract) => {
+          showToast({
+            variant: "success",
+            title: t("contracts.new.created", "Contrat créé"),
+            message: `${contract.reference}`,
+          });
+          router.replace(`/(app)/(more)/contracts/${contract.id}`);
+        },
+        onError: (err) =>
+          showToast({
+            variant: "error",
+            title: t("common.errorTitle", "Une erreur est survenue"),
+            message: err instanceof Error ? err.message : undefined,
+          }),
+      },
+    );
+  }, [selectedBookingId, createContractMutation, showToast, router, t]);
 
   // ── Contract date ─────────────────────────────────────────────────────
 
@@ -558,19 +548,10 @@ export default function NewContractScreen() {
               fullWidth
               leftIcon={Send}
               disabled={!termsAccepted}
-              onPress={handleSendForSignature}
-              className="mb-3"
+              loading={createContractMutation.isPending}
+              onPress={handleCreateContract}
             >
-              Envoyer pour signature
-            </Button>
-            <Button
-              variant="secondary"
-              fullWidth
-              leftIcon={Save}
-              loading={saving}
-              onPress={handleSaveAsDraft}
-            >
-              Enregistrer comme brouillon
+              {t("contracts.new.create", "Créer le contrat")}
             </Button>
           </Animated.View>
         </>

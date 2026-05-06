@@ -1,6 +1,9 @@
 import React, { useState, useCallback } from "react";
 import { View, Pressable, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -15,19 +18,15 @@ import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Check,
-  Camera,
   CheckCircle,
   UserCheck,
   CreditCard,
   Key,
-  AlertTriangle,
-  Eye,
-  EyeOff,
   FileText,
   Shield,
-  PenTool,
   Car,
   Gauge,
+  AlertTriangle,
 } from "lucide-react-native";
 
 import { Text } from "@/components/ui/Text";
@@ -48,53 +47,20 @@ import {
 } from "@/hooks/useBookings";
 import { useVehicle } from "@/hooks/useFleet";
 import { useClient } from "@/hooks/useClients";
-import { useContracts, useCreateContract } from "@/hooks/useContracts";
-import { useCreateInspection } from "@/hooks/useInspections";
+import {
+  useContracts,
+  useCreateContract,
+  useSignContract,
+} from "@/hooks/useContracts";
+import {
+  SignaturePad,
+  type SignaturePadRef,
+} from "@/components/contracts/SignaturePad";
+import { BookingInspectionStep } from "@/components/inspection/BookingInspectionStep";
+import { getPickupEligibility } from "@/utils/pickupEligibility";
 import { useTheme } from "@/hooks/useTheme";
 import { shadows } from "@/theme/shadows";
 import { ActivityIndicator } from "react-native";
-
-const MOCK_AI_DETECTIONS = [
-  {
-    id: "1",
-    location: "Front Bumper",
-    type: "Scratch",
-    confidence: 94,
-    severity: "minor",
-  },
-  {
-    id: "2",
-    location: "Rear Left Door",
-    type: "Dent",
-    confidence: 78,
-    severity: "moderate",
-  },
-  {
-    id: "3",
-    location: "Front Right Fender",
-    type: "Scratch",
-    confidence: 55,
-    severity: "minor",
-  },
-  {
-    id: "4",
-    location: "Roof",
-    type: "Paint chip",
-    confidence: 42,
-    severity: "minor",
-  },
-];
-
-const CAMERA_ANGLES = [
-  "Front",
-  "Front Right",
-  "Right",
-  "Rear Right",
-  "Rear",
-  "Rear Left",
-  "Left",
-  "Front Left",
-] as const;
 
 const STEPS = ["Reservation", "Inspection", "Contract"] as const;
 
@@ -252,67 +218,6 @@ function ChecklistItem({
   );
 }
 
-// ── Signature Box ───────────────────────────────────────────────────────────
-
-interface SignatureBoxProps {
-  label: string;
-  signed: boolean;
-  onSign: () => void;
-}
-
-function SignatureBox({ label, signed, onSign }: SignatureBoxProps) {
-  const theme = useTheme();
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text
-        variant="bodySmall"
-        color={theme.textSecondary}
-        style={{ marginBottom: 8, fontWeight: "600" }}
-      >
-        {label}
-      </Text>
-      <Pressable
-        onPress={() => {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onSign();
-        }}
-        style={{
-          height: 100,
-          borderRadius: 16,
-          borderWidth: 2,
-          borderColor: signed ? theme.accent : theme.border,
-          borderStyle: signed ? "solid" : "dashed",
-          backgroundColor: signed ? theme.accentSoft : theme.surfaceSecondary,
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-        }}
-      >
-        {signed ? (
-          <>
-            <CheckCircle size={24} color={theme.accent} />
-            <Text
-              variant="bodySmall"
-              color={theme.accent}
-              style={{ fontWeight: "600" }}
-            >
-              Signed
-            </Text>
-          </>
-        ) : (
-          <>
-            <PenTool size={20} color={theme.textTertiary} />
-            <Text variant="bodySmall" color={theme.textTertiary}>
-              Tap to sign
-            </Text>
-          </>
-        )}
-      </Pressable>
-    </View>
-  );
-}
-
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function PickupScreen() {
@@ -321,6 +226,7 @@ export default function PickupScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const showToast = useToastStore((s) => s.show);
+  const insets = useSafeAreaInsets();
 
   const {
     data: realBooking,
@@ -333,38 +239,38 @@ export default function PickupScreen() {
 
   const startPickupMutation = useStartPickup();
   const recordStartMileageMutation = useRecordStartMileage();
-  const createInspectionMutation = useCreateInspection();
   const createContractMutation = useCreateContract();
+  const signContractMutation = useSignContract();
+  const sigPadRef = React.useRef<SignaturePadRef>(null);
 
   // Look up an existing contract for this booking so we don't create duplicates.
   const { data: existingContracts = [] } = useContracts(
     realBooking?.id ? { bookingId: realBooking.id } : undefined,
   );
+  const contractId = existingContracts[0]?.id ?? null;
 
   // Stamp pickupStartedAt on the booking when this screen first opens.
-  // Also kick off a pre-rental Inspection so photos can be uploaded against it.
-  const [preInspectionId, setPreInspectionId] = useState<string | null>(null);
+  const [, setPreInspectionId] = useState<string | null>(null);
   React.useEffect(() => {
     if (!realBooking?.id) return;
     if (realBooking.workflow?.pickupStartedAt == null) {
       startPickupMutation.mutate(realBooking.id);
     }
-    if (realBooking.workflow?.preInspectionId) {
-      setPreInspectionId(realBooking.workflow.preInspectionId);
-    } else if (preInspectionId == null) {
-      createInspectionMutation.mutate(
-        {
-          vehicleId: realBooking.vehicleId,
-          bookingId: realBooking.id,
-          type: "pre-rental",
-        },
-        { onSuccess: (insp) => setPreInspectionId(insp.id) },
-      );
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [realBooking?.id]);
 
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Ensure the contract row exists once we reach the contract step so the
+  // signature endpoint has an id to write against.
+  React.useEffect(() => {
+    if (currentStep !== 2) return;
+    if (!realBooking?.id) return;
+    if (existingContracts.length > 0) return;
+    if (createContractMutation.isPending) return;
+    createContractMutation.mutate({ bookingId: realBooking.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, realBooking?.id, existingContracts.length]);
   const [completed, setCompleted] = useState(false);
 
   // Step 1 state
@@ -372,12 +278,6 @@ export default function PickupScreen() {
   const [paymentReceived, setPaymentReceived] = useState(false);
   const [keysReady, setKeysReady] = useState(false);
   const [startMileageInput, setStartMileageInput] = useState("");
-
-  // Step 2 state
-  const [capturedAngles, setCapturedAngles] = useState<Set<number>>(new Set());
-  const [showUncertain, setShowUncertain] = useState(false);
-  const [agentSigned, setAgentSigned] = useState(false);
-  const [clientSigned, setClientSigned] = useState(false);
 
   // Step 3 state
   const [contractSigned, setContractSigned] = useState(false);
@@ -440,25 +340,6 @@ export default function PickupScreen() {
   const allChecked =
     identityVerified && paymentReceived && keysReady && isStartMileageValid;
 
-  const confirmDetections = MOCK_AI_DETECTIONS.filter(
-    (d) => d.confidence >= 90,
-  );
-  const reviewDetections = MOCK_AI_DETECTIONS.filter(
-    (d) => d.confidence >= 70 && d.confidence < 90,
-  );
-  const uncertainDetections = MOCK_AI_DETECTIONS.filter(
-    (d) => d.confidence < 70,
-  );
-
-  const handleCapture = useCallback((index: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setCapturedAngles((prev) => {
-      const next = new Set(prev);
-      next.add(index);
-      return next;
-    });
-  }, []);
-
   const handleNext = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (currentStep < 2) {
@@ -486,6 +367,25 @@ export default function PickupScreen() {
       return;
     }
 
+    if (!contractId) {
+      showToast({
+        variant: "error",
+        title: t("pickup.contract.notReady", {
+          defaultValue: "Contract not ready",
+        }),
+      });
+      return;
+    }
+    if (sigPadRef.current?.isEmpty() ?? true) {
+      showToast({
+        variant: "error",
+        title: t("pickup.contract.signatureRequired", {
+          defaultValue: "Signature required",
+        }),
+      });
+      return;
+    }
+
     try {
       await recordStartMileageMutation.mutateAsync({
         id,
@@ -500,10 +400,25 @@ export default function PickupScreen() {
       return;
     }
 
-    // Persist the contract record so signatures (added in a follow-up UI iteration)
-    // can be uploaded against the existing /contracts/:id/sign endpoint.
-    if (realBooking && existingContracts.length === 0) {
-      createContractMutation.mutate({ bookingId: realBooking.id });
+    try {
+      const svg = sigPadRef.current?.toSvg() ?? "";
+      await signContractMutation.mutateAsync({
+        id: contractId,
+        payload: {
+          role: "lessee",
+          svg,
+          signerName: realBooking?.clientName ?? "Client",
+        },
+      });
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: t("pickup.contract.signFailed", {
+          defaultValue: "Couldn't sign contract",
+        }),
+        message: err instanceof Error ? err.message : undefined,
+      });
+      return;
     }
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -514,8 +429,8 @@ export default function PickupScreen() {
     parsedStartMileage,
     recordStartMileageMutation,
     realBooking,
-    existingContracts,
-    createContractMutation,
+    contractId,
+    signContractMutation,
     showToast,
     t,
   ]);
@@ -542,6 +457,78 @@ export default function PickupScreen() {
             actionLabel={t("common.retry", "Retry")}
             onAction={() => void refetchBooking()}
           />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const eligibility = realBooking
+    ? getPickupEligibility(realBooking)
+    : { kind: "ok" as const };
+
+  if (eligibility.kind !== "ok" && !completed) {
+    const title =
+      eligibility.kind === "already-handed-off"
+        ? t("pickup.gate.alreadyTitle", {
+            defaultValue: "Already handed off",
+          })
+        : eligibility.kind === "too-early"
+          ? t("pickup.gate.tooEarlyTitle", {
+              defaultValue: "Pickup not open yet",
+            })
+          : t("pickup.gate.closedTitle", {
+              defaultValue: "Booking closed",
+            });
+    const message =
+      eligibility.kind === "already-handed-off"
+        ? t("pickup.gate.alreadyMessage", {
+            defaultValue: "This booking was handed off on {{at}}.",
+            at: new Date(eligibility.pickupCompletedAt).toLocaleString(),
+          })
+        : eligibility.kind === "too-early"
+          ? t("pickup.gate.tooEarlyMessage", {
+              defaultValue:
+                "Pickup opens at {{at}} (2 hours before the booking start).",
+              at: eligibility.earliestAt.toLocaleString(),
+            })
+          : t("pickup.gate.closedMessage", {
+              defaultValue:
+                "This booking is {{status}}. No further pickup actions are allowed.",
+              status: eligibility.status,
+            });
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <StatusBar style="dark" />
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 32,
+            gap: 16,
+          }}
+        >
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: theme.warningSoft,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AlertTriangle size={36} color={theme.warning} />
+          </View>
+          <Text variant="headlineMedium" align="center">
+            {title}
+          </Text>
+          <Text variant="bodyMedium" color={theme.textSecondary} align="center">
+            {message}
+          </Text>
+          <Button fullWidth onPress={() => router.back()}>
+            {t("common.done", { defaultValue: "Done" })}
+          </Button>
         </View>
       </SafeAreaView>
     );
@@ -841,299 +828,23 @@ export default function PickupScreen() {
 
   // ── Step 2: Pre-Departure Inspection ────────────────────────────────────
 
-  const renderStep2 = () => (
-    <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
-      {/* Banner */}
-      <Card variant="accent" padding="md">
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Car size={20} color="#FFFFFF" />
-          <View style={{ flex: 1 }}>
-            <Text variant="bodySmall" color="#FFFFFF" style={{ opacity: 0.8 }}>
-              {t("pickup.inspection.banner", {
-                defaultValue: "Pre-departure inspection for",
-              })}
-            </Text>
-            <Text
-              variant="titleMedium"
-              color="#FFFFFF"
-              style={{ fontWeight: "700" }}
-            >
-              {booking.vehicle.name} — {booking.client.name}
-            </Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* 8-Angle Capture Grid */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t("pickup.inspection.captureTitle", {
-            defaultValue: "Vehicle Photos",
-          })}
-        </Text>
-        <Text
-          variant="bodySmall"
-          color={theme.textSecondary}
-          style={{ marginBottom: 12 }}
-        >
-          {t("pickup.inspection.captureSubtitle", {
-            defaultValue: "Capture all 8 angles of the vehicle",
-          })}
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 10,
-          }}
-        >
-          {CAMERA_ANGLES.map((angle, index) => {
-            const isCaptured = capturedAngles.has(index);
-            return (
-              <Pressable
-                key={angle}
-                onPress={() => handleCapture(index)}
-                style={{
-                  width: "23%",
-                  aspectRatio: 1,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: isCaptured ? theme.accent : theme.border,
-                  borderStyle: isCaptured ? "solid" : "dashed",
-                  backgroundColor: isCaptured
-                    ? theme.accentSoft
-                    : theme.surfaceSecondary,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                }}
-              >
-                {isCaptured ? (
-                  <CheckCircle size={20} color={theme.accent} />
-                ) : (
-                  <Camera size={20} color={theme.textTertiary} />
-                )}
-                <Text
-                  variant="labelSmall"
-                  color={isCaptured ? theme.accent : theme.textTertiary}
-                  align="center"
-                  numberOfLines={1}
-                  style={{ fontSize: 9, paddingHorizontal: 2 }}
-                >
-                  {angle}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text
-          variant="bodySmall"
-          color={theme.textTertiary}
-          align="center"
-          style={{ marginTop: 8 }}
-        >
-          {capturedAngles.size}/{CAMERA_ANGLES.length}{" "}
-          {t("pickup.inspection.captured", { defaultValue: "captured" })}
-        </Text>
-      </Card>
-
-      {/* AI Detection Results */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t("pickup.inspection.aiTitle", {
-            defaultValue: "AI Damage Detection",
-          })}
-        </Text>
-        <Text
-          variant="bodySmall"
-          color={theme.textSecondary}
-          style={{ marginBottom: 12 }}
-        >
-          {t("pickup.inspection.aiSubtitle", {
-            defaultValue: "Automated analysis of captured photos",
-          })}
-        </Text>
-
-        {/* Confirmed Damages (>= 90%) */}
-        {confirmDetections.length > 0 && (
-          <View style={{ gap: 8, marginBottom: 12 }}>
-            {confirmDetections.map((d) => (
-              <View
-                key={d.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  backgroundColor: theme.dangerSoft,
-                  borderRadius: 12,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                    {d.type} — {d.location}
-                  </Text>
-                  <Text variant="caption" color={theme.textTertiary}>
-                    {d.confidence}%{" "}
-                    {t("pickup.inspection.confidence", {
-                      defaultValue: "confidence",
-                    })}{" "}
-                    · {d.severity}
-                  </Text>
-                </View>
-                <Badge variant="danger" size="sm">
-                  {t("pickup.inspection.confirmed", {
-                    defaultValue: "Confirmed",
-                  })}
-                </Badge>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Review Required (70-89%) */}
-        {reviewDetections.length > 0 && (
-          <View style={{ gap: 8, marginBottom: 12 }}>
-            {reviewDetections.map((d) => (
-              <View
-                key={d.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  backgroundColor: theme.warningSoft,
-                  borderRadius: 12,
-                }}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                    {d.type} — {d.location}
-                  </Text>
-                  <Text variant="caption" color={theme.textTertiary}>
-                    {d.confidence}%{" "}
-                    {t("pickup.inspection.confidence", {
-                      defaultValue: "confidence",
-                    })}{" "}
-                    · {d.severity}
-                  </Text>
-                </View>
-                <Badge variant="warning" size="sm">
-                  {t("pickup.inspection.review", {
-                    defaultValue: "Review Required",
-                  })}
-                </Badge>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Uncertain (< 70%) */}
-        {uncertainDetections.length > 0 && (
-          <View>
-            <Pressable
-              onPress={() => setShowUncertain((v) => !v)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 8,
-                gap: 6,
-              }}
-            >
-              {showUncertain ? (
-                <EyeOff size={14} color={theme.textTertiary} />
-              ) : (
-                <Eye size={14} color={theme.textTertiary} />
-              )}
-              <Text variant="bodySmall" color={theme.textTertiary}>
-                {showUncertain
-                  ? t("pickup.inspection.hideUncertain", {
-                      defaultValue: "Hide uncertain",
-                    })
-                  : t("pickup.inspection.showUncertain", {
-                      defaultValue: "Show uncertain",
-                    })}{" "}
-                ({uncertainDetections.length})
-              </Text>
-            </Pressable>
-
-            {showUncertain && (
-              <View style={{ gap: 8, marginTop: 8 }}>
-                {uncertainDetections.map((d) => (
-                  <View
-                    key={d.id}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      backgroundColor: theme.surfaceSecondary,
-                      borderRadius: 12,
-                      opacity: 0.7,
-                    }}
-                  >
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                        {d.type} — {d.location}
-                      </Text>
-                      <Text variant="caption" color={theme.textTertiary}>
-                        {d.confidence}%{" "}
-                        {t("pickup.inspection.confidence", {
-                          defaultValue: "confidence",
-                        })}{" "}
-                        · {d.severity}
-                      </Text>
-                    </View>
-                    <Badge variant="neutral" size="sm">
-                      {t("pickup.inspection.uncertain", {
-                        defaultValue: "Uncertain",
-                      })}
-                    </Badge>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-      </Card>
-
-      {/* Signatures */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 12 }}>
-          {t("pickup.inspection.signatures", {
-            defaultValue: "Signatures",
-          })}
-        </Text>
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <SignatureBox
-            label={t("pickup.inspection.agentSignature", {
-              defaultValue: "Agent",
-            })}
-            signed={agentSigned}
-            onSign={() => setAgentSigned((v) => !v)}
-          />
-          <SignatureBox
-            label={t("pickup.inspection.clientSignature", {
-              defaultValue: "Client",
-            })}
-            signed={clientSigned}
-            onSign={() => setClientSigned((v) => !v)}
-          />
-        </View>
-      </Card>
-
-      {/* Continue Button */}
-      <Button fullWidth onPress={handleNext}>
-        {t("pickup.inspection.continue", {
+  const renderStep2 = () =>
+    realBooking ? (
+      <BookingInspectionStep
+        bookingId={realBooking.id}
+        vehicleId={realBooking.vehicleId}
+        vehicleName={booking.vehicle.name}
+        clientName={booking.client.name}
+        type="pre-rental"
+        existingInspectionId={realBooking.workflow?.preInspectionId}
+        showSignatures
+        continueLabel={t("pickup.inspection.continue", {
           defaultValue: "Continue to Contract",
         })}
-      </Button>
-    </Animated.View>
-  );
+        onInspectionReady={setPreInspectionId}
+        onContinue={handleNext}
+      />
+    ) : null;
 
   // ── Step 3: Contract ────────────────────────────────────────────────────
 
@@ -1327,49 +1038,13 @@ export default function PickupScreen() {
             defaultValue: "Contract Signature",
           })}
         </Text>
-        <Pressable
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setContractSigned((v) => !v);
-          }}
-          style={{
-            height: 140,
-            borderRadius: 16,
-            borderWidth: 2,
-            borderColor: contractSigned ? theme.accent : theme.border,
-            borderStyle: contractSigned ? "solid" : "dashed",
-            backgroundColor: contractSigned
-              ? theme.accentSoft
-              : theme.surfaceSecondary,
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          {contractSigned ? (
-            <>
-              <CheckCircle size={32} color={theme.accent} />
-              <Text
-                variant="bodyMedium"
-                color={theme.accent}
-                style={{ fontWeight: "600" }}
-              >
-                {t("pickup.contract.signed", {
-                  defaultValue: "Contract Signed",
-                })}
-              </Text>
-            </>
-          ) : (
-            <>
-              <PenTool size={24} color={theme.textTertiary} />
-              <Text variant="bodyMedium" color={theme.textTertiary}>
-                {t("pickup.contract.tapToSign", {
-                  defaultValue: "Tap to sign contract",
-                })}
-              </Text>
-            </>
-          )}
-        </Pressable>
+        <SignaturePad
+          ref={sigPadRef}
+          label={t("pickup.contract.clientSignature", {
+            defaultValue: "Client Signature",
+          })}
+          onSignatureChange={setContractSigned}
+        />
       </Card>
 
       {/* Sign & Complete */}
@@ -1449,7 +1124,7 @@ export default function PickupScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 32,
+          paddingBottom: 110 + insets.bottom,
         }}
         bounces
       >

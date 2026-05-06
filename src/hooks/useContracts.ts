@@ -73,7 +73,7 @@ export function useSignContract() {
       id: string;
       payload: {
         role: "lessee" | "lessor";
-        base64: string;
+        svg: string;
         signerName: string;
       };
     }) => {

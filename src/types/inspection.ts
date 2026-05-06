@@ -46,10 +46,29 @@ export interface DamageAnnotation {
   description: string;
 }
 
+export interface AIMarker {
+  id?: string;
+  x: number;
+  y: number;
+  width?: number | null;
+  height?: number | null;
+  confidence: number;
+  damageClass?: string | null;
+  isNew?: boolean | null;
+  description?: string;
+}
+
 export interface AIDetectionResult {
   damagesFound: number;
-  markers: { x: number; y: number; confidence: number }[];
+  markers: AIMarker[];
 }
+
+export type AIInspectionStatus =
+  | "idle"
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed";
 
 export interface CapturedPhoto {
   angle: PhotoAngle;
@@ -77,6 +96,10 @@ export interface Inspection {
   notes: string;
   totalDamagesAI: number;
   totalDamagesManual: number;
+  aiStatus?: AIInspectionStatus;
+  aiSummary?: string | null;
+  aiError?: string | null;
+  aiRunAt?: string | null;
 }
 
 export interface InspectionDraft {

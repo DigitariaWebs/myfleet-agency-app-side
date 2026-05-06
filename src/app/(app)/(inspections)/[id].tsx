@@ -32,6 +32,8 @@ import {
   PenTool,
   FileText,
   GitCompareArrows,
+  Sparkles,
+  RefreshCw,
   X as XIcon,
   type LucideIcon,
 } from "lucide-react-native";
@@ -43,7 +45,11 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useTheme } from "@/hooks/useTheme";
 import { useToastStore } from "@/components/ui/Toast";
 import { formatDate, formatMileage } from "@/utils/format";
-import { useInspection, useInspections } from "@/hooks/useInspections";
+import {
+  useInspection,
+  useInspections,
+  useRunInspectionAi,
+} from "@/hooks/useInspections";
 import { getVehicleImage } from "@/data/vehicleImages";
 import { fontFamilies } from "@/theme/typography";
 import type {
@@ -224,6 +230,32 @@ export default function InspectionDetailScreen() {
   const showToast = useToastStore((s) => s.show);
 
   const { data: inspection, isLoading, isError, refetch } = useInspection(id);
+  const runAi = useRunInspectionAi();
+
+  const triggerAiRun = (targetId?: string) => {
+    const id = targetId ?? inspection?.id;
+    if (!id) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    runAi.mutate(id, {
+      onSuccess: () => {
+        showToast({
+          variant: "info",
+          title: t("inspections.detail.ai.startedTitle", "AI analysis started"),
+          message: t(
+            "inspections.detail.ai.startedMessage",
+            "Results will appear in a few seconds.",
+          ),
+        });
+      },
+      onError: (err) => {
+        showToast({
+          variant: "error",
+          title: t("inspections.detail.ai.errorTitle", "AI analysis failed"),
+          message: err instanceof Error ? err.message : String(err),
+        });
+      },
+    });
+  };
 
   const { data: relatedInspections = [] } = useInspections(
     inspection?.bookingId ? { bookingId: inspection.bookingId } : undefined,
@@ -1085,6 +1117,23 @@ export default function InspectionDetailScreen() {
             </>
           )}
 
+          {/* AI analysis — anchored to the post-rental side, where the diff matters */}
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(340)}
+            style={{ marginTop: 22, marginHorizontal: 16 }}
+          >
+            <SectionLabel theme={theme}>
+              {t("inspections.detail.ai.title", "AI Analysis")}
+            </SectionLabel>
+            <AiBanner
+              inspection={pair.post}
+              theme={theme}
+              t={t}
+              isPending={runAi.isPending}
+              onRun={() => triggerAiRun(pair.post.id)}
+            />
+          </Animated.View>
+
           {/* Share */}
           <Animated.View
             entering={FadeInDown.duration(400).delay(380)}
@@ -1403,6 +1452,25 @@ export default function InspectionDetailScreen() {
             )}
           </View>
         </Animated.View>
+
+        {/* AI analysis — post-rental only */}
+        {inspection.type === "post-rental" && (
+          <Animated.View
+            entering={FadeInDown.duration(400).delay(350)}
+            style={{ marginTop: 22, marginHorizontal: 16 }}
+          >
+            <SectionLabel theme={theme}>
+              {t("inspections.detail.ai.title", "AI Analysis")}
+            </SectionLabel>
+            <AiBanner
+              inspection={inspection}
+              theme={theme}
+              t={t}
+              isPending={runAi.isPending}
+              onRun={() => triggerAiRun()}
+            />
+          </Animated.View>
+        )}
 
         {/* Actions */}
         <Animated.View
@@ -1766,6 +1834,240 @@ function StatDuoCard({
       >
         {subtitle}
       </Text>
+    </View>
+  );
+}
+
+function AiBanner({
+  inspection,
+  theme,
+  t,
+  isPending,
+  onRun,
+}: {
+  inspection: Inspection;
+  theme: ReturnType<typeof useTheme>;
+  t: ReturnType<typeof useTranslation>["t"];
+  isPending: boolean;
+  onRun: () => void;
+}) {
+  const status = inspection.aiStatus;
+  const photosComplete = inspection.photos.length === 8;
+  const isCompleted = inspection.status === "completed";
+  const canRun = isCompleted && photosComplete && !isPending;
+
+  // ── Running / queued state ─────────────────────────────────────────────
+  if (status === "running" || status === "queued" || isPending) {
+    return (
+      <View
+        style={{
+          backgroundColor: theme.infoSoft,
+          borderRadius: 16,
+          padding: 14,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          borderWidth: 1,
+          borderColor: theme.borderLight,
+        }}
+      >
+        <ActivityIndicator size="small" color={theme.info} />
+        <View style={{ flex: 1 }}>
+          <Text
+            variant="titleSmall"
+            color={theme.info}
+            style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
+          >
+            {t("inspections.detail.ai.runningTitle", "Analyzing photos…")}
+          </Text>
+          <Text
+            variant="bodySmall"
+            color={theme.textSecondary}
+            style={{ fontSize: 12, marginTop: 2 }}
+          >
+            {t(
+              "inspections.detail.ai.runningSubtitle",
+              "AI is reviewing damage. This usually takes 5–30 seconds.",
+            )}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ── Failed state ───────────────────────────────────────────────────────
+  if (status === "failed") {
+    return (
+      <View
+        style={{
+          backgroundColor: theme.dangerSoft,
+          borderRadius: 16,
+          padding: 14,
+          gap: 12,
+          borderWidth: 1,
+          borderColor: theme.borderLight,
+        }}
+      >
+        <View className="flex-row items-center" style={{ gap: 8 }}>
+          <AlertTriangle size={16} color={theme.danger} />
+          <Text
+            variant="titleSmall"
+            color={theme.danger}
+            style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
+          >
+            {t("inspections.detail.ai.failedTitle", "AI analysis failed")}
+          </Text>
+        </View>
+        {inspection.aiError && (
+          <Text
+            variant="bodySmall"
+            color={theme.textSecondary}
+            style={{ fontSize: 12, lineHeight: 17 }}
+          >
+            {inspection.aiError}
+          </Text>
+        )}
+        <Button
+          variant="secondary"
+          fullWidth
+          size="md"
+          leftIcon={RefreshCw}
+          onPress={onRun}
+          disabled={!isCompleted || !photosComplete}
+        >
+          {t("inspections.detail.ai.retry", "Retry AI Analysis")}
+        </Button>
+      </View>
+    );
+  }
+
+  // ── Completed state ────────────────────────────────────────────────────
+  if (status === "completed") {
+    return (
+      <View
+        style={{
+          backgroundColor: theme.surface,
+          borderRadius: 16,
+          padding: 14,
+          gap: 10,
+          borderWidth: 1,
+          borderColor: theme.borderLight,
+        }}
+      >
+        <View className="flex-row items-center" style={{ gap: 8 }}>
+          <Sparkles size={16} color={theme.accent} />
+          <Text
+            variant="titleSmall"
+            style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
+          >
+            {t("inspections.detail.ai.completedTitle", "AI analysis complete")}
+          </Text>
+          {inspection.aiRunAt && (
+            <Text
+              variant="caption"
+              color={theme.textTertiary}
+              style={{ fontSize: 11, marginLeft: "auto" }}
+            >
+              {formatDate(inspection.aiRunAt, "long")}
+            </Text>
+          )}
+        </View>
+        {inspection.aiSummary && inspection.aiSummary.trim().length > 0 ? (
+          <Text
+            variant="bodySmall"
+            color={theme.textSecondary}
+            style={{ fontSize: 12, lineHeight: 18 }}
+          >
+            {inspection.aiSummary}
+          </Text>
+        ) : (
+          <Text
+            variant="bodySmall"
+            color={theme.textTertiary}
+            style={{ fontSize: 12, fontStyle: "italic" }}
+          >
+            {t(
+              "inspections.detail.ai.noSummary",
+              "No new damage detected during this rental.",
+            )}
+          </Text>
+        )}
+        <Button
+          variant="secondary"
+          fullWidth
+          size="md"
+          leftIcon={RefreshCw}
+          onPress={onRun}
+          disabled={!canRun}
+        >
+          {t("inspections.detail.ai.rerun", "Re-run AI Analysis")}
+        </Button>
+      </View>
+    );
+  }
+
+  // ── Idle state (no run yet) ────────────────────────────────────────────
+  return (
+    <View
+      style={{
+        backgroundColor: theme.surface,
+        borderRadius: 16,
+        padding: 14,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: theme.borderLight,
+      }}
+    >
+      <View className="flex-row items-center" style={{ gap: 8 }}>
+        <Sparkles size={16} color={theme.accent} />
+        <Text
+          variant="titleSmall"
+          style={{ fontFamily: fontFamilies.semiBold, fontSize: 13 }}
+        >
+          {t("inspections.detail.ai.idleTitle", "Run AI damage detection")}
+        </Text>
+      </View>
+      <Text
+        variant="bodySmall"
+        color={theme.textSecondary}
+        style={{ fontSize: 12, lineHeight: 18 }}
+      >
+        {inspection.type === "post-rental"
+          ? t(
+              "inspections.detail.ai.idlePostDesc",
+              "Compare against the pre-rental photos to flag any new damage during this rental.",
+            )
+          : t(
+              "inspections.detail.ai.idleDesc",
+              "Detect scratches, dents and other damage on each angle automatically.",
+            )}
+      </Text>
+      {!isCompleted && (
+        <Text variant="caption" color={theme.warning} style={{ fontSize: 11 }}>
+          {t(
+            "inspections.detail.ai.needsCompletion",
+            "Mark the inspection as completed first.",
+          )}
+        </Text>
+      )}
+      {isCompleted && !photosComplete && (
+        <Text variant="caption" color={theme.warning} style={{ fontSize: 11 }}>
+          {t(
+            "inspections.detail.ai.needsAllPhotos",
+            "All 8 angle photos are required.",
+          )}
+        </Text>
+      )}
+      <Button
+        variant="primary"
+        fullWidth
+        size="md"
+        leftIcon={Sparkles}
+        onPress={onRun}
+        disabled={!canRun}
+      >
+        {t("inspections.detail.ai.runButton", "Run AI Analysis")}
+      </Button>
     </View>
   );
 }

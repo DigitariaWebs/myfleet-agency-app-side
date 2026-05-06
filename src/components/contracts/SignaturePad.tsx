@@ -3,22 +3,22 @@ import React, {
   useCallback,
   useImperativeHandle,
   useState,
-} from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+} from "react";
+import { View, type LayoutChangeEvent } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
   Easing,
-} from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
-import { PenLine } from 'lucide-react-native';
+} from "react-native-reanimated";
+import Svg, { Path } from "react-native-svg";
+import { PenLine, CheckCircle } from "lucide-react-native";
 
-import { useTheme } from '@/hooks/useTheme';
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
+import { useTheme } from "@/hooks/useTheme";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,7 +40,8 @@ export interface SignaturePadProps {
 
 export interface SignaturePadRef {
   clear: () => void;
-  toBase64: () => string;
+  /** Returns the signature as a self-contained SVG document string. */
+  toSvg: () => string;
   isEmpty: () => boolean;
 }
 
@@ -53,7 +54,7 @@ export interface SignaturePadRef {
  * quadratic bezier interpolation between midpoints.
  */
 function pointsToSvgPath(points: Point[]): string {
-  if (points.length === 0) return '';
+  if (points.length === 0) return "";
   if (points.length === 1) {
     const p = points[0];
     return `M ${p.x} ${p.y} L ${p.x} ${p.y}`;
@@ -93,7 +94,7 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
       strokeWidth = 2.5,
       backgroundColor,
       height = 150,
-      label = 'Client Signature',
+      label = "Client Signature",
     },
     ref,
   ) {
@@ -108,6 +109,7 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
 
     const [paths, setPaths] = useState<Point[][]>([]);
     const [currentPath, setCurrentPath] = useState<Point[]>([]);
+    const [locked, setLocked] = useState(false);
     const [containerLayout, setContainerLayout] = useState<{
       width: number;
       height: number;
@@ -138,7 +140,9 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
     // -----------------------------------------------------------------------
 
     const panGesture = Gesture.Pan()
+      .runOnJS(true)
       .minDistance(0)
+      .enabled(!locked)
       .onStart((e) => {
         const point: Point = { x: e.x, y: e.y };
         setCurrentPath([point]);
@@ -168,10 +172,21 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
       clear() {
         setPaths([]);
         setCurrentPath([]);
+        setLocked(false);
         onSignatureChange?.(false);
       },
-      toBase64() {
-        return 'sig-' + Date.now();
+      toSvg() {
+        const w = Math.max(1, Math.round(containerLayout.width));
+        const h = Math.max(1, Math.round(containerLayout.height));
+        const allPaths =
+          currentPath.length > 0 ? [...paths, currentPath] : paths;
+        const pathEls = allPaths
+          .map(
+            (pts) =>
+              `<path d="${pointsToSvgPath(pts)}" stroke="${resolvedStrokeColor}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+          )
+          .join("");
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${pathEls}</svg>`;
       },
       isEmpty() {
         return paths.length === 0 && currentPath.length === 0;
@@ -194,17 +209,27 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
     const handleClear = useCallback(() => {
       setPaths([]);
       setCurrentPath([]);
+      setLocked(false);
       onSignatureChange?.(false);
     }, [onSignatureChange]);
 
     const handleDone = useCallback(() => {
+      if (locked) {
+        // Re-enable editing
+        setLocked(false);
+        return;
+      }
       // Finalise any in-progress stroke
+      let finalisedPaths = paths;
       if (currentPath.length > 0) {
-        setPaths((existing) => [...existing, currentPath]);
+        finalisedPaths = [...paths, currentPath];
+        setPaths(finalisedPaths);
         setCurrentPath([]);
       }
-      onSignatureChange?.(paths.length > 0 || currentPath.length > 0);
-    }, [currentPath, onSignatureChange, paths.length]);
+      if (finalisedPaths.length === 0) return;
+      setLocked(true);
+      onSignatureChange?.(true);
+    }, [locked, currentPath, paths, onSignatureChange]);
 
     // -----------------------------------------------------------------------
     // Render
@@ -229,7 +254,7 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
               <Svg
                 width={containerLayout.width}
                 height={containerLayout.height}
-                style={{ position: 'absolute', top: 0, left: 0 }}
+                style={{ position: "absolute", top: 0, left: 0 }}
               >
                 {/* Committed paths */}
                 {paths.map((pts, idx) => (
@@ -273,6 +298,34 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
                 </Text>
               </View>
             )}
+
+            {/* Locked confirmation overlay */}
+            {locked && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 9999,
+                  backgroundColor: theme.accentSoft,
+                }}
+              >
+                <CheckCircle size={14} color={theme.accent} strokeWidth={2.5} />
+                <Text
+                  variant="caption"
+                  color={theme.accent}
+                  style={{ fontWeight: "700" }}
+                >
+                  Signed
+                </Text>
+              </View>
+            )}
           </View>
         </GestureDetector>
 
@@ -282,11 +335,7 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
             className="w-3/4"
             style={{ height: 1, backgroundColor: theme.border }}
           />
-          <Text
-            variant="caption"
-            color={theme.textTertiary}
-            className="mt-1"
-          >
+          <Text variant="caption" color={theme.textTertiary} className="mt-1">
             {label}
           </Text>
         </View>
@@ -296,8 +345,13 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
           <Button variant="ghost" size="sm" onPress={handleClear}>
             Clear
           </Button>
-          <Button variant="primary" size="sm" onPress={handleDone}>
-            Done
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={handleDone}
+            disabled={!locked && !hasSignature}
+          >
+            {locked ? "Edit" : "Done"}
           </Button>
         </View>
       </View>

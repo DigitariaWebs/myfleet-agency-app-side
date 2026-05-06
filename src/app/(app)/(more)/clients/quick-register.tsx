@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Pressable,
@@ -6,9 +6,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -19,9 +19,9 @@ import Animated, {
   withTiming,
   withDelay,
   runOnJS,
-} from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
+} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ChevronLeft,
   User,
@@ -34,23 +34,28 @@ import {
   Car,
   Check,
   Shield,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Input } from '@/components/ui/Input';
-import { Card } from '@/components/ui/Card';
-import { Divider } from '@/components/ui/Divider';
-import { useTheme } from '@/hooks/useTheme';
-import { useToastStore } from '@/components/ui/Toast';
-import { useCreateClient } from '@/hooks/useClients';
-import { fontFamilies } from '@/theme/typography';
-import { shadows } from '@/theme/shadows';
-import type { Client } from '@/types/client';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { Divider } from "@/components/ui/Divider";
+import { useTheme } from "@/hooks/useTheme";
+import { useToastStore } from "@/components/ui/Toast";
+import { useCreateClient } from "@/hooks/useClients";
+import { fontFamilies } from "@/theme/typography";
+import { shadows } from "@/theme/shadows";
+import type { Client } from "@/types/client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type DocumentSide = 'idFront' | 'idBack' | 'licenseFront' | 'licenseBack' | 'creditCardFront';
+type DocumentSide =
+  | "idFront"
+  | "idBack"
+  | "licenseFront"
+  | "licenseBack"
+  | "creditCardFront";
 
 interface CapturedDocuments {
   idFront: string | null;
@@ -72,10 +77,12 @@ function SectionHeader({ title, icon, index }: SectionHeaderProps) {
   const theme = useTheme();
   return (
     <Animated.View
-      entering={FadeInDown.delay(index * 80).duration(400).springify()}
+      entering={FadeInDown.delay(index * 80)
+        .duration(400)
+        .springify()}
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         marginTop: 28,
         marginBottom: 14,
         gap: 10,
@@ -99,7 +106,13 @@ interface CaptureAreaProps {
   delay: number;
 }
 
-function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAreaProps) {
+function CaptureArea({
+  label,
+  captured,
+  onCapture,
+  onRetake,
+  delay,
+}: CaptureAreaProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
 
@@ -132,7 +145,7 @@ function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAre
             style={{
               backgroundColor: theme.surfaceTertiary,
               borderRadius: 16,
-              overflow: 'hidden',
+              overflow: "hidden",
               height: 160,
             }}
           >
@@ -141,8 +154,8 @@ function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAre
               style={{
                 flex: 1,
                 backgroundColor: theme.surfaceSecondary,
-                justifyContent: 'center',
-                alignItems: 'center',
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
               <View
@@ -151,8 +164,8 @@ function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAre
                   height: 48,
                   borderRadius: 24,
                   backgroundColor: theme.accentSoft,
-                  justifyContent: 'center',
-                  alignItems: 'center',
+                  justifyContent: "center",
+                  alignItems: "center",
                   marginBottom: 8,
                 }}
               >
@@ -170,12 +183,12 @@ function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAre
                 onRetake();
               }}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 10,
                 right: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'rgba(0,0,0,0.6)',
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "rgba(0,0,0,0.6)",
                 borderRadius: 20,
                 paddingHorizontal: 12,
                 paddingVertical: 6,
@@ -210,11 +223,11 @@ function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAre
               height: 140,
               borderRadius: 16,
               borderWidth: 2,
-              borderStyle: 'dashed',
+              borderStyle: "dashed",
               borderColor: theme.border,
               backgroundColor: theme.surface,
-              justifyContent: 'center',
-              alignItems: 'center',
+              justifyContent: "center",
+              alignItems: "center",
               gap: 10,
             }}
           >
@@ -224,8 +237,8 @@ function CaptureArea({ label, captured, onCapture, onRetake, delay }: CaptureAre
                 height: 44,
                 borderRadius: 22,
                 backgroundColor: theme.accentSoft,
-                justifyContent: 'center',
-                alignItems: 'center',
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
               <Camera size={22} color={theme.accent} strokeWidth={2} />
@@ -263,7 +276,13 @@ function AnimatedCheckmark() {
   }));
 
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+    <View
+      style={{
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 40,
+      }}
+    >
       <Animated.View
         style={[
           circleStyle,
@@ -271,9 +290,9 @@ function AnimatedCheckmark() {
             width: 80,
             height: 80,
             borderRadius: 40,
-            backgroundColor: '#10B981',
-            justifyContent: 'center',
-            alignItems: 'center',
+            backgroundColor: "#10B981",
+            justifyContent: "center",
+            alignItems: "center",
           },
         ]}
       >
@@ -300,10 +319,10 @@ export default function QuickRegisterScreen() {
   const createClient = useCreateClient();
 
   // Form state
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
 
   // Document capture state
   const [documents, setDocuments] = useState<CapturedDocuments>({
@@ -346,10 +365,12 @@ export default function QuickRegisterScreen() {
     if (!firstName.trim() || !lastName.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showToast({
-        variant: 'error',
-        title: t('clients.quickRegister.errorTitle', { defaultValue: 'Required Fields' }),
-        message: t('clients.quickRegister.errorMessage', {
-          defaultValue: 'First name and last name are required.',
+        variant: "error",
+        title: t("clients.quickRegister.errorTitle", {
+          defaultValue: "Required Fields",
+        }),
+        message: t("clients.quickRegister.errorMessage", {
+          defaultValue: "First name and last name are required.",
         }),
       });
       return;
@@ -358,10 +379,12 @@ export default function QuickRegisterScreen() {
     if (!phone.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showToast({
-        variant: 'error',
-        title: t('clients.quickRegister.errorTitle', { defaultValue: 'Required Fields' }),
-        message: t('clients.quickRegister.phoneRequired', {
-          defaultValue: 'Phone number is required.',
+        variant: "error",
+        title: t("clients.quickRegister.errorTitle", {
+          defaultValue: "Required Fields",
+        }),
+        message: t("clients.quickRegister.phoneRequired", {
+          defaultValue: "Phone number is required.",
         }),
       });
       return;
@@ -371,26 +394,24 @@ export default function QuickRegisterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     try {
+      // The agency_client relation is created first; document captures
+      // (which set verified_at) follow as a separate upload pass keyed by
+      // the new client's id. Implementation note: the simulated capture
+      // produces local placeholder URIs; once camera capture lands we'll
+      // post each captured file to /clients/:id/documents.
       await createClient.mutateAsync({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim(),
         phone: `+41${phone.trim()}`,
-        address: '',
-        dateOfBirth: '',
-        idType: 'national-id',
-        idNumber: '',
-        driverLicense: '',
-        driverLicenseExpiry: '',
-        notes: '',
-        documents: {
-          idFront: documents.idFront ?? undefined,
-          idBack: documents.idBack ?? undefined,
-          licenseFront: documents.licenseFront ?? undefined,
-          licenseBack: documents.licenseBack ?? undefined,
-          creditCardFront: documents.creditCardFront ?? undefined,
-        },
-        registrationMethod: 'walk-in',
+        address: "",
+        dateOfBirth: "",
+        idType: "national-id",
+        idNumber: "",
+        driverLicense: "",
+        driverLicenseExpiry: "",
+        notes: "",
+        registrationMethod: "walk-in",
       });
 
       setIsSubmitting(false);
@@ -399,9 +420,11 @@ export default function QuickRegisterScreen() {
 
       setTimeout(() => {
         showToast({
-          variant: 'success',
-          title: t('clients.quickRegister.successTitle', { defaultValue: 'Client Registered' }),
-          message: t('clients.quickRegister.successMessage', {
+          variant: "success",
+          title: t("clients.quickRegister.successTitle", {
+            defaultValue: "Client Registered",
+          }),
+          message: t("clients.quickRegister.successMessage", {
             defaultValue: `${firstName.trim()} ${lastName.trim()} has been registered.`,
           }),
         });
@@ -410,21 +433,33 @@ export default function QuickRegisterScreen() {
     } catch {
       setIsSubmitting(false);
       showToast({
-        variant: 'error',
-        title: t('clients.quickRegister.errorTitle', { defaultValue: 'Error' }),
-        message: t('clients.quickRegister.createError', {
-          defaultValue: 'Failed to register client. Please try again.',
+        variant: "error",
+        title: t("clients.quickRegister.errorTitle", { defaultValue: "Error" }),
+        message: t("clients.quickRegister.createError", {
+          defaultValue: "Failed to register client. Please try again.",
         }),
       });
     }
-  }, [firstName, lastName, phone, email, documents, createClient, showToast, router, t]);
+  }, [
+    firstName,
+    lastName,
+    phone,
+    email,
+    documents,
+    createClient,
+    showToast,
+    router,
+    t,
+  ]);
 
   // ── Success overlay ──────────────────────────────────────────────────────
 
   if (showSuccess) {
     return (
       <ScreenWrapper>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <AnimatedCheckmark />
         </View>
       </ScreenWrapper>
@@ -436,7 +471,7 @@ export default function QuickRegisterScreen() {
   return (
     <ScreenWrapper>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -450,8 +485,8 @@ export default function QuickRegisterScreen() {
           <Animated.View
             entering={FadeInDown.duration(400)}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               paddingTop: 16,
               paddingBottom: 8,
             }}
@@ -464,15 +499,21 @@ export default function QuickRegisterScreen() {
               hitSlop={12}
               style={{ marginRight: 12 }}
             >
-              <ChevronLeft size={24} color={theme.textPrimary} strokeWidth={2} />
+              <ChevronLeft
+                size={24}
+                color={theme.textPrimary}
+                strokeWidth={2}
+              />
             </Pressable>
             <View style={{ flex: 1 }}>
               <Text variant="headlineLarge">
-                {t('clients.quickRegister.title', { defaultValue: 'Quick Registration' })}
+                {t("clients.quickRegister.title", {
+                  defaultValue: "Quick Registration",
+                })}
               </Text>
               <Text variant="bodySmall" color={theme.textTertiary}>
-                {t('clients.quickRegister.subtitle', {
-                  defaultValue: 'Register a walk-in client',
+                {t("clients.quickRegister.subtitle", {
+                  defaultValue: "Register a walk-in client",
                 })}
               </Text>
             </View>
@@ -480,15 +521,21 @@ export default function QuickRegisterScreen() {
 
           {/* ── Section 1: Basic Info ────────────────────────────────────── */}
           <SectionHeader
-            title={t('clients.quickRegister.basicInfo', { defaultValue: 'Basic Info' })}
+            title={t("clients.quickRegister.basicInfo", {
+              defaultValue: "Basic Info",
+            })}
             icon={<User size={20} color={theme.accent} strokeWidth={2} />}
             index={0}
           />
 
-          <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(400).springify()}
+          >
             <Card variant="default" padding="md">
               <Input
-                label={t('clients.quickRegister.firstName', { defaultValue: 'First Name' })}
+                label={t("clients.quickRegister.firstName", {
+                  defaultValue: "First Name",
+                })}
                 placeholder="Jean"
                 value={firstName}
                 onChangeText={setFirstName}
@@ -497,7 +544,9 @@ export default function QuickRegisterScreen() {
               />
 
               <Input
-                label={t('clients.quickRegister.lastName', { defaultValue: 'Last Name' })}
+                label={t("clients.quickRegister.lastName", {
+                  defaultValue: "Last Name",
+                })}
                 placeholder="Dupont"
                 value={lastName}
                 onChangeText={setLastName}
@@ -516,12 +565,12 @@ export default function QuickRegisterScreen() {
                     marginBottom: 6,
                   }}
                 >
-                  {t('clients.quickRegister.phone', { defaultValue: 'Phone' })}
+                  {t("clients.quickRegister.phone", { defaultValue: "Phone" })}
                 </Text>
                 <View
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    flexDirection: "row",
+                    alignItems: "center",
                     gap: 8,
                   }}
                 >
@@ -532,9 +581,9 @@ export default function QuickRegisterScreen() {
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       height: 48,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      flexDirection: 'row',
+                      justifyContent: "center",
+                      alignItems: "center",
+                      flexDirection: "row",
                       gap: 6,
                     }}
                   >
@@ -560,7 +609,9 @@ export default function QuickRegisterScreen() {
               </View>
 
               <Input
-                label={t('clients.quickRegister.email', { defaultValue: 'Email (optional)' })}
+                label={t("clients.quickRegister.email", {
+                  defaultValue: "Email (optional)",
+                })}
                 placeholder="jean.dupont@email.com"
                 value={email}
                 onChangeText={setEmail}
@@ -572,28 +623,34 @@ export default function QuickRegisterScreen() {
 
           {/* ── Section 2: Identity Document ─────────────────────────────── */}
           <SectionHeader
-            title={t('clients.quickRegister.identityDocument', {
-              defaultValue: 'Identity Document',
+            title={t("clients.quickRegister.identityDocument", {
+              defaultValue: "Identity Document",
             })}
             icon={<IdCard size={20} color={theme.accent} strokeWidth={2} />}
             index={1}
           />
 
-          <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(200).duration(400).springify()}
+          >
             <Card variant="default" padding="md">
               <View style={{ gap: 12 }}>
                 <CaptureArea
-                  label={t('clients.quickRegister.idFront', { defaultValue: 'Front Side' })}
+                  label={t("clients.quickRegister.idFront", {
+                    defaultValue: "Front Side",
+                  })}
                   captured={documents.idFront !== null}
-                  onCapture={() => handleCapture('idFront')}
-                  onRetake={() => handleRetake('idFront')}
+                  onCapture={() => handleCapture("idFront")}
+                  onRetake={() => handleRetake("idFront")}
                   delay={220}
                 />
                 <CaptureArea
-                  label={t('clients.quickRegister.idBack', { defaultValue: 'Back Side' })}
+                  label={t("clients.quickRegister.idBack", {
+                    defaultValue: "Back Side",
+                  })}
                   captured={documents.idBack !== null}
-                  onCapture={() => handleCapture('idBack')}
-                  onRetake={() => handleRetake('idBack')}
+                  onCapture={() => handleCapture("idBack")}
+                  onRetake={() => handleRetake("idBack")}
                   delay={260}
                 />
               </View>
@@ -602,32 +659,34 @@ export default function QuickRegisterScreen() {
 
           {/* ── Section 3: Driver's License ──────────────────────────────── */}
           <SectionHeader
-            title={t('clients.quickRegister.driverLicense', {
+            title={t("clients.quickRegister.driverLicense", {
               defaultValue: "Driver's License",
             })}
             icon={<Car size={20} color={theme.accent} strokeWidth={2} />}
             index={2}
           />
 
-          <Animated.View entering={FadeInDown.delay(320).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(320).duration(400).springify()}
+          >
             <Card variant="default" padding="md">
               <View style={{ gap: 12 }}>
                 <CaptureArea
-                  label={t('clients.quickRegister.licenseFront', {
-                    defaultValue: 'Front Side',
+                  label={t("clients.quickRegister.licenseFront", {
+                    defaultValue: "Front Side",
                   })}
                   captured={documents.licenseFront !== null}
-                  onCapture={() => handleCapture('licenseFront')}
-                  onRetake={() => handleRetake('licenseFront')}
+                  onCapture={() => handleCapture("licenseFront")}
+                  onRetake={() => handleRetake("licenseFront")}
                   delay={340}
                 />
                 <CaptureArea
-                  label={t('clients.quickRegister.licenseBack', {
-                    defaultValue: 'Back Side',
+                  label={t("clients.quickRegister.licenseBack", {
+                    defaultValue: "Back Side",
                   })}
                   captured={documents.licenseBack !== null}
-                  onCapture={() => handleCapture('licenseBack')}
-                  onRetake={() => handleRetake('licenseBack')}
+                  onCapture={() => handleCapture("licenseBack")}
+                  onRetake={() => handleRetake("licenseBack")}
                   delay={380}
                 />
               </View>
@@ -636,38 +695,51 @@ export default function QuickRegisterScreen() {
 
           {/* ── Section 4: Credit Card ───────────────────────────────────── */}
           <SectionHeader
-            title={t('clients.quickRegister.creditCard', { defaultValue: 'Credit Card' })}
+            title={t("clients.quickRegister.creditCard", {
+              defaultValue: "Credit Card",
+            })}
             icon={<CreditCard size={20} color={theme.accent} strokeWidth={2} />}
             index={3}
           />
 
-          <Animated.View entering={FadeInDown.delay(420).duration(400).springify()}>
+          <Animated.View
+            entering={FadeInDown.delay(420).duration(400).springify()}
+          >
             <Card variant="default" padding="md">
               <CaptureArea
-                label={t('clients.quickRegister.creditCardFront', {
-                  defaultValue: 'Front Side',
+                label={t("clients.quickRegister.creditCardFront", {
+                  defaultValue: "Front Side",
                 })}
                 captured={documents.creditCardFront !== null}
-                onCapture={() => handleCapture('creditCardFront')}
-                onRetake={() => handleRetake('creditCardFront')}
+                onCapture={() => handleCapture("creditCardFront")}
+                onRetake={() => handleRetake("creditCardFront")}
                 delay={440}
               />
 
               {/* Privacy notice */}
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
+                  flexDirection: "row",
+                  alignItems: "flex-start",
                   marginTop: 12,
                   gap: 8,
                   paddingHorizontal: 4,
                 }}
               >
-                <Shield size={14} color={theme.textTertiary} strokeWidth={2} style={{ marginTop: 2 }} />
-                <Text variant="caption" color={theme.textTertiary} style={{ flex: 1 }}>
-                  {t('clients.quickRegister.privacyNotice', {
+                <Shield
+                  size={14}
+                  color={theme.textTertiary}
+                  strokeWidth={2}
+                  style={{ marginTop: 2 }}
+                />
+                <Text
+                  variant="caption"
+                  color={theme.textTertiary}
+                  style={{ flex: 1 }}
+                >
+                  {t("clients.quickRegister.privacyNotice", {
                     defaultValue:
-                      'Credit card images are stored securely and encrypted. They are used solely for deposit verification purposes and will be deleted after the rental period.',
+                      "Credit card images are stored securely and encrypted. They are used solely for deposit verification purposes and will be deleted after the rental period.",
                   })}
                 </Text>
               </View>
@@ -682,12 +754,12 @@ export default function QuickRegisterScreen() {
         <Animated.View
           entering={FadeInDown.delay(500).duration(400).springify()}
           style={{
-            position: 'absolute',
+            position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
             paddingHorizontal: 16,
-            paddingBottom: Platform.OS === 'ios' ? 8 : 16,
+            paddingBottom: Platform.OS === "ios" ? 8 : 16,
             paddingTop: 12,
             backgroundColor: theme.background,
           }}
@@ -697,7 +769,7 @@ export default function QuickRegisterScreen() {
             disabled={isSubmitting}
             style={{
               borderRadius: 9999,
-              overflow: 'hidden',
+              overflow: "hidden",
               opacity: isSubmitting ? 0.7 : 1,
               ...shadows.accent,
             }}
@@ -709,9 +781,9 @@ export default function QuickRegisterScreen() {
               style={{
                 borderRadius: 9999,
                 height: 56,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
                 gap: 8,
               }}
             >
@@ -725,8 +797,8 @@ export default function QuickRegisterScreen() {
                     color="#FFFFFF"
                     style={{ fontFamily: fontFamilies.semiBold }}
                   >
-                    {t('clients.quickRegister.submit', {
-                      defaultValue: 'Register Client',
+                    {t("clients.quickRegister.submit", {
+                      defaultValue: "Register Client",
                     })}
                   </Text>
                 </>

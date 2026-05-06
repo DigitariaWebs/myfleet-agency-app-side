@@ -238,6 +238,12 @@ export async function resendVerificationEmail(email: string): Promise<void> {
     email,
   });
   if (error) {
+    console.error("[authService] resend signup email failed", {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      name: error.name,
+    });
     throw new Error(error.message);
   }
 }

@@ -4,6 +4,7 @@ import {
   getInspectionById,
   listInspections,
   patchInspection,
+  runInspectionAi,
   type CreateInspectionPayload,
 } from "@/services/inspectionService";
 import type { InspectionType } from "@/types/inspection";
@@ -35,6 +36,27 @@ export function useInspection(id: string | undefined) {
     queryFn: async () => (await getInspectionById(id as string)).data,
     enabled: typeof id === "string" && id.length > 0,
     staleTime: 30_000,
+    // Poll every 3s while the backend AI run is in flight so the UI
+    // reflects completion without the user having to pull-to-refresh.
+    refetchInterval: (query) => {
+      const status = query.state.data?.aiStatus;
+      return status === "queued" || status === "running" ? 3000 : false;
+    },
+  });
+}
+
+export function useRunInspectionAi() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await runInspectionAi(id);
+      if (!res.data) throw new Error("Failed to run AI analysis");
+      return res.data;
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(inspectionKeys.detail(data.id), data);
+      void qc.invalidateQueries({ queryKey: inspectionKeys.all });
+    },
   });
 }
 

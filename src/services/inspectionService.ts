@@ -56,6 +56,15 @@ export async function createInspection(
   return ok(data);
 }
 
+export async function runInspectionAi(
+  id: string,
+): Promise<ApiResponse<Inspection>> {
+  const data = await authedRequest<Inspection>(`/inspections/${id}/run-ai`, {
+    method: "POST",
+  });
+  return ok(data);
+}
+
 export async function patchInspection(
   id: string,
   patch: {

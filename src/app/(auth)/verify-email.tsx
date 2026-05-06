@@ -14,17 +14,25 @@ import { Image } from "@/components/ui/Image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { ArrowRight, ChevronLeft, ChevronRight, Mail } from "lucide-react-native";
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Mail,
+} from "lucide-react-native";
 
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useToastStore } from "@/components/ui/Toast";
-import { resendVerificationEmail, verifyEmailOtp } from "@/services/authService";
+import {
+  resendVerificationEmail,
+  verifyEmailOtp,
+} from "@/services/authService";
 import { fontFamilies } from "@/theme/typography";
 
 const ACCENT = "#7C3AED";
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 export default function VerifyEmailScreen() {
@@ -78,6 +86,7 @@ export default function VerifyEmailScreen() {
       });
       setTimeout(() => inputRef.current?.focus(), 350);
     } catch (err: unknown) {
+      console.error("[verify-email] resendVerificationEmail failed", err);
       const message = err instanceof Error ? err.message : t("common.error");
       showToast({ variant: "error", title: t("common.error"), message });
     } finally {
@@ -177,11 +186,7 @@ export default function VerifyEmailScreen() {
               justifyContent: "center",
             }}
           >
-            <ChevronLeft
-              size={20}
-              color={theme.textPrimary}
-              strokeWidth={2}
-            />
+            <ChevronLeft size={20} color={theme.textPrimary} strokeWidth={2} />
           </Pressable>
 
           <View
@@ -273,11 +278,7 @@ export default function VerifyEmailScreen() {
                 onPress={() => void handleSend()}
                 disabled={isSending || isLoading}
                 style={({ pressed }) => ({
-                  opacity: pressed
-                    ? 0.9
-                    : isSending || isLoading
-                      ? 0.55
-                      : 1,
+                  opacity: pressed ? 0.9 : isSending || isLoading ? 0.55 : 1,
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 })}
               >
@@ -306,11 +307,7 @@ export default function VerifyEmailScreen() {
                       justifyContent: "center",
                     }}
                   >
-                    <ArrowRight
-                      size={20}
-                      color="#FFFFFF"
-                      strokeWidth={2.2}
-                    />
+                    <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.2} />
                   </View>
                   <Animated.Text
                     style={{
@@ -368,8 +365,8 @@ export default function VerifyEmailScreen() {
                       key={i}
                       entering={FadeInDown.duration(300).delay(i * 40)}
                       style={{
-                        width: 48,
-                        height: 56,
+                        width: 52,
+                        height: 60,
                         borderRadius: 16,
                         backgroundColor: boxBg(i),
                         borderWidth: focused ? 2 : 1,
@@ -400,7 +397,7 @@ export default function VerifyEmailScreen() {
                 keyboardType="number-pad"
                 maxLength={CODE_LENGTH}
                 textContentType="oneTimeCode"
-                autoComplete="sms-otp"
+                autoComplete="one-time-code"
                 caretHidden
                 style={{
                   position: "absolute",
@@ -447,10 +444,7 @@ export default function VerifyEmailScreen() {
                       backgroundColor: theme.surfaceTertiary,
                     }}
                   >
-                    <Text
-                      variant="bodySmall"
-                      color={theme.textTertiary}
-                    >
+                    <Text variant="bodySmall" color={theme.textTertiary}>
                       {t("auth.otpScreen.resendIn", {
                         seconds: secondsLeft,
                       })}
@@ -488,11 +482,7 @@ export default function VerifyEmailScreen() {
               onPress={() => void handleVerify(joinedCode)}
               disabled={!isComplete || isLoading}
               style={({ pressed }) => ({
-                opacity: pressed
-                  ? 0.9
-                  : isComplete && !isLoading
-                    ? 1
-                    : 0.55,
+                opacity: pressed ? 0.9 : isComplete && !isLoading ? 1 : 0.55,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
             >
@@ -521,11 +511,7 @@ export default function VerifyEmailScreen() {
                     justifyContent: "center",
                   }}
                 >
-                  <ArrowRight
-                    size={20}
-                    color="#FFFFFF"
-                    strokeWidth={2.2}
-                  />
+                  <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.2} />
                 </View>
                 <Animated.Text
                   style={{
