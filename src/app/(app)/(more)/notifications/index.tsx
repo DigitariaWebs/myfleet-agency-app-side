@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, SectionList, ScrollView } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, SectionList, ScrollView } from "react-native";
+import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
 import {
   ChevronLeft,
   BellOff,
@@ -17,22 +17,26 @@ import {
   CalendarPlus,
   CheckCircle,
   FileCheck,
-} from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import type { LucideIcon } from 'lucide-react-native';
+} from "lucide-react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import type { LucideIcon } from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { fontFamilies } from '@/theme/typography';
-import { mockNotifications } from '@/data/notifications';
-import { recentActivity, type ActivityType } from '@/data/dashboard';
-import type { AppNotification, NotificationType } from '@/types/notification';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/hooks/useTheme";
+import { fontFamilies } from "@/theme/typography";
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from "@/hooks/useNotifications";
+import { recentActivity, type ActivityType } from "@/data/dashboard";
+import type { AppNotification, NotificationType } from "@/types/notification";
 
-type FeedTab = 'activity' | 'notifications';
+type FeedTab = "activity" | "notifications";
 
 const ACTIVITY_ICONS: Record<ActivityType, LucideIcon> = {
   inspection_completed: ScanLine,
@@ -46,20 +50,20 @@ const ACTIVITY_ICONS: Record<ActivityType, LucideIcon> = {
 
 interface NotificationStyle {
   icon: LucideIcon;
-  colorKey: 'info' | 'warning' | 'danger' | 'success' | 'accent';
+  colorKey: "info" | "warning" | "danger" | "success" | "accent";
 }
 
 const NOTIFICATION_STYLES: Record<NotificationType, NotificationStyle> = {
-  booking_reminder: { icon: Calendar, colorKey: 'info' },
-  return_due: { icon: Clock, colorKey: 'warning' },
-  return_overdue: { icon: AlertTriangle, colorKey: 'danger' },
-  inspection_required: { icon: ScanLine, colorKey: 'warning' },
-  violation_received: { icon: AlertCircle, colorKey: 'danger' },
-  payment_received: { icon: CreditCard, colorKey: 'success' },
-  payment_overdue: { icon: CreditCard, colorKey: 'danger' },
-  maintenance_due: { icon: Wrench, colorKey: 'warning' },
-  contract_pending: { icon: FileText, colorKey: 'accent' },
-  marketing_campaign: { icon: Megaphone, colorKey: 'info' },
+  booking_reminder: { icon: Calendar, colorKey: "info" },
+  return_due: { icon: Clock, colorKey: "warning" },
+  return_overdue: { icon: AlertTriangle, colorKey: "danger" },
+  inspection_required: { icon: ScanLine, colorKey: "warning" },
+  violation_received: { icon: AlertCircle, colorKey: "danger" },
+  payment_received: { icon: CreditCard, colorKey: "success" },
+  payment_overdue: { icon: CreditCard, colorKey: "danger" },
+  maintenance_due: { icon: Wrench, colorKey: "warning" },
+  contract_pending: { icon: FileText, colorKey: "accent" },
+  marketing_campaign: { icon: Megaphone, colorKey: "info" },
 };
 
 // ── Date grouping ───────────────────────────────────────────────────────────
@@ -70,10 +74,10 @@ function getDateGroup(timestamp: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0 && now.getDate() === date.getDate()) return 'Aujourd\'hui';
-  if (diffDays <= 1 && now.getDate() - date.getDate() === 1) return 'Hier';
-  if (diffDays <= 7) return 'Cette semaine';
-  return 'Plus ancien';
+  if (diffDays === 0 && now.getDate() === date.getDate()) return "Aujourd'hui";
+  if (diffDays <= 1 && now.getDate() - date.getDate() === 1) return "Hier";
+  if (diffDays <= 7) return "Cette semaine";
+  return "Plus ancien";
 }
 
 function getTimeAgo(timestamp: string): string {
@@ -84,14 +88,14 @@ function getTimeAgo(timestamp: string): string {
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMinutes < 1) return 'A l\'instant';
+  if (diffMinutes < 1) return "A l'instant";
   if (diffMinutes < 60) return `Il y a ${diffMinutes}min`;
   if (diffHours < 24) return `Il y a ${diffHours}h`;
-  if (diffDays === 1) return 'Hier';
+  if (diffDays === 1) return "Hier";
   return `Il y a ${diffDays}j`;
 }
 
-const GROUP_ORDER = ['Aujourd\'hui', 'Hier', 'Cette semaine', 'Plus ancien'];
+const GROUP_ORDER = ["Aujourd'hui", "Hier", "Cette semaine", "Plus ancien"];
 
 // ── Component ───────────────────────────────────────────────────────────────
 
@@ -99,46 +103,46 @@ export default function NotificationsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
-  const [feedTab, setFeedTab] = useState<FeedTab>('notifications');
-  const [readIds, setReadIds] = useState<Set<string>>(() => {
-    const initial = new Set<string>();
-    mockNotifications.forEach((n) => {
-      if (n.read) initial.add(n.id);
-    });
-    return initial;
-  });
+  const [feedTab, setFeedTab] = useState<FeedTab>("notifications");
+  const { data: notifications = [] } = useNotifications();
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
 
-  const markAsRead = useCallback((id: string) => {
-    setReadIds((prev) => new Set(prev).add(id));
-  }, []);
+  const markAsRead = useCallback(
+    (id: string) => {
+      markReadMutation.mutate(id);
+    },
+    [markReadMutation],
+  );
 
   const markAllAsRead = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setReadIds(new Set(mockNotifications.map((n) => n.id)));
-  }, []);
+    markAllReadMutation.mutate();
+  }, [markAllReadMutation]);
 
   const unreadCount = useMemo(
-    () => mockNotifications.filter((n) => !readIds.has(n.id)).length,
-    [readIds],
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
   );
 
   const sections = useMemo(() => {
     const grouped: Record<string, AppNotification[]> = {};
-    mockNotifications.forEach((n) => {
+    notifications.forEach((n) => {
       const group = getDateGroup(n.timestamp);
       if (!grouped[group]) grouped[group] = [];
       grouped[group].push(n);
     });
 
-    return GROUP_ORDER
-      .filter((title) => grouped[title] && grouped[title].length > 0)
-      .map((title) => ({
-        title,
-        data: grouped[title].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        ),
-      }));
-  }, []);
+    return GROUP_ORDER.filter(
+      (title) => grouped[title] && grouped[title].length > 0,
+    ).map((title) => ({
+      title,
+      data: grouped[title].sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      ),
+    }));
+  }, [notifications]);
 
   const handleNotificationPress = useCallback(
     (notification: AppNotification) => {
@@ -146,14 +150,17 @@ export default function NotificationsScreen() {
       markAsRead(notification.id);
       if (notification.targetRoute && notification.targetId) {
         router.push(
-          notification.targetRoute.replace('[id]', notification.targetId) as never,
+          notification.targetRoute.replace(
+            "[id]",
+            notification.targetId,
+          ) as never,
         );
       }
     },
     [markAsRead, router],
   );
 
-  if (mockNotifications.length === 0) {
+  if (notifications.length === 0) {
     return (
       <ScreenWrapper>
         <View className="flex-row items-center pt-6 pb-4">
@@ -180,8 +187,14 @@ export default function NotificationsScreen() {
     );
   }
 
-  const renderNotification = ({ item, index }: { item: AppNotification; index: number }) => {
-    const isRead = readIds.has(item.id);
+  const renderNotification = ({
+    item,
+    index,
+  }: {
+    item: AppNotification;
+    index: number;
+  }) => {
+    const isRead = item.read;
     const style = NOTIFICATION_STYLES[item.type];
     const Icon = style.icon;
     const colorMap = {
@@ -209,7 +222,7 @@ export default function NotificationsScreen() {
           style={{
             backgroundColor: theme.surface,
             borderLeftWidth: isRead ? 0 : 3,
-            borderLeftColor: isRead ? 'transparent' : theme.accent,
+            borderLeftColor: isRead ? "transparent" : theme.accent,
           }}
         >
           <View
@@ -219,10 +232,7 @@ export default function NotificationsScreen() {
             <Icon size={18} color={iconColor} strokeWidth={2} />
           </View>
           <View className="flex-1">
-            <Text
-              variant="titleMedium"
-              className={isRead ? '' : 'font-bold'}
-            >
+            <Text variant="titleMedium" className={isRead ? "" : "font-bold"}>
               {item.title}
             </Text>
             <Text
@@ -272,7 +282,7 @@ export default function NotificationsScreen() {
       <Animated.View
         entering={FadeInDown.duration(400).delay(40)}
         style={{
-          flexDirection: 'row',
+          flexDirection: "row",
           padding: 4,
           marginBottom: 14,
           borderRadius: 9999,
@@ -280,29 +290,32 @@ export default function NotificationsScreen() {
         }}
       >
         <ToggleTab
-          label={t('dashboard.tabActivity')}
-          active={feedTab === 'activity'}
+          label={t("dashboard.tabActivity")}
+          active={feedTab === "activity"}
           onPress={() => {
             void Haptics.selectionAsync();
-            setFeedTab('activity');
+            setFeedTab("activity");
           }}
           theme={theme}
         />
         <ToggleTab
-          label={t('dashboard.tabNotifications')}
-          active={feedTab === 'notifications'}
+          label={t("dashboard.tabNotifications")}
+          active={feedTab === "notifications"}
           onPress={() => {
             void Haptics.selectionAsync();
-            setFeedTab('notifications');
+            setFeedTab("notifications");
           }}
           theme={theme}
         />
       </Animated.View>
 
-      {feedTab === 'notifications' ? (
+      {feedTab === "notifications" ? (
         <>
           {unreadCount > 0 && (
-            <Animated.View entering={FadeInDown.duration(400).delay(60)} className="mb-3">
+            <Animated.View
+              entering={FadeInDown.duration(400).delay(60)}
+              className="mb-3"
+            >
               <Pressable onPress={markAllAsRead}>
                 <Text variant="titleMedium" color={theme.accent}>
                   Tout marquer lu
@@ -342,8 +355,8 @@ export default function NotificationsScreen() {
               >
                 <View
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    flexDirection: "row",
+                    alignItems: "center",
                     paddingVertical: 12,
                     paddingHorizontal: 4,
                     borderBottomWidth: isLast ? 0 : 0.5,
@@ -356,8 +369,8 @@ export default function NotificationsScreen() {
                       height: 36,
                       borderRadius: 12,
                       backgroundColor: theme.accentSoft,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      alignItems: "center",
+                      justifyContent: "center",
                       marginRight: 12,
                     }}
                   >
@@ -398,9 +411,9 @@ function ToggleTab({ label, active, onPress, theme }: ToggleTabProps) {
         flex: 1,
         paddingVertical: 9,
         borderRadius: 9999,
-        alignItems: 'center',
-        backgroundColor: active ? theme.surface : 'transparent',
-        shadowColor: active ? '#000' : 'transparent',
+        alignItems: "center",
+        backgroundColor: active ? theme.surface : "transparent",
+        shadowColor: active ? "#000" : "transparent",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: active ? 0.05 : 0,
         shadowRadius: 3,
