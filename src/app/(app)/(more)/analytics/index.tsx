@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Pressable } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import React, { useState } from "react";
+import { View, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
 import {
   ChevronLeft,
   Lock,
@@ -12,41 +12,33 @@ import {
   PauseCircle,
   CheckCircle,
   AlertTriangle,
-} from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+} from "lucide-react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Divider } from '@/components/ui/Divider';
-import { Avatar } from '@/components/ui/Avatar';
-import { Chip, ChipGroup } from '@/components/ui/Chip';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { useTheme } from '@/hooks/useTheme';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { useToastStore } from '@/components/ui/Toast';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Divider } from "@/components/ui/Divider";
+import { Avatar } from "@/components/ui/Avatar";
+import { Chip, ChipGroup } from "@/components/ui/Chip";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useTheme } from "@/hooks/useTheme";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useToastStore } from "@/components/ui/Toast";
+import { useAnalyticsSummary, useTopClients } from "@/hooks/useAnalytics";
+import type { AnalyticsPeriod } from "@/services/analyticsService";
 
 // ── Mock data ───────────────────────────────────────────────────────────────
 
-const PERIODS = ['Aujourd\'hui', 'Cette semaine', 'Ce mois', 'Ce trimestre'] as const;
-
-const BOOKING_STATS = [
-  { label: 'Total Bookings', value: '22' },
-  { label: 'Durée moyenne', value: '5.2 jours' },
-  { label: 'Tarif moyen', value: '€152/jour' },
-  { label: 'Taux d\'annulation', value: '9%' },
-] as const;
-
-const TOP_CLIENTS = [
-  { name: 'Youssef El Amrani', amount: 4780 },
-  { name: 'Karim Haddad', amount: 3120 },
-  { name: 'Isabelle Leroy', amount: 2890 },
-  { name: 'Mehdi Benali', amount: 2340 },
-  { name: 'Olivier Dupont', amount: 1860 },
-] as const;
+const PERIODS: { label: string; key: AnalyticsPeriod }[] = [
+  { label: "Aujourd'hui", key: "today" },
+  { label: "Cette semaine", key: "week" },
+  { label: "Ce mois", key: "month" },
+  { label: "Ce trimestre", key: "quarter" },
+];
 
 // ── Donut Chart ─────────────────────────────────────────────────────────────
 
@@ -72,7 +64,7 @@ function DonutChart({
           height: outerSize,
           borderRadius: outerSize / 2,
           backgroundColor: theme.surfaceTertiary,
-          overflow: 'hidden',
+          overflow: "hidden",
         }}
         className="items-center justify-center"
       >
@@ -81,12 +73,12 @@ function DonutChart({
         {fillDeg > 0 && (
           <View
             style={{
-              position: 'absolute',
+              position: "absolute",
               width: outerSize / 2,
               height: outerSize,
               left: outerSize / 2,
               top: 0,
-              overflow: 'hidden',
+              overflow: "hidden",
             }}
           >
             <View
@@ -95,13 +87,13 @@ function DonutChart({
                 height: outerSize,
                 borderRadius: outerSize / 2,
                 borderWidth: outerSize / 4,
-                borderColor: 'transparent',
+                borderColor: "transparent",
                 borderTopColor: theme.accent,
-                borderRightColor: fillDeg > 90 ? theme.accent : 'transparent',
-                position: 'absolute',
+                borderRightColor: fillDeg > 90 ? theme.accent : "transparent",
+                position: "absolute",
                 right: 0,
                 top: 0,
-                transform: [{ rotate: '0deg' }],
+                transform: [{ rotate: "0deg" }],
               }}
             />
           </View>
@@ -110,7 +102,7 @@ function DonutChart({
         {/* Background ring */}
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             width: outerSize,
             height: outerSize,
             borderRadius: outerSize / 2,
@@ -122,17 +114,17 @@ function DonutChart({
         {/* Accent ring overlay representing percentage */}
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             width: outerSize,
             height: outerSize,
             borderRadius: outerSize / 2,
             borderWidth: 14,
             borderColor: theme.accent,
-            borderBottomColor: fillDeg > 270 ? theme.accent : 'transparent',
-            borderLeftColor: fillDeg > 180 ? theme.accent : 'transparent',
-            borderRightColor: fillDeg > 90 ? theme.accent : 'transparent',
+            borderBottomColor: fillDeg > 270 ? theme.accent : "transparent",
+            borderLeftColor: fillDeg > 180 ? theme.accent : "transparent",
+            borderRightColor: fillDeg > 90 ? theme.accent : "transparent",
             borderTopColor: theme.accent,
-            transform: [{ rotate: '-90deg' }],
+            transform: [{ rotate: "-90deg" }],
           }}
         />
 
@@ -159,19 +151,27 @@ function DonutChart({
       <View className="flex-row items-center mt-4" style={{ gap: 16 }}>
         <View className="flex-row items-center" style={{ gap: 6 }}>
           <Badge variant="success" dot size="sm" />
-          <Text variant="bodySmall" color={theme.textSecondary}>Actif</Text>
+          <Text variant="bodySmall" color={theme.textSecondary}>
+            Actif
+          </Text>
         </View>
         <View className="flex-row items-center" style={{ gap: 6 }}>
           <Badge variant="info" dot size="sm" />
-          <Text variant="bodySmall" color={theme.textSecondary}>Disponible</Text>
+          <Text variant="bodySmall" color={theme.textSecondary}>
+            Disponible
+          </Text>
         </View>
         <View className="flex-row items-center" style={{ gap: 6 }}>
           <Badge variant="warning" dot size="sm" />
-          <Text variant="bodySmall" color={theme.textSecondary}>Maintenance</Text>
+          <Text variant="bodySmall" color={theme.textSecondary}>
+            Maintenance
+          </Text>
         </View>
         <View className="flex-row items-center" style={{ gap: 6 }}>
           <Badge variant="danger" dot size="sm" />
-          <Text variant="bodySmall" color={theme.textSecondary}>Inactif</Text>
+          <Text variant="bodySmall" color={theme.textSecondary}>
+            Inactif
+          </Text>
         </View>
       </View>
     </View>
@@ -187,9 +187,34 @@ export default function AnalyticsScreen() {
   const role = useAuthStore((s) => s.user?.role);
   const showToast = useToastStore((s) => s.show);
   const [selectedPeriod, setSelectedPeriod] = useState(2);
+  const period = PERIODS[selectedPeriod].key;
+  const { data: summary } = useAnalyticsSummary(period);
+  const { data: topClients = [] } = useTopClients(period, 5);
+  const eur = (cents: number) =>
+    new Intl.NumberFormat("fr-FR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(cents / 100);
+  const bookingStats = summary
+    ? [
+        { label: "Total Bookings", value: String(summary.bookings.total) },
+        {
+          label: "Durée moyenne",
+          value: `${summary.bookings.avgDurationDays} jours`,
+        },
+        {
+          label: "Tarif moyen",
+          value: `€${eur(summary.bookings.avgRateCents)}/jour`,
+        },
+        {
+          label: "Taux d'annulation",
+          value: `${summary.bookings.cancellationPct}%`,
+        },
+      ]
+    : [];
 
   // ── Admin guard ───────────────────────────────────────────────
-  if (role !== 'admin') {
+  if (role !== "admin") {
     return (
       <ScreenWrapper>
         <View className="flex-row items-center pt-6 pb-4">
@@ -253,12 +278,15 @@ export default function AnalyticsScreen() {
       </Animated.View>
 
       {/* Period Selector */}
-      <Animated.View entering={FadeInDown.duration(400).delay(50)} className="mb-4">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(50)}
+        className="mb-4"
+      >
         <ChipGroup>
-          {PERIODS.map((period, index) => (
+          {PERIODS.map((p, index) => (
             <Chip
-              key={period}
-              label={period}
+              key={p.key}
+              label={p.label}
               selected={selectedPeriod === index}
               onPress={() => setSelectedPeriod(index)}
             />
@@ -267,14 +295,21 @@ export default function AnalyticsScreen() {
       </Animated.View>
 
       {/* Revenue Hero Card */}
-      <Animated.View entering={FadeInDown.duration(400).delay(100)} className="mb-4">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(100)}
+        className="mb-4"
+      >
         <Card>
           <View className="flex-row items-center justify-between">
             <View>
               <Text variant="bodySmall" color={theme.textSecondary}>
                 Revenu total
               </Text>
-              <Text variant="displayLarge" color={theme.accent} className="mt-1">
+              <Text
+                variant="displayLarge"
+                color={theme.accent}
+                className="mt-1"
+              >
                 €12,450
               </Text>
             </View>
@@ -292,22 +327,32 @@ export default function AnalyticsScreen() {
       </Animated.View>
 
       {/* Fleet Utilization */}
-      <Animated.View entering={FadeInDown.duration(400).delay(150)} className="mb-4">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(150)}
+        className="mb-4"
+      >
         <Card>
           <Text variant="headlineSmall" className="mb-4">
             Utilisation de la flotte
           </Text>
-          <DonutChart percentage={78} activeCount={12} totalCount={16} />
+          <DonutChart
+            percentage={summary?.fleetUtilization.activePct ?? 0}
+            activeCount={summary?.fleetUtilization.active ?? 0}
+            totalCount={summary?.fleetUtilization.total ?? 0}
+          />
         </Card>
       </Animated.View>
 
       {/* Booking Stats — 2x2 Grid */}
-      <Animated.View entering={FadeInDown.duration(400).delay(200)} className="mb-4">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(200)}
+        className="mb-4"
+      >
         <Text variant="headlineSmall" className="mb-3">
           Statistiques des réservations
         </Text>
         <View className="flex-row flex-wrap -mx-1">
-          {BOOKING_STATS.map((stat) => (
+          {bookingStats.map((stat) => (
             <View key={stat.label} className="w-1/2 px-1 mb-2">
               <Card>
                 <Text variant="bodySmall" color={theme.textSecondary}>
@@ -323,13 +368,16 @@ export default function AnalyticsScreen() {
       </Animated.View>
 
       {/* Top Clients */}
-      <Animated.View entering={FadeInDown.duration(400).delay(250)} className="mb-4">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(250)}
+        className="mb-4"
+      >
         <Card>
           <Text variant="headlineSmall" className="mb-3">
             Top clients par revenu
           </Text>
-          {TOP_CLIENTS.map((client, index) => (
-            <React.Fragment key={client.name}>
+          {topClients.map((client, index) => (
+            <React.Fragment key={client.clientId}>
               {index > 0 && <Divider className="my-2" />}
               <View className="flex-row items-center py-1">
                 <Text
@@ -339,12 +387,12 @@ export default function AnalyticsScreen() {
                 >
                   {index + 1}
                 </Text>
-                <Avatar name={client.name} size="sm" />
+                <Avatar name={client.clientName} size="sm" />
                 <Text variant="titleMedium" className="flex-1 ml-3">
-                  {client.name}
+                  {client.clientName}
                 </Text>
                 <Text variant="titleMedium" color={theme.accent}>
-                  €{client.amount.toLocaleString()}
+                  €{eur(client.totalSpentCents)}
                 </Text>
               </View>
             </React.Fragment>
@@ -353,7 +401,10 @@ export default function AnalyticsScreen() {
       </Animated.View>
 
       {/* Violations Summary */}
-      <Animated.View entering={FadeInDown.duration(400).delay(300)} className="mb-4">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(300)}
+        className="mb-4"
+      >
         <Card>
           <Text variant="headlineSmall" className="mb-3">
             Résumé des infractions
@@ -364,34 +415,53 @@ export default function AnalyticsScreen() {
               className="flex-1 rounded-xl p-3 items-center"
             >
               <AlertTriangle size={20} color={theme.danger} strokeWidth={1.5} />
-              <Text variant="headlineMedium" className="mt-1">12</Text>
-              <Text variant="bodySmall" color={theme.textSecondary}>Total</Text>
+              <Text variant="headlineMedium" className="mt-1">
+                12
+              </Text>
+              <Text variant="bodySmall" color={theme.textSecondary}>
+                Total
+              </Text>
             </View>
             <View
               style={{ backgroundColor: theme.warningSoft }}
               className="flex-1 rounded-xl p-3 items-center"
             >
-              <Text variant="headlineMedium" className="mt-1">€1,840</Text>
-              <Text variant="bodySmall" color={theme.textSecondary}>Amendes</Text>
+              <Text variant="headlineMedium" className="mt-1">
+                €1,840
+              </Text>
+              <Text variant="bodySmall" color={theme.textSecondary}>
+                Amendes
+              </Text>
             </View>
             <View
               style={{ backgroundColor: theme.successSoft }}
               className="flex-1 rounded-xl p-3 items-center"
             >
-              <Text variant="headlineMedium" className="mt-1">75%</Text>
-              <Text variant="bodySmall" color={theme.textSecondary}>Recouvrement</Text>
+              <Text variant="headlineMedium" className="mt-1">
+                75%
+              </Text>
+              <Text variant="bodySmall" color={theme.textSecondary}>
+                Recouvrement
+              </Text>
             </View>
           </View>
         </Card>
       </Animated.View>
 
       {/* Export Button */}
-      <Animated.View entering={FadeInDown.duration(400).delay(350)} className="mb-8">
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(350)}
+        className="mb-8"
+      >
         <Button
           fullWidth
           leftIcon={Download}
           onPress={() => {
-            showToast({ variant: 'info', title: 'Coming soon', message: 'L\'export sera disponible prochainement.' });
+            showToast({
+              variant: "info",
+              title: "Coming soon",
+              message: "L'export sera disponible prochainement.",
+            });
           }}
         >
           Exporter le rapport
