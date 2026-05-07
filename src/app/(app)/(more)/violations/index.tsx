@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, FlatList, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, FlatList, RefreshControl } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Plus,
@@ -12,24 +12,33 @@ import {
   CircleAlert,
   AlertTriangle,
   ShieldAlert,
-} from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
+} from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { Chip, ChipGroup } from '@/components/ui/Chip';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { IconButton } from '@/components/ui/IconButton';
-import { useTheme } from '@/hooks/useTheme';
-import { formatDate } from '@/utils/format';
-import { useViolationStore } from '@/stores/useViolationStore';
-import type { Violation, ViolationType, ViolationStatus } from '@/types/violation';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Chip, ChipGroup } from "@/components/ui/Chip";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { IconButton } from "@/components/ui/IconButton";
+import { useTheme } from "@/hooks/useTheme";
+import { formatDate } from "@/utils/format";
+import {
+  useViolations,
+  useViolationsSummary,
+  violationKeys,
+} from "@/hooks/useViolations";
+import { useQueryClient } from "@tanstack/react-query";
+import type {
+  Violation,
+  ViolationType,
+  ViolationStatus,
+} from "@/types/violation";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+type BadgeVariant = "success" | "warning" | "danger" | "info" | "neutral";
 
 interface StatusConfig {
   label: string;
@@ -38,46 +47,46 @@ interface StatusConfig {
 
 function getStatusConfig(status: ViolationStatus): StatusConfig {
   switch (status) {
-    case 'received':
-      return { label: 'Reçue', variant: 'neutral' };
-    case 'client-identified':
-      return { label: 'Client identifié', variant: 'info' };
-    case 'forwarded':
-      return { label: 'Transmise', variant: 'warning' };
-    case 'paid':
-      return { label: 'Payée', variant: 'success' };
-    case 'disputed':
-      return { label: 'Contestée', variant: 'danger' };
+    case "received":
+      return { label: "Reçue", variant: "neutral" };
+    case "client-identified":
+      return { label: "Client identifié", variant: "info" };
+    case "forwarded":
+      return { label: "Transmise", variant: "warning" };
+    case "paid":
+      return { label: "Payée", variant: "success" };
+    case "disputed":
+      return { label: "Contestée", variant: "danger" };
   }
 }
 
 function getTypeIcon(type: ViolationType): LucideIcon {
   switch (type) {
-    case 'speeding':
+    case "speeding":
       return Gauge;
-    case 'parking':
+    case "parking":
       return ParkingSquare;
-    case 'redlight':
+    case "redlight":
       return CircleAlert;
-    case 'other':
+    case "other":
       return AlertTriangle;
   }
 }
 
 function getTypeLabel(type: ViolationType): string {
   switch (type) {
-    case 'speeding':
-      return 'Excès de vitesse';
-    case 'parking':
-      return 'Stationnement';
-    case 'redlight':
-      return 'Feu rouge';
-    case 'other':
-      return 'Autre';
+    case "speeding":
+      return "Excès de vitesse";
+    case "parking":
+      return "Stationnement";
+    case "redlight":
+      return "Feu rouge";
+    case "other":
+      return "Autre";
   }
 }
 
-type FilterKey = 'all' | 'received' | 'forwarded' | 'paid' | 'disputed';
+type FilterKey = "all" | "received" | "forwarded" | "paid" | "disputed";
 
 // ── Animated card wrapper ──────────────────────────────────────────────────
 
@@ -103,7 +112,9 @@ function ViolationCard({ violation, index, onPress }: ViolationCardProps) {
 
   return (
     <AnimatedPressable
-      entering={FadeInDown.delay(index * 50).duration(400).springify()}
+      entering={FadeInDown.delay(index * 50)
+        .duration(400)
+        .springify()}
       onPress={handlePress}
       className="rounded-2xl p-4 mb-3"
       style={{ backgroundColor: theme.surface }}
@@ -120,7 +131,7 @@ function ViolationCard({ violation, index, onPress }: ViolationCardProps) {
           <View className="flex-1">
             <Text variant="titleSmall">{getTypeLabel(violation.type)}</Text>
             <Text variant="bodySmall" color={theme.textTertiary}>
-              {formatDate(violation.date, 'short')}
+              {formatDate(violation.date, "short")}
             </Text>
           </View>
         </View>
@@ -132,14 +143,18 @@ function ViolationCard({ violation, index, onPress }: ViolationCardProps) {
       {/* Vehicle + plate */}
       <View className="flex-row items-center justify-between mt-1">
         <Text variant="bodySmall" color={theme.textSecondary} numberOfLines={1}>
-          {violation.vehicleName} {'\u00B7'} {violation.licensePlate}
+          {violation.vehicleName} {"\u00B7"} {violation.licensePlate}
         </Text>
       </View>
 
       {/* Client + total */}
       <View className="flex-row items-center justify-between mt-1">
         {violation.clientName ? (
-          <Text variant="bodySmall" color={theme.textSecondary} numberOfLines={1}>
+          <Text
+            variant="bodySmall"
+            color={theme.textSecondary}
+            numberOfLines={1}
+          >
             {violation.clientName}
           </Text>
         ) : (
@@ -148,7 +163,8 @@ function ViolationCard({ violation, index, onPress }: ViolationCardProps) {
           </Badge>
         )}
         <Text variant="titleSmall" color={theme.accent}>
-          {'\u20AC'}{violation.totalCharge}
+          {"\u20AC"}
+          {violation.totalCharge}
         </Text>
       </View>
     </AnimatedPressable>
@@ -162,10 +178,12 @@ export default function ViolationsScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const violations = useViolationStore((s) => s.violations);
+  const queryClient = useQueryClient();
+  const { data: violations = [] } = useViolations();
+  const { data: summary } = useViolationsSummary();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [refreshing, setRefreshing] = useState(false);
 
   // Sort newest first
@@ -173,7 +191,8 @@ export default function ViolationsScreen() {
     () =>
       [...violations].sort(
         (a, b) =>
-          new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime(),
+          new Date(b.receivedDate).getTime() -
+          new Date(a.receivedDate).getTime(),
       ),
     [violations],
   );
@@ -192,10 +211,10 @@ export default function ViolationsScreen() {
 
   // Apply status filter
   const filteredViolations = useMemo(() => {
-    if (filter === 'all') return searchFiltered;
-    if (filter === 'received')
+    if (filter === "all") return searchFiltered;
+    if (filter === "received")
       return searchFiltered.filter(
-        (v) => v.status === 'received' || v.status === 'client-identified',
+        (v) => v.status === "received" || v.status === "client-identified",
       );
     return searchFiltered.filter((v) => v.status === filter);
   }, [searchFiltered, filter]);
@@ -205,33 +224,37 @@ export default function ViolationsScreen() {
     () => ({
       all: searchFiltered.length,
       received: searchFiltered.filter(
-        (v) => v.status === 'received' || v.status === 'client-identified',
+        (v) => v.status === "received" || v.status === "client-identified",
       ).length,
-      forwarded: searchFiltered.filter((v) => v.status === 'forwarded').length,
-      paid: searchFiltered.filter((v) => v.status === 'paid').length,
-      disputed: searchFiltered.filter((v) => v.status === 'disputed').length,
+      forwarded: searchFiltered.filter((v) => v.status === "forwarded").length,
+      paid: searchFiltered.filter((v) => v.status === "paid").length,
+      disputed: searchFiltered.filter((v) => v.status === "disputed").length,
     }),
     [searchFiltered],
   );
 
   // Summary
-  const totalCount = violations.length;
-  const pendingCount = useViolationStore.getState().getPendingCount();
-  const totalFines = useViolationStore.getState().getTotalFines();
+  const totalCount = summary?.total ?? violations.length;
+  const pendingCount = summary?.pendingCount ?? 0;
+  const totalFines = summary?.totalFines ?? 0;
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
 
   const handleFilterPress = useCallback((value: FilterKey) => {
-    setFilter((prev) => (prev === value ? 'all' : value));
+    setFilter((prev) => (prev === value ? "all" : value));
   }, []);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: violationKeys.lists() }),
+      queryClient.invalidateQueries({ queryKey: violationKeys.summary() }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -262,13 +285,13 @@ export default function ViolationsScreen() {
             <ChevronLeft size={24} color={theme.textPrimary} strokeWidth={2} />
           </Pressable>
           <Text variant="headlineLarge" className="flex-1">
-            {t('violations.title', { defaultValue: 'Infractions' })}
+            {t("violations.title", { defaultValue: "Infractions" })}
           </Text>
           <IconButton
             icon={Plus}
             variant="filled"
             size="md"
-            onPress={() => router.push('/(app)/(more)/violations/new')}
+            onPress={() => router.push("/(app)/(more)/violations/new")}
           />
         </View>
 
@@ -283,7 +306,11 @@ export default function ViolationsScreen() {
             <Badge variant="accent" size="lg">
               {totalCount}
             </Badge>
-            <Text variant="bodySmall" color={theme.textSecondary} className="mt-1">
+            <Text
+              variant="bodySmall"
+              color={theme.textSecondary}
+              className="mt-1"
+            >
               Total
             </Text>
           </View>
@@ -306,9 +333,14 @@ export default function ViolationsScreen() {
           {/* Total fines */}
           <View className="flex-1 items-center">
             <Text variant="titleSmall" color={theme.accent}>
-              {'\u20AC'}{totalFines.toLocaleString('fr-FR')}
+              {"\u20AC"}
+              {totalFines.toLocaleString("fr-FR")}
             </Text>
-            <Text variant="bodySmall" color={theme.textSecondary} className="mt-1">
+            <Text
+              variant="bodySmall"
+              color={theme.textSecondary}
+              className="mt-1"
+            >
               Amendes totales
             </Text>
           </View>
@@ -317,8 +349,8 @@ export default function ViolationsScreen() {
         {/* Search */}
         <SearchBar
           placeholder={t(
-            'violations.search',
-            'Rechercher plaque, client, référence...',
+            "violations.search",
+            "Rechercher plaque, client, référence...",
           )}
           onSearch={handleSearch}
           className="mb-3"
@@ -328,28 +360,28 @@ export default function ViolationsScreen() {
         <ChipGroup className="mb-4">
           <Chip
             label={`Tous (${counts.all})`}
-            selected={filter === 'all'}
-            onPress={() => handleFilterPress('all')}
+            selected={filter === "all"}
+            onPress={() => handleFilterPress("all")}
           />
           <Chip
             label={`Reçues (${counts.received})`}
-            selected={filter === 'received'}
-            onPress={() => handleFilterPress('received')}
+            selected={filter === "received"}
+            onPress={() => handleFilterPress("received")}
           />
           <Chip
             label={`Transmises (${counts.forwarded})`}
-            selected={filter === 'forwarded'}
-            onPress={() => handleFilterPress('forwarded')}
+            selected={filter === "forwarded"}
+            onPress={() => handleFilterPress("forwarded")}
           />
           <Chip
             label={`Payées (${counts.paid})`}
-            selected={filter === 'paid'}
-            onPress={() => handleFilterPress('paid')}
+            selected={filter === "paid"}
+            onPress={() => handleFilterPress("paid")}
           />
           <Chip
             label={`Contestées (${counts.disputed})`}
-            selected={filter === 'disputed'}
-            onPress={() => handleFilterPress('disputed')}
+            selected={filter === "disputed"}
+            onPress={() => handleFilterPress("disputed")}
           />
         </ChipGroup>
       </View>
@@ -372,10 +404,10 @@ export default function ViolationsScreen() {
     () => (
       <EmptyState
         icon={ShieldAlert}
-        title={t('violations.emptyTitle', 'Aucune infraction trouvée')}
+        title={t("violations.emptyTitle", "Aucune infraction trouvée")}
         subtitle={t(
-          'violations.emptySubtitle',
-          'Essayez de modifier votre recherche ou vos filtres.',
+          "violations.emptySubtitle",
+          "Essayez de modifier votre recherche ou vos filtres.",
         )}
         className="mt-16"
       />
