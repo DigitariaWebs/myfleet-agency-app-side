@@ -13,6 +13,7 @@ import { Chip, ChipGroup } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useTheme } from "@/hooks/useTheme";
 import { formatDate } from "@/utils/format";
 import { useContracts } from "@/hooks/useContracts";
@@ -110,6 +111,29 @@ function ContractCard({ contract, index, onPress }: ContractCardProps) {
   );
 }
 
+// ── Skeleton ────────────────────────────────────────────────────────────────
+
+function ContractCardSkeleton() {
+  const theme = useTheme();
+  return (
+    <View
+      className="rounded-2xl p-4 mb-3"
+      style={{ backgroundColor: theme.surface }}
+    >
+      <View className="flex-row items-center justify-between mb-2">
+        <Skeleton height={12} width={"30%"} />
+        <Skeleton height={20} width={64} radius={12} />
+      </View>
+      <Skeleton height={16} width={"65%"} />
+      <Skeleton height={12} width={"45%"} style={{ marginTop: 6 }} />
+      <View className="flex-row items-center justify-between mt-3">
+        <Skeleton height={12} width={"40%"} />
+        <Skeleton height={12} width={48} />
+      </View>
+    </View>
+  );
+}
+
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function ContractsScreen() {
@@ -198,7 +222,15 @@ export default function ContractsScreen() {
     [handleCardPress],
   );
 
-  const keyExtractor = useCallback((item: Contract) => item.id, []);
+  // Initial loading: show skeletons matching contract card layout.
+  const showSkeletons = isLoading && contracts.length === 0;
+  const skeletonData = useMemo(
+    () =>
+      Array.from({ length: 5 }, (_, i) => ({ id: `__skel_${i}` })) as {
+        id: string;
+      }[],
+    [],
+  );
 
   const ListHeaderComponent = useMemo(
     () => (
@@ -274,12 +306,16 @@ export default function ContractsScreen() {
 
   return (
     <ScreenWrapper>
-      <FlatList
-        data={filteredContracts}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
+      <FlatList<Contract | { id: string }>
+        data={showSkeletons ? skeletonData : filteredContracts}
+        renderItem={
+          showSkeletons
+            ? () => <ContractCardSkeleton />
+            : (info) => renderItem(info as { item: Contract; index: number })
+        }
+        keyExtractor={(item) => (item as { id: string }).id}
         ListHeaderComponent={ListHeaderComponent}
-        ListEmptyComponent={ListEmptyComponent}
+        ListEmptyComponent={showSkeletons ? null : ListEmptyComponent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
         refreshControl={

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, Linking, ActivityIndicator } from "react-native";
+import { View, Pressable, Linking } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Divider } from "@/components/ui/Divider";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useTheme } from "@/hooks/useTheme";
 import { useToastStore } from "@/components/ui/Toast";
 import { useContract, useContractPdfUrl } from "@/hooks/useContracts";
@@ -87,6 +88,89 @@ type ShowToastFn = (toast: {
   duration?: number;
 }) => void;
 
+// ── Loading Skeleton ────────────────────────────────────────────────────────
+
+function ContractDetailSkeleton() {
+  const theme = useTheme();
+  return (
+    <ScreenWrapper scroll>
+      {/* Header */}
+      <View className="flex-row items-center pt-4 pb-2">
+        <View className="mr-3 p-1">
+          <ChevronLeft size={24} color={theme.textPrimary} />
+        </View>
+        <View className="flex-1">
+          <Skeleton height={28} width={"40%"} />
+          <Skeleton height={12} width={"30%"} style={{ marginTop: 8 }} />
+        </View>
+      </View>
+
+      {/* Status card */}
+      <View className="mt-4">
+        <View
+          className="rounded-2xl p-4"
+          style={{ backgroundColor: theme.surface }}
+        >
+          <Skeleton height={28} width={120} radius={14} />
+          <Skeleton height={22} width={"55%"} style={{ marginTop: 12 }} />
+          <Skeleton height={12} width={"35%"} style={{ marginTop: 6 }} />
+        </View>
+      </View>
+
+      {/* Parties */}
+      <View className="mt-6">
+        <Skeleton height={20} width={"30%"} />
+        {[0, 1].map((i) => (
+          <View
+            key={i}
+            className="rounded-2xl p-4 mt-3"
+            style={{ backgroundColor: theme.surface }}
+          >
+            <View className="flex-row items-center mb-3">
+              <Skeleton width={40} height={40} radius={20} />
+              <Skeleton height={16} width={"35%"} style={{ marginLeft: 12 }} />
+            </View>
+            <Skeleton height={14} width={"60%"} />
+            <Skeleton height={12} width={"75%"} style={{ marginTop: 6 }} />
+            <Skeleton height={12} width={"50%"} style={{ marginTop: 6 }} />
+          </View>
+        ))}
+      </View>
+
+      {/* Vehicle */}
+      <View className="mt-6">
+        <Skeleton height={20} width={"25%"} />
+        <View
+          className="rounded-2xl p-4 mt-3"
+          style={{ backgroundColor: theme.surface }}
+        >
+          <View className="flex-row items-center">
+            <Skeleton width={60} height={60} radius={12} />
+            <View className="ml-4 flex-1">
+              <Skeleton height={20} width={"60%"} />
+              <Skeleton height={12} width={"40%"} style={{ marginTop: 8 }} />
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Terms */}
+      <View className="mt-6">
+        <Skeleton height={20} width={"40%"} />
+        <View
+          className="rounded-2xl p-4 mt-3"
+          style={{ backgroundColor: theme.surface }}
+        >
+          <Skeleton height={14} width={"70%"} />
+          <Skeleton height={12} width={"50%"} style={{ marginTop: 10 }} />
+          <Skeleton height={12} width={"55%"} style={{ marginTop: 6 }} />
+          <Skeleton height={12} width={"45%"} style={{ marginTop: 6 }} />
+        </View>
+      </View>
+    </ScreenWrapper>
+  );
+}
+
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function ContractDetailScreen() {
@@ -101,13 +185,7 @@ export default function ContractDetailScreen() {
   const pdfUrl = pdfData?.url ?? null;
 
   if (isLoading && !contract) {
-    return (
-      <ScreenWrapper scroll>
-        <View className="flex-1 items-center justify-center py-20">
-          <ActivityIndicator size="small" color={theme.accent} />
-        </View>
-      </ScreenWrapper>
-    );
+    return <ContractDetailSkeleton />;
   }
 
   if (!contract) {

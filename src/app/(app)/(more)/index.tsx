@@ -25,6 +25,10 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { fontFamilies } from "@/theme/typography";
+import { useUnreadCount } from "@/hooks/useNotifications";
+import { useViolationsSummary } from "@/hooks/useViolations";
+import { useInvoicesSummary } from "@/hooks/useInvoices";
+import { authedRequest } from "@/services/api";
 
 interface MenuItem {
   icon: LucideIcon;
@@ -32,6 +36,7 @@ interface MenuItem {
   color: string;
   bg: string;
   onPress: () => void;
+  badge?: string;
 }
 
 interface MenuGroup {
@@ -47,6 +52,9 @@ export default function MoreScreen() {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
   const logout = useAuthStore((s) => s.logout);
+  const { data: unreadCount = 0 } = useUnreadCount();
+  const { data: violationsSummary } = useViolationsSummary();
+  const { data: invoicesSummary } = useInvoicesSummary();
 
   const go = (path: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -71,6 +79,10 @@ export default function MoreScreen() {
           color: theme.warning,
           bg: theme.warningSoft,
           onPress: () => go("/(app)/(more)/violations"),
+          badge:
+            violationsSummary && violationsSummary.pendingCount > 0
+              ? String(violationsSummary.pendingCount)
+              : undefined,
         },
         {
           icon: Users,
@@ -85,6 +97,10 @@ export default function MoreScreen() {
           color: theme.success,
           bg: theme.successSoft,
           onPress: () => go("/(app)/(more)/billing"),
+          badge:
+            invoicesSummary && invoicesSummary.overdueCents > 0
+              ? "!"
+              : undefined,
         },
         ...(role === "admin"
           ? [
@@ -116,6 +132,7 @@ export default function MoreScreen() {
           color: theme.accent,
           bg: theme.accentSoft,
           onPress: () => go("/(app)/(more)/notifications"),
+          badge: unreadCount > 0 ? String(unreadCount) : undefined,
         },
         {
           icon: QrCode,
@@ -303,11 +320,7 @@ export default function MoreScreen() {
                         marginRight: 12,
                       }}
                     >
-                      <Icon
-                        size={18}
-                        color={item.color}
-                        strokeWidth={2}
-                      />
+                      <Icon size={18} color={item.color} strokeWidth={2} />
                     </View>
                     <Text
                       variant="bodyMedium"
@@ -319,6 +332,31 @@ export default function MoreScreen() {
                     >
                       {item.label}
                     </Text>
+                    {item.badge ? (
+                      <View
+                        style={{
+                          minWidth: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          paddingHorizontal: 6,
+                          backgroundColor: theme.danger,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 8,
+                        }}
+                      >
+                        <Text
+                          variant="caption"
+                          style={{
+                            color: "#fff",
+                            fontFamily: fontFamilies.semiBold,
+                            fontSize: 11,
+                          }}
+                        >
+                          {item.badge}
+                        </Text>
+                      </View>
+                    ) : null}
                     <View
                       style={{
                         width: 26,
@@ -353,10 +391,11 @@ export default function MoreScreen() {
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               Alert.alert(
-                t("more.logoutConfirmTitle", { defaultValue: "Se déconnecter ?" }),
+                t("more.logoutConfirmTitle", {
+                  defaultValue: "Se déconnecter ?",
+                }),
                 t("more.logoutConfirmMessage", {
-                  defaultValue:
-                    "Vous serez redirigé vers l'écran d'accueil.",
+                  defaultValue: "Vous serez redirigé vers l'écran d'accueil.",
                 }),
                 [
                   {
@@ -366,7 +405,12 @@ export default function MoreScreen() {
                   {
                     text: t("more.logout", { defaultValue: "Se déconnecter" }),
                     style: "destructive",
-                    onPress: () => {
+                    onPress: async () => {
+                      try {
+                        await authedRequest("/auth/logout", { method: "POST" });
+                      } catch {
+                        // Best-effort: still clear local state.
+                      }
                       logout();
                       router.replace("/(auth)/welcome");
                     },

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Divider } from "@/components/ui/Divider";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useToastStore } from "@/components/ui/Toast";
 import { useTheme } from "@/hooks/useTheme";
 import { formatDate, formatCurrency } from "@/utils/format";
@@ -117,6 +118,29 @@ function BookingPickerCard({
   );
 }
 
+// ── Booking Picker Skeleton ─────────────────────────────────────────────────
+
+function BookingPickerSkeleton() {
+  const theme = useTheme();
+  return (
+    <View
+      className="rounded-xl p-3 mb-2 flex-row items-center"
+      style={{
+        backgroundColor: theme.surfaceTertiary,
+        borderWidth: 1,
+        borderColor: theme.border,
+      }}
+    >
+      <Skeleton width={40} height={40} radius={8} style={{ marginRight: 12 }} />
+      <View className="flex-1">
+        <Skeleton height={14} width={"60%"} />
+        <Skeleton height={12} width={"45%"} style={{ marginTop: 6 }} />
+        <Skeleton height={12} width={"70%"} style={{ marginTop: 6 }} />
+      </View>
+    </View>
+  );
+}
+
 // ── Section Header ──────────────────────────────────────────────────────────
 
 interface SectionHeaderProps {
@@ -194,8 +218,10 @@ export default function NewContractScreen() {
   const router = useRouter();
   const showToast = useToastStore((s) => s.show);
 
-  const { data: bookings = [] } = useBookings();
-  const { data: contracts = [] } = useContracts();
+  const { data: bookings = [], isLoading: isLoadingBookings } = useBookings();
+  const { data: contracts = [], isLoading: isLoadingContracts } =
+    useContracts();
+  const isLoading = isLoadingBookings || isLoadingContracts;
   const createContractMutation = useCreateContract();
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
@@ -283,7 +309,13 @@ export default function NewContractScreen() {
       {/* ── Section: Select Booking ──────────────────────────────────── */}
       <SectionHeader title="Sélectionner une réservation" index={0} />
 
-      {eligibleBookings.length === 0 ? (
+      {isLoading ? (
+        <View>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <BookingPickerSkeleton key={i} />
+          ))}
+        </View>
+      ) : eligibleBookings.length === 0 ? (
         <Animated.View
           entering={FadeInDown.delay(80).duration(400).springify()}
         >

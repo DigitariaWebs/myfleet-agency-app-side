@@ -1,17 +1,17 @@
-import React, { useCallback } from 'react';
-import { View, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Share2, Download, Printer } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import React, { useCallback } from "react";
+import { View, Alert } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { ArrowLeft, Share2, Download, Printer } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { IconButton } from '@/components/ui/IconButton';
-import { useTheme } from '@/hooks/useTheme';
-import { useCurrentAgency } from '@/stores/useAgencyStore';
-import { shadows } from '@/theme/shadows';
-import { fontFamilies } from '@/theme/typography';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { IconButton } from "@/components/ui/IconButton";
+import { useTheme } from "@/hooks/useTheme";
+import { useAgency } from "@/hooks/useAgency";
+import { shadows } from "@/theme/shadows";
+import { fontFamilies } from "@/theme/typography";
 
 // ── QR Code Placeholder ─────────────────────────────────────────────────────
 // Replace this with `import QRCode from 'react-native-qrcode-svg'` once installed.
@@ -23,17 +23,24 @@ function QRCodePlaceholder({ value, size }: { value: string; size: number }) {
       style={{
         width: size,
         height: size,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: "#FFFFFF",
         borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: "center",
+        justifyContent: "center",
         borderWidth: 2,
-        borderColor: '#E5E4EB',
+        borderColor: "#E5E4EB",
       }}
     >
       {/* Grid pattern to simulate QR code appearance */}
-      <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: size * 0.7, justifyContent: 'center' }}>
+      <View style={{ alignItems: "center", justifyContent: "center", flex: 1 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            width: size * 0.7,
+            justifyContent: "center",
+          }}
+        >
           {Array.from({ length: 49 }).map((_, i) => (
             <View
               key={i}
@@ -41,7 +48,8 @@ function QRCodePlaceholder({ value, size }: { value: string; size: number }) {
                 width: size * 0.08,
                 height: size * 0.08,
                 margin: size * 0.005,
-                backgroundColor: (i + Math.floor(i / 7)) % 3 === 0 ? '#1A1A2E' : '#FFFFFF',
+                backgroundColor:
+                  (i + Math.floor(i / 7)) % 3 === 0 ? "#1A1A2E" : "#FFFFFF",
                 borderRadius: 2,
               }}
             />
@@ -66,14 +74,19 @@ export default function AgencyQRScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
-  const { name: agencyName, qrUrl: agencyQrUrl } = useCurrentAgency();
+  const { data: agency } = useAgency();
+  const agencyName = agency?.name ?? "";
+  const publicBase = (
+    process.env.EXPO_PUBLIC_PUBLIC_URL ?? "https://myfleet.app"
+  ).replace(/\/+$/, "");
+  const agencyQrUrl = agency?.slug ? `${publicBase}/a/${agency.slug}` : "";
 
   const handleShare = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      t('agency.qrCode.shared', { defaultValue: 'Shared!' }),
-      t('agency.qrCode.shareMessage', {
-        defaultValue: 'QR code share dialog would open here.',
+      t("agency.qrCode.shared", { defaultValue: "Shared!" }),
+      t("agency.qrCode.shareMessage", {
+        defaultValue: "QR code share dialog would open here.",
       }),
     );
   }, [t]);
@@ -81,9 +94,9 @@ export default function AgencyQRScreen() {
   const handleDownload = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      t('agency.qrCode.saved', { defaultValue: 'Saved!' }),
-      t('agency.qrCode.downloadMessage', {
-        defaultValue: 'QR code has been saved to your gallery.',
+      t("agency.qrCode.saved", { defaultValue: "Saved!" }),
+      t("agency.qrCode.downloadMessage", {
+        defaultValue: "QR code has been saved to your gallery.",
       }),
     );
   }, [t]);
@@ -91,30 +104,30 @@ export default function AgencyQRScreen() {
   const handlePrint = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      t('agency.qrCode.printing', { defaultValue: 'Print' }),
-      t('agency.qrCode.printMessage', {
-        defaultValue: 'Print dialog would open here.',
+      t("agency.qrCode.printing", { defaultValue: "Print" }),
+      t("agency.qrCode.printMessage", {
+        defaultValue: "Print dialog would open here.",
       }),
     );
   }, [t]);
 
   const actionButtons = [
     {
-      key: 'share',
+      key: "share",
       icon: Share2,
-      label: t('agency.qrCode.share', { defaultValue: 'Share' }),
+      label: t("agency.qrCode.share", { defaultValue: "Share" }),
       onPress: handleShare,
     },
     {
-      key: 'download',
+      key: "download",
       icon: Download,
-      label: t('agency.qrCode.download', { defaultValue: 'Download' }),
+      label: t("agency.qrCode.download", { defaultValue: "Download" }),
       onPress: handleDownload,
     },
     {
-      key: 'print',
+      key: "print",
       icon: Printer,
-      label: t('agency.qrCode.print', { defaultValue: 'Print' }),
+      label: t("agency.qrCode.print", { defaultValue: "Print" }),
       onPress: handlePrint,
     },
   ];
@@ -131,7 +144,7 @@ export default function AgencyQRScreen() {
           color={theme.textPrimary}
         />
         <Text variant="headlineMedium" className="ml-2">
-          {t('agency.qrCode.title', { defaultValue: 'Agency QR Code' })}
+          {t("agency.qrCode.title", { defaultValue: "Agency QR Code" })}
         </Text>
       </View>
 
@@ -149,10 +162,10 @@ export default function AgencyQRScreen() {
       <View className="items-center">
         <View
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: "#FFFFFF",
             borderRadius: 20,
             padding: 24,
-            alignItems: 'center',
+            alignItems: "center",
             ...shadows.lg,
           }}
         >
@@ -179,12 +192,17 @@ export default function AgencyQRScreen() {
           color={theme.textSecondary}
           className="mt-1"
         >
-          {t('agency.qrCode.subtitle', { defaultValue: 'Scan to visit our agency' })}
+          {t("agency.qrCode.subtitle", {
+            defaultValue: "Scan to visit our agency",
+          })}
         </Text>
       </View>
 
       {/* Action Buttons */}
-      <View className="flex-row justify-center items-center mt-8 mb-8" style={{ gap: 32 }}>
+      <View
+        className="flex-row justify-center items-center mt-8 mb-8"
+        style={{ gap: 32 }}
+      >
         {actionButtons.map((btn) => {
           const Icon = btn.icon;
           return (
@@ -195,8 +213,8 @@ export default function AgencyQRScreen() {
                   height: 56,
                   borderRadius: 28,
                   backgroundColor: theme.accentSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <IconButton
