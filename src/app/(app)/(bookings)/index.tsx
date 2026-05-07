@@ -18,6 +18,7 @@ import { Chip, ChipGroup } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useTheme } from "@/hooks/useTheme";
 import { formatDate } from "@/utils/format";
 import { useBookings } from "@/hooks/useBookings";
@@ -174,12 +175,51 @@ function BookingCard({ booking, vehicle, index, onPress }: BookingCardProps) {
   );
 }
 
+function BookingCardSkeleton() {
+  const theme = useTheme();
+  return (
+    <View
+      className="rounded-xl overflow-hidden mb-3"
+      style={{ backgroundColor: theme.surface }}
+    >
+      <View className="flex-row">
+        <View style={{ width: 4, backgroundColor: theme.surfaceTertiary }} />
+        <View className="flex-1 flex-row p-3">
+          <Skeleton
+            width={48}
+            height={48}
+            radius={12}
+            style={{ marginRight: 12 }}
+          />
+          <View className="flex-1 mr-2 justify-center">
+            <Skeleton height={16} width={"60%"} />
+            <Skeleton height={12} width={"45%"} style={{ marginTop: 8 }} />
+            <Skeleton height={12} width={"55%"} style={{ marginTop: 6 }} />
+          </View>
+          <View className="items-end justify-between" style={{ minWidth: 64 }}>
+            <Skeleton height={18} width={36} radius={9} />
+            <Skeleton height={16} width={56} />
+            <Skeleton height={18} width={64} radius={9} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const SKELETON_PLACEHOLDERS = Array.from({ length: 6 }, (_, i) => i);
+
 export default function BookingsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string }>();
-  const { data: bookings = [], refetch, isRefetching } = useBookings();
+  const {
+    data: bookings = [],
+    refetch,
+    isRefetching,
+    isLoading,
+  } = useBookings();
   const { data: vehicles = [] } = useVehicles();
   const vehicleById = useMemo(
     () => new Map(vehicles.map((v) => [v.id, v])),
@@ -380,14 +420,29 @@ export default function BookingsScreen() {
     [t],
   );
 
+  const ListLoadingComponent = useMemo(
+    () => (
+      <View>
+        {SKELETON_PLACEHOLDERS.map((i) => (
+          <BookingCardSkeleton key={i} />
+        ))}
+      </View>
+    ),
+    [],
+  );
+
+  const showLoading = isLoading && bookings.length === 0;
+
   return (
     <ScreenWrapper>
       <FlatList
-        data={filteredBookings}
+        data={showLoading ? [] : filteredBookings}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={ListHeaderComponent}
-        ListEmptyComponent={ListEmptyComponent}
+        ListEmptyComponent={
+          showLoading ? ListLoadingComponent : ListEmptyComponent
+        }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
         refreshControl={

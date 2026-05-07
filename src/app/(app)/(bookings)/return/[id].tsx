@@ -19,11 +19,9 @@ import {
   ChevronLeft,
   Check,
   CheckCircle,
-  Fuel,
   Gauge,
   Key,
   AlertTriangle,
-  PenTool,
   Car,
   RotateCcw,
   FileText,
@@ -35,11 +33,19 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Divider } from "@/components/ui/Divider";
 import { IconButton } from "@/components/ui/IconButton";
-import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/components/ui/Toast";
 import { useBooking, useCloseBooking } from "@/hooks/useBookings";
 import { useInspections } from "@/hooks/useInspections";
+import {
+  useContracts,
+  useCreateContract,
+  useSignContract,
+} from "@/hooks/useContracts";
 import { BookingInspectionStep } from "@/components/inspection/BookingInspectionStep";
+import {
+  SignaturePad,
+  type SignaturePadRef,
+} from "@/components/contracts/SignaturePad";
 import { useVehicle } from "@/hooks/useFleet";
 import { useClient } from "@/hooks/useClients";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -87,7 +93,19 @@ const MOCK_RETURN_DETECTIONS = [
   },
 ];
 
-const FUEL_LEVELS = ["Empty", "1/4", "1/2", "3/4", "Full"] as const;
+// fuelLevel is stored as a 0..100 percent (matching the server schema).
+// Rendering label lookup mirrors the BookingInspectionStep selector.
+const FUEL_LABELS: Record<number, string> = {
+  0: "Empty",
+  25: "1/4",
+  50: "1/2",
+  75: "3/4",
+  100: "Full",
+};
+function fuelLabel(pct: number | null): string {
+  if (pct == null) return "—";
+  return FUEL_LABELS[pct] ?? `${pct}%`;
+}
 
 const STEPS = ["Checklist", "Inspection", "Comparison"] as const;
 
@@ -254,67 +272,6 @@ function ChecklistItem({
   );
 }
 
-// ── Signature Box ───────────────────────────────────────────────────────────
-
-interface SignatureBoxProps {
-  label: string;
-  signed: boolean;
-  onSign: () => void;
-}
-
-function SignatureBox({ label, signed, onSign }: SignatureBoxProps) {
-  const theme = useTheme();
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text
-        variant="bodySmall"
-        color={theme.textSecondary}
-        style={{ marginBottom: 8, fontWeight: "600" }}
-      >
-        {label}
-      </Text>
-      <Pressable
-        onPress={() => {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onSign();
-        }}
-        style={{
-          height: 100,
-          borderRadius: 16,
-          borderWidth: 2,
-          borderColor: signed ? theme.accent : theme.border,
-          borderStyle: signed ? "solid" : "dashed",
-          backgroundColor: signed ? theme.accentSoft : theme.surfaceSecondary,
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-        }}
-      >
-        {signed ? (
-          <>
-            <CheckCircle size={24} color={theme.accent} />
-            <Text
-              variant="bodySmall"
-              color={theme.accent}
-              style={{ fontWeight: "600" }}
-            >
-              Signed
-            </Text>
-          </>
-        ) : (
-          <>
-            <PenTool size={20} color={theme.textTertiary} />
-            <Text variant="bodySmall" color={theme.textTertiary}>
-              Tap to sign
-            </Text>
-          </>
-        )}
-      </Pressable>
-    </View>
-  );
-}
-
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function ReturnScreen() {
@@ -355,9 +312,30 @@ export default function ReturnScreen() {
   const [keysReturned, setKeysReturned] = useState(false);
   const [mileageValue, setMileageValue] = useState("");
 
-  // Step 3 state
+  // Step 3 state — signatures are submitted to /contracts/:id/sign on
+  // completion; the booleans only gate the local "ready to submit" UI.
   const [agentSigned, setAgentSigned] = useState(false);
   const [clientSigned, setClientSigned] = useState(false);
+  const agentSigPadRef = React.useRef<SignaturePadRef>(null);
+  const clientSigPadRef = React.useRef<SignaturePadRef>(null);
+
+  const createContractMutation = useCreateContract();
+  const signContractMutation = useSignContract();
+  // Reuse / create the contract for this booking; pickup already created one
+  // (contractId on workflow) but we look it up rather than relying on workflow
+  // to be denormalized.
+  const { data: existingContracts = [] } = useContracts(
+    storeBooking?.id ? { bookingId: storeBooking.id } : undefined,
+  );
+  const contractId = existingContracts[0]?.id ?? null;
+  React.useEffect(() => {
+    if (currentStep !== 2) return;
+    if (!storeBooking?.id) return;
+    if (existingContracts.length > 0) return;
+    if (createContractMutation.isPending) return;
+    createContractMutation.mutate({ bookingId: storeBooking.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, storeBooking?.id, existingContracts.length]);
 
   const days =
     storeBooking != null
@@ -411,7 +389,9 @@ export default function ReturnScreen() {
   const kmOverage = Math.max(0, kmDriven - includedKm);
   const overageCost = Math.round(kmOverage * extraKmRate * 100) / 100;
 
-  const allChecked = fuelLevel !== null && isReturnMileageValid && keysReturned;
+  // Mileage and fuel are now collected as part of Step 2 (the inspection).
+  // Step 1 only gates on the Keys Returned checkbox.
+  const allChecked = keysReturned;
 
   const newDamages = MOCK_RETURN_DETECTIONS.filter(
     (d) => !d.preExisting && d.confidence >= 70,
@@ -455,6 +435,61 @@ export default function ReturnScreen() {
       return;
     }
 
+    if (!contractId) {
+      showToast({
+        variant: "error",
+        title: t("return.contract.notReady", {
+          defaultValue: "Contract not ready",
+        }),
+      });
+      return;
+    }
+    if (
+      (agentSigPadRef.current?.isEmpty() ?? true) ||
+      (clientSigPadRef.current?.isEmpty() ?? true)
+    ) {
+      showToast({
+        variant: "error",
+        title: t("return.contract.signaturesRequired", {
+          defaultValue: "Both signatures are required",
+        }),
+      });
+      return;
+    }
+
+    try {
+      const agentSvg = agentSigPadRef.current?.toSvg() ?? "";
+      const clientSvg = clientSigPadRef.current?.toSvg() ?? "";
+      // Sign as both parties on the same contract row before closing.
+      await signContractMutation.mutateAsync({
+        id: contractId,
+        payload: {
+          role: "lessor",
+          svg: agentSvg,
+          signerName: t("return.contract.agentName", {
+            defaultValue: "Agent",
+          }),
+        },
+      });
+      await signContractMutation.mutateAsync({
+        id: contractId,
+        payload: {
+          role: "lessee",
+          svg: clientSvg,
+          signerName: storeBooking?.clientName ?? "Client",
+        },
+      });
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: t("return.contract.signFailed", {
+          defaultValue: "Couldn't sign contract",
+        }),
+        message: err instanceof Error ? err.message : undefined,
+      });
+      return;
+    }
+
     try {
       await closeMutation.mutateAsync({
         id,
@@ -477,6 +512,9 @@ export default function ReturnScreen() {
     setCompleted(true);
   }, [
     id,
+    contractId,
+    signContractMutation,
+    storeBooking?.clientName,
     isReturnMileageValid,
     parsedReturn,
     fuelLevel,
@@ -745,65 +783,7 @@ export default function ReturnScreen() {
         </Pressable>
       )}
 
-      {/* Fuel Level */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t("return.checklist.fuelTitle", { defaultValue: "Fuel Level" })}
-        </Text>
-        <Text
-          variant="bodySmall"
-          color={theme.textSecondary}
-          style={{ marginBottom: 12 }}
-        >
-          {t("return.checklist.fuelSubtitle", {
-            defaultValue: "Select the current fuel level",
-          })}
-        </Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {FUEL_LEVELS.map((level, index) => {
-            const isSelected = fuelLevel === index;
-            return (
-              <Pressable
-                key={level}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setFuelLevel(index);
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: isSelected ? theme.accent : theme.border,
-                  backgroundColor: isSelected
-                    ? theme.accentSoft
-                    : theme.surfaceSecondary,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                }}
-              >
-                <Fuel
-                  size={18}
-                  color={isSelected ? theme.accent : theme.textTertiary}
-                />
-                <Text
-                  variant="labelSmall"
-                  color={isSelected ? theme.accent : theme.textTertiary}
-                  style={{
-                    fontWeight: isSelected ? "700" : "400",
-                    fontSize: 10,
-                  }}
-                >
-                  {level}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </Card>
-
-      {/* Mileage */}
+      {/* Mileage (read-only summary; return mileage is captured on Step 2). */}
       <Card>
         <Text variant="titleLarge" style={{ marginBottom: 4 }}>
           {t("bookings.mileage.sectionTitle", "Mileage")}
@@ -846,35 +826,8 @@ export default function ReturnScreen() {
           </Text>
         </View>
 
-        {/* Return mileage — input */}
-        <Input
-          label={t("bookings.mileage.returnMileageLabel", "Return mileage")}
-          placeholder={t(
-            "bookings.mileage.returnMileagePlaceholder",
-            "Enter mileage",
-          )}
-          value={mileageValue}
-          onChangeText={(text) => setMileageValue(text.replace(/[^0-9]/g, ""))}
-          keyboardType="number-pad"
-          leftIcon={Gauge}
-          error={
-            hasReturnInput &&
-            startMileage != null &&
-            parsedReturn <= startMileage
-              ? t(
-                  "bookings.mileage.errorReturnBelowStart",
-                  "Return mileage must be higher than departure",
-                )
-              : startMileage == null
-                ? t(
-                    "bookings.mileage.errorMissingStart",
-                    "Departure mileage missing",
-                  )
-                : undefined
-          }
-        />
-
-        {/* Live computation panel */}
+        {/* Live computation panel — visible once Step 2 captures the
+            return mileage on the inspection. */}
         {isReturnMileageValid && (
           <View style={{ marginTop: 12, gap: 8 }}>
             <View
@@ -994,6 +947,14 @@ export default function ReturnScreen() {
         })}
         onInspectionReady={setPostInspectionId}
         onContinue={handleNext}
+        mileageValue={mileageValue}
+        onMileageChange={setMileageValue}
+        mileageLabel={t(
+          "bookings.mileage.returnMileageLabel",
+          "Return mileage",
+        )}
+        fuelLevelValue={fuelLevel}
+        onFuelLevelChange={setFuelLevel}
       />
     ) : null;
 
@@ -1246,7 +1207,7 @@ export default function ReturnScreen() {
               })}
             </Text>
             <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-              {fuelLevel !== null ? FUEL_LEVELS[fuelLevel] : "—"}
+              {fuelLabel(fuelLevel)}
             </Text>
           </View>
         </View>
@@ -1259,20 +1220,20 @@ export default function ReturnScreen() {
             defaultValue: "Return Sign-off",
           })}
         </Text>
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <SignatureBox
+        <View style={{ gap: 12 }}>
+          <SignaturePad
+            ref={agentSigPadRef}
             label={t("return.comparison.agentSignature", {
               defaultValue: "Agent",
             })}
-            signed={agentSigned}
-            onSign={() => setAgentSigned((v) => !v)}
+            onSignatureChange={setAgentSigned}
           />
-          <SignatureBox
+          <SignaturePad
+            ref={clientSigPadRef}
             label={t("return.comparison.clientSignature", {
               defaultValue: "Client",
             })}
-            signed={clientSigned}
-            onSign={() => setClientSigned((v) => !v)}
+            onSignatureChange={setClientSigned}
           />
         </View>
       </Card>

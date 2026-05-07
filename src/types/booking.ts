@@ -1,9 +1,9 @@
 export type BookingStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'active'
-  | 'completed'
-  | 'cancelled';
+  | "pending"
+  | "confirmed"
+  | "active"
+  | "completed"
+  | "cancelled";
 
 export interface DeliveryDetails {
   address: string;
@@ -76,11 +76,17 @@ export interface Booking {
   paymentLink?: string;
   paymentLinkSentAt?: string;
   paymentLinkExpiresAt?: string;
-  paymentStatus?: 'pending' | 'link_sent' | 'paid' | 'expired' | 'failed';
+  paymentStatus?: "pending" | "link_sent" | "paid" | "expired" | "failed";
+  /** Selected at booking creation. 'cash' means agent collects cash at pickup. Undefined reads as 'online'. */
+  paymentMethod?: "online" | "cash";
+  /** Channel that submitted the booking. Undefined treated as 'agency'. */
+  source?: "agency" | "client";
+  /** UUID of the auth principal (agent or client) who created the booking. */
+  createdByUserId?: string | null;
 
   // Insurance fields
   insurance?: {
-    tier: 'basic' | 'all_inclusive';
+    tier: "basic" | "all_inclusive";
     /** In cents. 0 for basic, 2500 for all-inclusive. */
     dailyRate: number;
     /** In cents. */
@@ -136,5 +142,5 @@ export interface BookingDraft {
   returnLocation: string;
   options: BookingOption[];
   notes: string;
-  insuranceTier?: 'basic' | 'all_inclusive';
+  insuranceTier?: "basic" | "all_inclusive";
 }

@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { Image } from "@/components/ui/Image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -37,6 +38,9 @@ import {
   Send,
   Timer,
   AlertTriangle,
+  MoreVertical,
+  Share2,
+  Trash2,
 } from "lucide-react-native";
 
 import { Text } from "@/components/ui/Text";
@@ -52,9 +56,11 @@ import {
   useBooking,
   useBookings,
   useCancelBooking,
+  useDeleteBooking,
   useExtendBooking,
   useUpdateBooking,
 } from "@/hooks/useBookings";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { resolveVehicleImageSource } from "@/data/vehicleImages";
 import { useVehicle } from "@/hooks/useFleet";
 import type { Booking, BookingStatus, TimelineStep } from "@/types/booking";
@@ -188,6 +194,9 @@ export default function BookingDetailScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const showToast = useToastStore((s) => s.show);
+  const isAdmin = useAuthStore((s) => s.user?.role) === "admin";
+  const deleteBookingMut = useDeleteBooking();
+  const [menuOpen, setMenuOpen] = React.useState(false);
 
   const { data: booking, isLoading, isError, refetch } = useBooking(id);
   const { data: vehicle } = useVehicle(booking?.vehicleId ?? "");
@@ -271,6 +280,143 @@ export default function BookingDetailScreen() {
   );
   const heroTotalHeight = HERO_HEIGHT + insets.top;
 
+  const handleShare = () => {
+    setMenuOpen(false);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    showToast({
+      variant: "info",
+      title: t("bookings.detail.comingSoon", "Coming soon"),
+      message: t(
+        "bookings.detail.shareMessage",
+        "Booking sharing will be available soon.",
+      ),
+    });
+  };
+
+  const handleDelete = () => {
+    setMenuOpen(false);
+    Alert.alert(
+      t("bookings.detail.deleteTitle", "Delete booking?"),
+      t(
+        "bookings.detail.deleteMessage",
+        "This will permanently delete this booking and its workflow data. This action cannot be undone.",
+      ),
+      [
+        { text: t("common.cancel", "Cancel"), style: "cancel" },
+        {
+          text: t("common.delete", "Delete"),
+          style: "destructive",
+          onPress: () => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            deleteBookingMut.mutate(booking.id, {
+              onSuccess: () => {
+                showToast({
+                  variant: "success",
+                  title: t("bookings.detail.deleted", "Booking deleted"),
+                });
+                router.back();
+              },
+              onError: (err) => {
+                showToast({
+                  variant: "error",
+                  title: t(
+                    "bookings.detail.deleteError",
+                    "Failed to delete booking",
+                  ),
+                  message: err instanceof Error ? err.message : String(err),
+                });
+              },
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const menuModal = (
+    <Modal
+      visible={menuOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setMenuOpen(false)}
+    >
+      <Pressable
+        onPress={() => setMenuOpen(false)}
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.25)" }}
+      >
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top + 54,
+            right: 16,
+            minWidth: 200,
+            backgroundColor: theme.surface,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: theme.borderLight,
+            paddingVertical: 6,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.18,
+            shadowRadius: 16,
+            elevation: 8,
+          }}
+        >
+          <Pressable
+            onPress={handleShare}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              backgroundColor: pressed ? theme.surfaceTertiary : "transparent",
+            })}
+          >
+            <Share2 size={16} color={theme.textPrimary} strokeWidth={2} />
+            <Text
+              variant="bodyMedium"
+              style={{ fontFamily: fontFamilies.medium, fontSize: 14 }}
+            >
+              {t("bookings.detail.shareReport", "Share Report")}
+            </Text>
+          </Pressable>
+          {isAdmin && (
+            <>
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: theme.borderLight,
+                  marginVertical: 2,
+                }}
+              />
+              <Pressable
+                onPress={handleDelete}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  backgroundColor: pressed ? theme.dangerSoft : "transparent",
+                })}
+              >
+                <Trash2 size={16} color={theme.danger} strokeWidth={2} />
+                <Text
+                  variant="bodyMedium"
+                  color={theme.danger}
+                  style={{ fontFamily: fontFamilies.semiBold, fontSize: 14 }}
+                >
+                  {t("bookings.detail.delete", "Delete booking")}
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      </Pressable>
+    </Modal>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <StatusBar style="light" />
@@ -336,11 +482,33 @@ export default function BookingDetailScreen() {
               <ChevronLeft size={22} color="#111" strokeWidth={2.2} />
             </Pressable>
 
+            {/* More menu */}
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setMenuOpen(true);
+              }}
+              hitSlop={10}
+              style={{
+                position: "absolute",
+                top: insets.top + 8,
+                right: 16,
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: "rgba(255,255,255,0.92)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <MoreVertical size={20} color="#111" strokeWidth={2.2} />
+            </Pressable>
+
             {/* Status chip */}
             <View
               style={{
                 position: "absolute",
-                top: insets.top + 12,
+                top: insets.top + 56,
                 right: 16,
                 paddingHorizontal: 12,
                 paddingVertical: 6,
@@ -1336,6 +1504,7 @@ export default function BookingDetailScreen() {
           </View>
         </Animated.View>
       </ScrollView>
+      {menuModal}
     </View>
   );
 }

@@ -4,7 +4,9 @@ import {
   closeBooking,
   createBooking,
   createPaymentLink,
+  deleteBooking,
   extendBooking,
+  markCashPaid,
   getActiveRentals,
   getBookingById,
   getBookingConflicts,
@@ -251,6 +253,36 @@ export function useCreatePaymentLink() {
     onSuccess: (booking) => {
       invalidateBookings(qc);
       setBookingDetail(qc, booking);
+    },
+  });
+}
+
+export function useMarkCashPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await markCashPaid(id);
+      if (!res.data) throw new Error("Failed to mark cash payment");
+      return res.data;
+    },
+    onSuccess: (booking) => {
+      invalidateBookings(qc);
+      setBookingDetail(qc, booking);
+    },
+  });
+}
+
+export function useDeleteBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await deleteBooking(id);
+      if (!res.data) throw new Error("Failed to delete booking");
+      return res.data;
+    },
+    onSuccess: (_data, id) => {
+      invalidateBookings(qc);
+      qc.removeQueries({ queryKey: bookingKeys.detail(id) });
     },
   });
 }

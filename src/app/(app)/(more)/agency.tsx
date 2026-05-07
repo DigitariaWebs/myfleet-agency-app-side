@@ -29,6 +29,9 @@ import {
   Upload,
   Download,
   RefreshCw,
+  Plus,
+  Trash2,
+  Tag,
 } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -62,7 +65,7 @@ import {
 } from "@/hooks/useAgency";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { getSignedDocumentUrl } from "@/services/agencyService";
-import type { AgencyDocumentType } from "@/types/agency";
+import type { AgencyBookingOption, AgencyDocumentType } from "@/types/agency";
 import {
   geocodeAddress,
   buildStaticMapUrl,
@@ -107,6 +110,7 @@ export default function AgencyScreen() {
     currency: "EUR",
   };
   const autoCancelEnabled = settings?.bookingPolicies?.autoCancelUnpaid ?? true;
+  const cashPaymentsEnabled = settings?.cashPaymentsEnabled ?? false;
   const autoCancelHours =
     (settings?.bookingPolicies?.autoCancelAfterHours as AutoCancelHours) ?? 48;
   const autoReminders = settings?.autoReminders ?? true;
@@ -169,6 +173,21 @@ export default function AgencyScreen() {
     "start" | "end" | null
   >(null);
 
+  // ── Booking options edit state ─────────────────────────────────────
+  // Working copy of the agency's bookable extras catalog. Read mode binds
+  // directly to `settings?.bookingOptions`; edit mode mutates this array
+  // and commits the whole list on Save.
+  const [isEditingBookingOptions, setIsEditingBookingOptions] = useState(false);
+  const [editBookingOptions, setEditBookingOptions] = useState<
+    AgencyBookingOption[]
+  >([]);
+  const [bookingOptionErrors, setBookingOptionErrors] = useState<
+    Record<string, { label?: string; price?: string }>
+  >({});
+  const [bookingOptionsTopError, setBookingOptionsTopError] = useState<
+    string | null
+  >(null);
+
   // ── Time helpers ──────────────────────────────────────────────────
   const parseTimeString = useCallback((time: string): Date => {
     const [hours, minutes] = time.split(":").map(Number);
@@ -207,10 +226,7 @@ export default function AgencyScreen() {
           }
           break;
         case "phone":
-          if (
-            value.trim() &&
-            !/^[\d\s\+\-\(\)]{3,50}$/.test(value.trim())
-          ) {
+          if (value.trim() && !/^[\d\s\+\-\(\)]{3,50}$/.test(value.trim())) {
             error = t(
               "agency.errors.phoneInvalid",
               "Please enter a valid phone number",
@@ -231,9 +247,7 @@ export default function AgencyScreen() {
         case "website":
           if (
             value.trim() &&
-            !/^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[^\s]*)?$/.test(
-              value.trim(),
-            )
+            !/^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[^\s]*)?$/.test(value.trim())
           ) {
             error = t(
               "agency.errors.websiteInvalid",
@@ -254,15 +268,10 @@ export default function AgencyScreen() {
     const phoneValid = validateField("phone", editPhone);
     const emailValid = validateField("email", editEmail);
     const websiteValid = validateField("website", editWebsite);
-    return nameValid && addressValid && phoneValid && emailValid && websiteValid;
-  }, [
-    validateField,
-    editName,
-    editAddress,
-    editPhone,
-    editEmail,
-    editWebsite,
-  ]);
+    return (
+      nameValid && addressValid && phoneValid && emailValid && websiteValid
+    );
+  }, [validateField, editName, editAddress, editPhone, editEmail, editWebsite]);
 
   // Reset the editable form when switching tenants so the inputs reflect the
   // newly-selected agency's persisted values.
@@ -287,7 +296,10 @@ export default function AgencyScreen() {
     );
     setSearchError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.delivery?.basePointLabel, settings?.delivery?.basePointAddress]);
+  }, [
+    settings?.delivery?.basePointLabel,
+    settings?.delivery?.basePointAddress,
+  ]);
 
   // Reset agency edit form when agency data changes.
   useEffect(() => {
@@ -309,7 +321,22 @@ export default function AgencyScreen() {
     setEditWorkingHoursEnd(settings?.workingHoursEnd ?? "");
     setBusinessFieldErrors({});
     setIsEditingBusiness(false);
-  }, [settings?.adminFee, settings?.workingHoursStart, settings?.workingHoursEnd]);
+  }, [
+    settings?.adminFee,
+    settings?.workingHoursStart,
+    settings?.workingHoursEnd,
+  ]);
+
+  // Reset booking-options edit form when the server payload changes (initial
+  // fetch, tenant switch, optimistic invalidation after a mutation).
+  useEffect(() => {
+    setEditBookingOptions(
+      (settings?.bookingOptions ?? []).map((o) => ({ ...o })),
+    );
+    setBookingOptionErrors({});
+    setBookingOptionsTopError(null);
+    setIsEditingBookingOptions(false);
+  }, [settings?.bookingOptions]);
 
   const hasResolved = resolvedLat !== 0 || resolvedLng !== 0;
   const staticMapUrl = hasResolved
@@ -397,7 +424,9 @@ export default function AgencyScreen() {
     } catch (err: any) {
       showToast({
         variant: "error",
-        title: err?.message ?? t("settings.delivery.saveFailed", "Failed to save delivery settings"),
+        title:
+          err?.message ??
+          t("settings.delivery.saveFailed", "Failed to save delivery settings"),
       });
     }
   }, [
@@ -598,6 +627,159 @@ export default function AgencyScreen() {
     setIsEditingBusiness(false);
   };
 
+  // ── Booking options handlers ─────────────────────────────────────
+  const generateOptionId = useCallback(() => {
+    return `opt-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
+  }, []);
+
+  const handleToggleBookingOption = useCallback(
+    (id: string, enabled: boolean) => {
+      const current = settings?.bookingOptions ?? [];
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      updateAgencySettings.mutate({
+        bookingOptions: current.map((o) =>
+          o.id === id ? { ...o, enabled } : o,
+        ),
+      });
+    },
+    [settings?.bookingOptions, updateAgencySettings],
+  );
+
+  const handleAddBookingOption = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditBookingOptions((prev) => [
+      ...prev,
+      { id: generateOptionId(), label: "", price: 0, enabled: true },
+    ]);
+  }, [generateOptionId]);
+
+  const handleRemoveBookingOption = useCallback((id: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditBookingOptions((prev) => prev.filter((o) => o.id !== id));
+    setBookingOptionErrors((prev) => {
+      const { [id]: _drop, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const handleEditBookingOptionLabel = useCallback(
+    (id: string, label: string) => {
+      setEditBookingOptions((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, label } : o)),
+      );
+      setBookingOptionErrors((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], label: undefined },
+      }));
+    },
+    [],
+  );
+
+  const handleEditBookingOptionPrice = useCallback(
+    (id: string, raw: string) => {
+      const cleaned = raw.replace(/[^0-9.,]/g, "");
+      const parsed = Number.parseFloat(cleaned.replace(",", "."));
+      const cents =
+        Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) : 0;
+      setEditBookingOptions((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, price: cents } : o)),
+      );
+      setBookingOptionErrors((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], price: undefined },
+      }));
+    },
+    [],
+  );
+
+  const validateBookingOptions = useCallback((): boolean => {
+    const errors: Record<string, { label?: string; price?: string }> = {};
+    let topError: string | null = null;
+
+    if (editBookingOptions.length > 20) {
+      topError = t(
+        "agency.bookingOptions.errors.tooMany",
+        "Maximum 20 options",
+      );
+    }
+
+    const seenIds = new Set<string>();
+    for (const o of editBookingOptions) {
+      const rowErrors: { label?: string; price?: string } = {};
+      if (!o.label.trim()) {
+        rowErrors.label = t(
+          "agency.bookingOptions.errors.labelRequired",
+          "Label required",
+        );
+      }
+      if (!Number.isFinite(o.price) || o.price < 0) {
+        rowErrors.price = t(
+          "agency.bookingOptions.errors.priceInvalid",
+          "Invalid price",
+        );
+      }
+      if (seenIds.has(o.id)) {
+        topError =
+          topError ??
+          t("agency.bookingOptions.errors.duplicateId", "Duplicate option id");
+      }
+      seenIds.add(o.id);
+      if (rowErrors.label || rowErrors.price) {
+        errors[o.id] = rowErrors;
+      }
+    }
+
+    setBookingOptionErrors(errors);
+    setBookingOptionsTopError(topError);
+    return topError === null && Object.keys(errors).length === 0;
+  }, [editBookingOptions, t]);
+
+  const handleSaveBookingOptions = async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!validateBookingOptions()) {
+      showToast({
+        variant: "error",
+        title: t("agency.errors.fixFields", "Please fix the errors above"),
+      });
+      return;
+    }
+    try {
+      await updateAgencySettings.mutateAsync({
+        bookingOptions: editBookingOptions.map((o) => ({
+          id: o.id,
+          label: o.label.trim(),
+          price: o.price,
+          enabled: o.enabled,
+        })),
+      });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({
+        variant: "success",
+        title: t("agency.bookingOptions.saved", "Booking options saved"),
+      });
+      setIsEditingBookingOptions(false);
+    } catch (err: any) {
+      showToast({
+        variant: "error",
+        title:
+          err?.message ??
+          t("agency.bookingOptions.saveFailed", "Failed to save options"),
+      });
+    }
+  };
+
+  const handleCancelBookingOptionsEdit = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditBookingOptions(
+      (settings?.bookingOptions ?? []).map((o) => ({ ...o })),
+    );
+    setBookingOptionErrors({});
+    setBookingOptionsTopError(null);
+    setIsEditingBookingOptions(false);
+  };
+
   // ── Document handlers ─────────────────────────────────────────
   const handleUploadDocument = async (type: AgencyDocumentType) => {
     try {
@@ -773,9 +955,7 @@ export default function AgencyScreen() {
                 </View>
                 <Pressable
                   onPress={() => {
-                    void Haptics.impactAsync(
-                      Haptics.ImpactFeedbackStyle.Light,
-                    );
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setIsEditingAgency(true);
                   }}
                   style={{
@@ -823,11 +1003,7 @@ export default function AgencyScreen() {
               </View>
 
               <View className="flex-row items-center mb-2">
-                <Mail
-                  size={16}
-                  color={theme.textSecondary}
-                  strokeWidth={1.8}
-                />
+                <Mail size={16} color={theme.textSecondary} strokeWidth={1.8} />
                 <Text
                   variant="bodyMedium"
                   color={theme.textSecondary}
@@ -843,7 +1019,11 @@ export default function AgencyScreen() {
                   color={theme.textSecondary}
                   strokeWidth={1.8}
                 />
-                <Text variant="bodyMedium" color={theme.accent} className="ml-2">
+                <Text
+                  variant="bodyMedium"
+                  color={theme.accent}
+                  className="ml-2"
+                >
                   {agency?.website || "—"}
                 </Text>
               </View>
@@ -871,10 +1051,7 @@ export default function AgencyScreen() {
                       transition={200}
                     />
                   ) : (
-                    <Text
-                      variant="headlineLarge"
-                      color={theme.textTertiary}
-                    >
+                    <Text variant="headlineLarge" color={theme.textTertiary}>
                       {(editName || "A").charAt(0).toUpperCase()}
                     </Text>
                   )}
@@ -919,10 +1096,7 @@ export default function AgencyScreen() {
 
               <Input
                 label={t("agency.phone", "Phone")}
-                placeholder={t(
-                  "agency.phonePlaceholder",
-                  "+33 1 42 00 00 00",
-                )}
+                placeholder={t("agency.phonePlaceholder", "+33 1 42 00 00 00")}
                 value={editPhone}
                 onChangeText={(text) => {
                   setEditPhone(text);
@@ -935,10 +1109,7 @@ export default function AgencyScreen() {
 
               <Input
                 label={t("agency.email", "Email")}
-                placeholder={t(
-                  "agency.emailPlaceholder",
-                  "contact@myfleet.fr",
-                )}
+                placeholder={t("agency.emailPlaceholder", "contact@myfleet.fr")}
                 value={editEmail}
                 onChangeText={(text) => {
                   setEditEmail(text);
@@ -952,10 +1123,7 @@ export default function AgencyScreen() {
 
               <Input
                 label={t("agency.website", "Website")}
-                placeholder={t(
-                  "agency.websitePlaceholder",
-                  "www.myfleet.fr",
-                )}
+                placeholder={t("agency.websitePlaceholder", "www.myfleet.fr")}
                 value={editWebsite}
                 onChangeText={(text) => {
                   setEditWebsite(text);
@@ -1110,11 +1278,7 @@ export default function AgencyScreen() {
                   backgroundColor: theme.surfaceSecondary,
                 }}
               >
-                <Pencil
-                  size={18}
-                  color={theme.textSecondary}
-                  strokeWidth={2}
-                />
+                <Pencil size={18} color={theme.textSecondary} strokeWidth={2} />
               </Pressable>
             )}
           </View>
@@ -1122,16 +1286,17 @@ export default function AgencyScreen() {
           {!isEditingBusiness ? (
             <>
               <View className="flex-row items-center mb-3">
-                <Banknote size={18} color={theme.textSecondary} strokeWidth={1.8} />
+                <Banknote
+                  size={18}
+                  color={theme.textSecondary}
+                  strokeWidth={1.8}
+                />
                 <Text variant="bodyMedium" className="flex-1 ml-3">
                   Frais administratifs
                 </Text>
                 <Text variant="titleMedium" color={theme.accent}>
                   {settings?.adminFee != null
-                    ? formatCurrency(
-                        settings.adminFee / 100,
-                        agency?.currency,
-                      )
+                    ? formatCurrency(settings.adminFee / 100, agency?.currency)
                     : "—"}
                 </Text>
               </View>
@@ -1139,13 +1304,16 @@ export default function AgencyScreen() {
               <Divider className="mb-3" />
 
               <View className="flex-row items-center mb-3">
-                <Clock size={18} color={theme.textSecondary} strokeWidth={1.8} />
+                <Clock
+                  size={18}
+                  color={theme.textSecondary}
+                  strokeWidth={1.8}
+                />
                 <Text variant="bodyMedium" className="flex-1 ml-3">
                   Horaires de travail
                 </Text>
                 <Text variant="titleMedium" color={theme.textSecondary}>
-                  {settings?.workingHoursStart &&
-                  settings?.workingHoursEnd
+                  {settings?.workingHoursStart && settings?.workingHoursEnd
                     ? `${settings.workingHoursStart} - ${settings.workingHoursEnd}`
                     : "—"}
                 </Text>
@@ -1209,10 +1377,7 @@ export default function AgencyScreen() {
                       strokeWidth={1.8}
                     />
                     <View className="ml-3 flex-1">
-                      <Text
-                        variant="caption"
-                        color={theme.textSecondary}
-                      >
+                      <Text variant="caption" color={theme.textSecondary}>
                         {t("agency.workingHoursStart", "Start")}
                       </Text>
                       <Text variant="bodyMedium">
@@ -1252,10 +1417,7 @@ export default function AgencyScreen() {
                       strokeWidth={1.8}
                     />
                     <View className="ml-3 flex-1">
-                      <Text
-                        variant="caption"
-                        color={theme.textSecondary}
-                      >
+                      <Text variant="caption" color={theme.textSecondary}>
                         {t("agency.workingHoursEnd", "End")}
                       </Text>
                       <Text variant="bodyMedium">
@@ -1393,10 +1555,7 @@ export default function AgencyScreen() {
                       {isUploaded ? doc?.originalName : docType.hint}
                     </Text>
                   </View>
-                  <Badge
-                    variant={isUploaded ? "success" : "warning"}
-                    size="sm"
-                  >
+                  <Badge variant={isUploaded ? "success" : "warning"} size="sm">
                     {isUploaded
                       ? t("agency.uploaded", { defaultValue: "Uploaded" })
                       : t("agency.missing", { defaultValue: "Missing" })}
@@ -1428,6 +1587,209 @@ export default function AgencyScreen() {
               </View>
             );
           })}
+        </Card>
+      </Animated.View>
+
+      {/* Booking Options */}
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(237)}
+        className="mb-4"
+      >
+        <Card>
+          <View className="flex-row items-center mb-1">
+            <Tag size={20} color={theme.accent} strokeWidth={1.8} />
+            <Text variant="headlineSmall" className="ml-2 flex-1">
+              {t("agency.bookingOptions.sectionTitle", "Booking options")}
+            </Text>
+            {!isEditingBookingOptions && (
+              <Pressable
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setEditBookingOptions(
+                    (settings?.bookingOptions ?? []).map((o) => ({ ...o })),
+                  );
+                  setIsEditingBookingOptions(true);
+                }}
+                style={{
+                  padding: 8,
+                  borderRadius: 9999,
+                  backgroundColor: theme.surfaceSecondary,
+                }}
+              >
+                <Pencil size={18} color={theme.textSecondary} strokeWidth={2} />
+              </Pressable>
+            )}
+          </View>
+          <Text
+            variant="bodySmall"
+            color={theme.textSecondary}
+            className="mb-3"
+          >
+            {t(
+              "agency.bookingOptions.sectionSubtitle",
+              "Extras shown in step 4 of the new booking flow",
+            )}
+          </Text>
+
+          {!isEditingBookingOptions ? (
+            <>
+              {(settings?.bookingOptions ?? []).length === 0 ? (
+                <Text variant="bodySmall" color={theme.textTertiary}>
+                  {t(
+                    "agency.bookingOptions.empty",
+                    "No options configured yet.",
+                  )}
+                </Text>
+              ) : (
+                (settings?.bookingOptions ?? []).map((option, index) => (
+                  <View key={option.id}>
+                    {index > 0 && <Divider className="my-2.5" />}
+                    <View className="flex-row items-center">
+                      <View className="flex-1 mr-3">
+                        <Text variant="titleMedium">{option.label}</Text>
+                        <Text
+                          variant="bodySmall"
+                          color={theme.textSecondary}
+                          className="mt-0.5"
+                        >
+                          {formatCurrency(option.price / 100, agency?.currency)}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={option.enabled}
+                        onValueChange={(val) =>
+                          handleToggleBookingOption(option.id, val)
+                        }
+                        trackColor={{
+                          false: theme.surfaceTertiary,
+                          true: theme.accentSoft,
+                        }}
+                        thumbColor={
+                          option.enabled ? theme.accent : theme.textTertiary
+                        }
+                      />
+                    </View>
+                  </View>
+                ))
+              )}
+            </>
+          ) : (
+            <View style={{ gap: 14 }}>
+              {editBookingOptions.length === 0 && (
+                <Text variant="bodySmall" color={theme.textTertiary}>
+                  {t(
+                    "agency.bookingOptions.empty",
+                    "No options configured yet.",
+                  )}
+                </Text>
+              )}
+              {editBookingOptions.map((option) => {
+                const rowErr = bookingOptionErrors[option.id];
+                return (
+                  <View key={option.id} style={{ gap: 8 }}>
+                    <View className="flex-row" style={{ gap: 10 }}>
+                      <View className="flex-[2]">
+                        <Input
+                          label={t("agency.bookingOptions.label", "Label")}
+                          placeholder={t(
+                            "agency.bookingOptions.labelPlaceholder",
+                            "E.g. Insurance Plus",
+                          )}
+                          value={option.label}
+                          onChangeText={(text) =>
+                            handleEditBookingOptionLabel(option.id, text)
+                          }
+                          error={rowErr?.label}
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Input
+                          label={t("agency.bookingOptions.price", "Price")}
+                          placeholder={t(
+                            "agency.bookingOptions.pricePlaceholder",
+                            "E.g. 15.00",
+                          )}
+                          value={
+                            option.price > 0 ? String(option.price / 100) : ""
+                          }
+                          onChangeText={(text) =>
+                            handleEditBookingOptionPrice(option.id, text)
+                          }
+                          keyboardType="decimal-pad"
+                          leftIcon={Banknote}
+                          error={rowErr?.price}
+                        />
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => handleRemoveBookingOption(option.id)}
+                      className="self-end flex-row items-center"
+                      style={{
+                        paddingVertical: 6,
+                        paddingHorizontal: 10,
+                        borderRadius: 9999,
+                        backgroundColor: theme.dangerSoft,
+                      }}
+                    >
+                      <Trash2 size={14} color={theme.danger} strokeWidth={2} />
+                      <Text
+                        variant="labelSmall"
+                        color={theme.danger}
+                        className="ml-1"
+                      >
+                        {t("common.remove", "Remove")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+
+              {bookingOptionsTopError && (
+                <View className="flex-row items-center" style={{ gap: 8 }}>
+                  <AlertCircle size={14} color={theme.danger} />
+                  <Text variant="bodySmall" color={theme.danger}>
+                    {bookingOptionsTopError}
+                  </Text>
+                </View>
+              )}
+
+              <Button
+                variant="secondary"
+                fullWidth
+                leftIcon={Plus}
+                onPress={handleAddBookingOption}
+                disabled={editBookingOptions.length >= 20}
+              >
+                {t("agency.bookingOptions.addOption", "Add option")}
+              </Button>
+
+              <View className="flex-row" style={{ gap: 10 }}>
+                <View className="flex-1">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    leftIcon={X}
+                    onPress={handleCancelBookingOptionsEdit}
+                  >
+                    {t("common.cancel", "Cancel")}
+                  </Button>
+                </View>
+                <View className="flex-1">
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    leftIcon={Check}
+                    disabled={updateAgencySettings.isPending}
+                    onPress={handleSaveBookingOptions}
+                  >
+                    {updateAgencySettings.isPending
+                      ? t("common.saving", "Saving...")
+                      : t("common.save", "Save")}
+                  </Button>
+                </View>
+              </View>
+            </View>
+          )}
         </Card>
       </Animated.View>
 
@@ -1671,7 +2033,7 @@ export default function AgencyScreen() {
                 {AUTO_CANCEL_OPTIONS.map((option) => {
                   const isActive = autoCancelHours === option.hours;
                   return (
-                      <Pressable
+                    <Pressable
                       key={option.hours}
                       onPress={() => {
                         void Haptics.impactAsync(
@@ -1703,6 +2065,43 @@ export default function AgencyScreen() {
               </View>
             </View>
           )}
+
+          <Divider className="my-3" />
+
+          <View className="flex-row items-center">
+            <Banknote size={18} color={theme.textSecondary} strokeWidth={1.8} />
+            <View className="flex-1 ml-3">
+              <Text variant="bodyMedium">
+                {t("agency.cashPayments.title", {
+                  defaultValue: "Accept cash at pickup",
+                })}
+              </Text>
+              <Text
+                variant="bodySmall"
+                color={theme.textSecondary}
+                className="mt-0.5"
+              >
+                {t("agency.cashPayments.subtitle", {
+                  defaultValue:
+                    "Lets clients choose to pay in cash when the agent hands the keys over.",
+                })}
+              </Text>
+            </View>
+            <Switch
+              value={cashPaymentsEnabled}
+              onValueChange={(val) => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                updateAgencySettings.mutate({ cashPaymentsEnabled: val });
+              }}
+              trackColor={{
+                false: theme.surfaceTertiary,
+                true: theme.accentSoft,
+              }}
+              thumbColor={
+                cashPaymentsEnabled ? theme.accent : theme.textTertiary
+              }
+            />
+          </View>
         </Card>
       </Animated.View>
 

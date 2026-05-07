@@ -5,7 +5,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Animated, {
   FadeIn,
@@ -25,7 +25,6 @@ import {
   FileText,
   Shield,
   Car,
-  Gauge,
   AlertTriangle,
 } from "lucide-react-native";
 
@@ -35,13 +34,13 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Divider } from "@/components/ui/Divider";
 import { IconButton } from "@/components/ui/IconButton";
-import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Image } from "@/components/ui/Image";
 import { resolveVehicleImageSource } from "@/data/vehicleImages";
 import {
   useBooking,
+  useMarkCashPaid,
   useRecordStartMileage,
   useStartPickup,
 } from "@/hooks/useBookings";
@@ -155,21 +154,26 @@ function StepProgress({ currentStep, steps }: StepProgressProps) {
 interface ChecklistItemProps {
   icon: React.ComponentType<{ size: number; color: string }>;
   label: string;
+  sublabel?: string;
   checked: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }
 
 function ChecklistItem({
   icon: Icon,
   label,
+  sublabel,
   checked,
   onToggle,
+  disabled,
 }: ChecklistItemProps) {
   const theme = useTheme();
 
   return (
     <Pressable
       onPress={() => {
+        if (disabled) return;
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onToggle();
       }}
@@ -179,6 +183,7 @@ function ChecklistItem({
         paddingVertical: 14,
         paddingHorizontal: 16,
         gap: 12,
+        opacity: disabled ? 0.85 : 1,
       }}
     >
       <View
@@ -193,13 +198,24 @@ function ChecklistItem({
       >
         <Icon size={20} color={checked ? theme.accent : theme.textTertiary} />
       </View>
-      <Text
-        variant="bodyMedium"
-        color={checked ? theme.textPrimary : theme.textSecondary}
-        style={{ flex: 1, fontWeight: checked ? "600" : "400" }}
-      >
-        {label}
-      </Text>
+      <View style={{ flex: 1 }}>
+        <Text
+          variant="bodyMedium"
+          color={checked ? theme.textPrimary : theme.textSecondary}
+          style={{ fontWeight: checked ? "600" : "400" }}
+        >
+          {label}
+        </Text>
+        {sublabel ? (
+          <Text
+            variant="bodySmall"
+            color={theme.textTertiary}
+            style={{ marginTop: 2 }}
+          >
+            {sublabel}
+          </Text>
+        ) : null}
+      </View>
       <View
         style={{
           width: 24,
@@ -239,6 +255,7 @@ export default function PickupScreen() {
 
   const startPickupMutation = useStartPickup();
   const recordStartMileageMutation = useRecordStartMileage();
+  const markCashPaidMutation = useMarkCashPaid();
   const createContractMutation = useCreateContract();
   const signContractMutation = useSignContract();
   const sigPadRef = React.useRef<SignaturePadRef>(null);
@@ -248,6 +265,15 @@ export default function PickupScreen() {
     realBooking?.id ? { bookingId: realBooking.id } : undefined,
   );
   const contractId = existingContracts[0]?.id ?? null;
+
+  // For online bookings: refetch on focus so a Stripe webhook flipping
+  // paymentStatus → 'paid' is reflected on the checklist without a manual
+  // pull-to-refresh.
+  useFocusEffect(
+    React.useCallback(() => {
+      void refetchBooking();
+    }, [refetchBooking]),
+  );
 
   // Stamp pickupStartedAt on the booking when this screen first opens.
   const [, setPreInspectionId] = useState<string | null>(null);
@@ -275,9 +301,17 @@ export default function PickupScreen() {
 
   // Step 1 state
   const [identityVerified, setIdentityVerified] = useState(false);
-  const [paymentReceived, setPaymentReceived] = useState(false);
+  // Cash bookings: agent ticks this manually; the toggle is sent to the
+  // backend (markCashPaid) when pickup completes.
+  // Online bookings: derived from realBooking.paymentStatus, locked
+  // (Stripe webhook is the source of truth).
+  const [cashPaymentTicked, setCashPaymentTicked] = useState(false);
+  const isCashBooking = realBooking?.paymentMethod === "cash";
+  const onlinePaid = realBooking?.paymentStatus === "paid";
+  const paymentReceived = isCashBooking ? cashPaymentTicked : onlinePaid;
   const [keysReady, setKeysReady] = useState(false);
   const [startMileageInput, setStartMileageInput] = useState("");
+  const [startFuelLevel, setStartFuelLevel] = useState<number | null>(null);
 
   // Step 3 state
   const [contractSigned, setContractSigned] = useState(false);
@@ -337,8 +371,9 @@ export default function PickupScreen() {
     Number.isFinite(parsedStartMileage) &&
     parsedStartMileage > 0;
 
-  const allChecked =
-    identityVerified && paymentReceived && keysReady && isStartMileageValid;
+  // Mileage is collected as part of Step 2 (the inspection), so the Step 1
+  // continue button doesn't gate on it.
+  const allChecked = identityVerified && paymentReceived && keysReady;
 
   const handleNext = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -421,6 +456,27 @@ export default function PickupScreen() {
       return;
     }
 
+    // Cash payment: agent ticked the box at pickup, now persist it.
+    // Online payment: server-side already paid via Stripe webhook, nothing to do.
+    if (
+      isCashBooking &&
+      cashPaymentTicked &&
+      realBooking?.paymentStatus !== "paid"
+    ) {
+      try {
+        await markCashPaidMutation.mutateAsync(id);
+      } catch (err) {
+        showToast({
+          variant: "error",
+          title: t("pickup.checklist.markCashFailed", {
+            defaultValue: "Couldn't record cash payment",
+          }),
+          message: err instanceof Error ? err.message : undefined,
+        });
+        return;
+      }
+    }
+
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCompleted(true);
   }, [
@@ -431,6 +487,9 @@ export default function PickupScreen() {
     realBooking,
     contractId,
     signContractMutation,
+    isCashBooking,
+    cashPaymentTicked,
+    markCashPaidMutation,
     showToast,
     t,
   ]);
@@ -767,8 +826,22 @@ export default function PickupScreen() {
           label={t("pickup.checklist.payment", {
             defaultValue: "Payment received",
           })}
+          sublabel={
+            isCashBooking
+              ? t("pickup.checklist.paymentCashHint", {
+                  defaultValue: "Cash at pickup — tick once collected",
+                })
+              : onlinePaid
+                ? t("pickup.checklist.paymentOnlinePaid", {
+                    defaultValue: "Online payment confirmed",
+                  })
+                : t("pickup.checklist.paymentOnlineWaiting", {
+                    defaultValue: "Awaiting Stripe confirmation",
+                  })
+          }
           checked={paymentReceived}
-          onToggle={() => setPaymentReceived((v) => !v)}
+          onToggle={() => setCashPaymentTicked((v) => !v)}
+          disabled={!isCashBooking}
         />
         <View
           style={{
@@ -784,36 +857,6 @@ export default function PickupScreen() {
           })}
           checked={keysReady}
           onToggle={() => setKeysReady((v) => !v)}
-        />
-      </Card>
-
-      {/* Start mileage (required) */}
-      <Card>
-        <Text variant="titleLarge" style={{ marginBottom: 4 }}>
-          {t("bookings.mileage.startMileageLabel", "Departure mileage")}
-        </Text>
-        <Text
-          variant="bodySmall"
-          color={theme.textSecondary}
-          style={{ marginBottom: 12 }}
-        >
-          {t(
-            "bookings.mileage.startMileageRequired",
-            "Departure mileage required",
-          )}
-        </Text>
-        <Input
-          placeholder={t(
-            "bookings.mileage.startMileagePlaceholder",
-            "Enter mileage",
-          )}
-          value={startMileageInput}
-          onChangeText={(text) =>
-            setStartMileageInput(text.replace(/[^0-9]/g, ""))
-          }
-          keyboardType="number-pad"
-          leftIcon={Gauge}
-          helperText={`${t("bookings.mileage.unit", "km")}`}
         />
       </Card>
 
@@ -843,6 +886,14 @@ export default function PickupScreen() {
         })}
         onInspectionReady={setPreInspectionId}
         onContinue={handleNext}
+        mileageValue={startMileageInput}
+        onMileageChange={setStartMileageInput}
+        mileageLabel={t(
+          "bookings.mileage.startMileageLabel",
+          "Departure mileage",
+        )}
+        fuelLevelValue={startFuelLevel}
+        onFuelLevelChange={setStartFuelLevel}
       />
     ) : null;
 

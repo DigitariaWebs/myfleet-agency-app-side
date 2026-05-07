@@ -22,8 +22,16 @@ export interface BookingPolicies {
   autoCancelAfterHours: number;
 }
 
+export interface AgencyBookingOption {
+  id: string;
+  label: string;
+  /** In cents (smallest currency unit). */
+  price: number;
+  enabled: boolean;
+}
+
 export interface AgencySettings {
-  defaultLanguage: 'fr' | 'en';
+  defaultLanguage: "fr" | "en";
   invoicePrefix: string;
   /** In cents (smallest currency unit). */
   adminFee: number;
@@ -36,6 +44,9 @@ export interface AgencySettings {
   autoReminders: boolean;
   delivery: DeliverySettings;
   bookingPolicies: BookingPolicies;
+  bookingOptions: AgencyBookingOption[];
+  /** When true, the booking flow may offer "Cash at pickup" alongside online payment. */
+  cashPaymentsEnabled: boolean;
 }
 
 export interface Agency {
@@ -47,12 +58,12 @@ export interface Agency {
   phone: string;
   email: string;
   website: string;
-  currency: 'EUR' | 'CHF' | 'USD';
+  currency: "EUR" | "CHF" | "USD";
   country: string;
   timezone: string;
-  plan: 'starter' | 'professional' | 'enterprise';
+  plan: "starter" | "professional" | "enterprise";
   subscription: {
-    status: 'active' | 'trial' | 'expired';
+    status: "active" | "trial" | "expired";
     startDate: string;
     nextBillingDate: string;
     /** In cents (smallest currency unit). */
@@ -65,11 +76,11 @@ export interface AgencyUser {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee';
+  role: "admin" | "employee";
   lastActive: string;
 }
 
-export type AgencyDocumentType = 'kbis' | 'license' | 'insurance';
+export type AgencyDocumentType = "kbis" | "license" | "insurance";
 
 export interface AgencyDocument {
   type: AgencyDocumentType;

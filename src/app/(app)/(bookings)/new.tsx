@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { Platform, View, Pressable, ScrollView, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -13,7 +19,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
 import { Image } from "@/components/ui/Image";
@@ -40,6 +46,7 @@ import {
   ArrowRight,
   FileText,
   CreditCard,
+  Coins,
 } from "lucide-react-native";
 
 import { resolveVehicleImageSource } from "@/data/vehicleImages";
@@ -69,7 +76,8 @@ import { useVehicles } from "@/hooks/useFleet";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import type { CreateClientInput } from "@/services/clientService";
 import { faker } from "@faker-js/faker";
-import { useCurrentAgencySettings } from "@/stores/useAgencySettingsStore";
+import { useAgencySettings } from "@/hooks/useAgency";
+import type { DeliverySettings } from "@/types/agency";
 import { useToastStore } from "@/components/ui/Toast";
 import {
   geocodeAddress,
@@ -118,7 +126,7 @@ function isDistanceOption(optionId: string): boolean {
 
 function getMockRouteDetails(
   address: string,
-  config: ReturnType<typeof useCurrentAgencySettings>["delivery"],
+  config: DeliverySettings,
 ): DeliveryDetails {
   const seed = address
     .trim()
@@ -253,6 +261,9 @@ function SuccessOverlay({
 
 export default function NewBookingScreen() {
   const router = useRouter();
+  const { vehicleId: prefilledVehicleId } = useLocalSearchParams<{
+    vehicleId?: string;
+  }>();
   const { t } = useTranslation();
   const theme = useTheme();
   const isDark = theme.background === colors.dark.background;
@@ -314,39 +325,84 @@ export default function NewBookingScreen() {
   );
   const vehicleAvailableForDates = availability?.available ?? true;
 
-  // Agency delivery config (used throughout Step 4)
-  const agencyDelivery = useCurrentAgencySettings().delivery;
+  // Server-driven agency settings (delivery config + booking options catalog).
+  const { data: agencySettings } = useAgencySettings();
+  const agencyBookingOptions = agencySettings?.bookingOptions;
+
+  // Delivery config used throughout Step 4. Server stores monetary values in
+  // cents; the wizard works in display units (euros), so convert at the boundary
+  // — every other line in this file consumes `agencyDelivery` as euros.
+  const agencyDelivery: DeliverySettings = useMemo(() => {
+    const src = agencySettings?.delivery;
+    if (!src) {
+      return {
+        enabled: false,
+        basePointLabel: "",
+        basePointAddress: "",
+        basePointLat: 0,
+        basePointLng: 0,
+        ratePerKm: 0,
+        currency: "EUR",
+        minFee: undefined,
+        maxDistanceKm: undefined,
+      };
+    }
+    return {
+      ...src,
+      ratePerKm: src.ratePerKm / 100,
+      minFee: src.minFee != null ? src.minFee / 100 : undefined,
+    };
+  }, [agencySettings?.delivery]);
+
   const hasBasePoint =
     agencyDelivery.enabled &&
     (agencyDelivery.basePointLat !== 0 || agencyDelivery.basePointLng !== 0);
 
-  // Step 4: Options
-  const [options, setOptions] = useState<OptionToggle[]>(() => {
-    const baseOptions: OptionToggle[] = [
-      { id: "ins", label: "Insurance Plus", price: 15, enabled: false },
-      { id: "drv", label: "Additional Driver", price: 10, enabled: false },
-      {
-        id: "foreign-use",
-        label: "Foreign Use Pass",
-        price: 25,
-        enabled: false,
-      },
-      { id: "seat", label: "Child Seat", price: 5, enabled: false },
-    ];
-    if (agencyDelivery.enabled) {
-      return [
-        { id: "delivery", label: "Home delivery", price: 0, enabled: false },
-        {
-          id: "custom-pickup",
-          label: "Custom recovery",
-          price: 0,
+  const buildBaseOptions = useCallback(
+    (deliveryEnabled: boolean): OptionToggle[] => {
+      // Server stores prices in cents; the wizard works in display units (euros).
+      const catalog: OptionToggle[] = (agencyBookingOptions ?? [])
+        .filter((o) => o.enabled)
+        .map((o) => ({
+          id: o.id,
+          label: o.label,
+          price: o.price / 100,
           enabled: false,
-        },
-        ...baseOptions,
-      ];
-    }
-    return baseOptions;
-  });
+        }));
+      if (deliveryEnabled) {
+        return [
+          { id: "delivery", label: "Home delivery", price: 0, enabled: false },
+          {
+            id: "custom-pickup",
+            label: "Custom recovery",
+            price: 0,
+            enabled: false,
+          },
+          ...catalog,
+        ];
+      }
+      return catalog;
+    },
+    [agencyBookingOptions],
+  );
+
+  // Step 4: Options
+  const [options, setOptions] = useState<OptionToggle[]>(() =>
+    buildBaseOptions(agencyDelivery.enabled),
+  );
+
+  // Re-seed once when the server catalog arrives after first render. Only runs
+  // while the user hasn't toggled anything yet, so we don't clobber selections.
+  const optionsSeededRef = useRef(agencyBookingOptions !== undefined);
+  useEffect(() => {
+    if (optionsSeededRef.current) return;
+    if (agencyBookingOptions === undefined) return;
+    optionsSeededRef.current = true;
+    setOptions(buildBaseOptions(agencyDelivery.enabled));
+    // buildBaseOptions/agencyDelivery.enabled are intentionally omitted: this
+    // effect must fire exactly once when the server payload first lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agencyBookingOptions]);
 
   // Distance-based option input state
   const [routeAddresses, setRouteAddresses] = useState<Record<string, string>>(
@@ -365,11 +421,37 @@ export default function NewBookingScreen() {
     visible: boolean;
     conflicts: Booking[];
   }>({ visible: false, conflicts: [] });
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
+    "online",
+  );
+
+  // Cash is only an offered choice when the agency has opted in. Force back
+  // to 'online' if the agent had picked cash and the setting is disabled.
+  const cashPaymentsEnabled = agencySettings?.cashPaymentsEnabled ?? false;
+  useEffect(() => {
+    if (!cashPaymentsEnabled && paymentMethod === "cash") {
+      setPaymentMethod("online");
+    }
+  }, [cashPaymentsEnabled, paymentMethod]);
 
   // ── Derived Data ────────────────────────────────────────────────────────
 
   const { data: allVehicles = [] } = useVehicles();
   const { data: allClients = [] } = useClients();
+
+  // Preselect a vehicle when arriving with ?vehicleId=... (e.g. from the
+  // fleet detail screen's "Book Now" button). Runs once when the matching
+  // vehicle becomes available in the list.
+  const prefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (prefillAppliedRef.current) return;
+    if (!prefilledVehicleId) return;
+    const match = allVehicles.find((v) => v.id === prefilledVehicleId);
+    if (!match) return;
+    prefillAppliedRef.current = true;
+    setSelectedVehicle(match);
+    setStep((prev) => (prev < 2 ? 2 : prev));
+  }, [prefilledVehicleId, allVehicles]);
 
   const availableVehicles = useMemo(
     () => allVehicles.filter((v) => v.status === "available"),
@@ -685,6 +767,7 @@ export default function NewBookingScreen() {
               ? { deliveryDetails: o.deliveryDetails }
               : {}),
           })),
+          paymentMethod,
           force,
         });
         if (result.booking) {
@@ -2032,6 +2115,106 @@ export default function NewBookingScreen() {
               €{pricing.total}
             </Text>
           </View>
+        </View>
+
+        {/* Payment method */}
+        <View
+          style={{
+            backgroundColor: theme.surface,
+            borderRadius: 18,
+            padding: 14,
+            gap: 10,
+          }}
+        >
+          <Text
+            variant="titleMedium"
+            style={{ fontFamily: fontFamilies.semiBold }}
+          >
+            {t("bookings.new.paymentMethod.title", "Payment method")}
+          </Text>
+          {cashPaymentsEnabled ? (
+            <View className="flex-row" style={{ gap: 10 }}>
+              {(
+                [
+                  {
+                    value: "online" as const,
+                    icon: CreditCard,
+                    label: t("bookings.new.paymentMethod.online", "Pay online"),
+                    sub: t(
+                      "bookings.new.paymentMethod.onlineSub",
+                      "Stripe payment link",
+                    ),
+                  },
+                  {
+                    value: "cash" as const,
+                    icon: Coins,
+                    label: t(
+                      "bookings.new.paymentMethod.cash",
+                      "Cash at pickup",
+                    ),
+                    sub: t(
+                      "bookings.new.paymentMethod.cashSub",
+                      "Agent collects on handoff",
+                    ),
+                  },
+                ] as const
+              ).map((opt) => {
+                const Icon = opt.icon;
+                const selected = paymentMethod === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => {
+                      void Haptics.impactAsync(
+                        Haptics.ImpactFeedbackStyle.Light,
+                      );
+                      setPaymentMethod(opt.value);
+                    }}
+                    style={{
+                      flex: 1,
+                      borderRadius: 14,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? theme.accent : theme.border,
+                      backgroundColor: selected
+                        ? theme.accentSoft
+                        : theme.surfaceSecondary,
+                      padding: 12,
+                      gap: 6,
+                    }}
+                  >
+                    <Icon
+                      size={22}
+                      color={selected ? theme.accent : theme.textSecondary}
+                      strokeWidth={1.8}
+                    />
+                    <Text
+                      variant="titleSmall"
+                      color={selected ? theme.accent : theme.textPrimary}
+                    >
+                      {opt.label}
+                    </Text>
+                    <Text variant="bodySmall" color={theme.textSecondary}>
+                      {opt.sub}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <View className="flex-row items-center" style={{ gap: 10 }}>
+              <CreditCard
+                size={20}
+                color={theme.textSecondary}
+                strokeWidth={1.8}
+              />
+              <Text variant="bodyMedium" color={theme.textSecondary}>
+                {t(
+                  "bookings.new.paymentMethod.onlineOnly",
+                  "Online payment via Stripe",
+                )}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Action buttons */}

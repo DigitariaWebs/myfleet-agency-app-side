@@ -19,6 +19,7 @@ interface CreateBookingPayload {
   options?: Booking["options"];
   insurance?: { tier: "basic" | "all_inclusive" };
   deposit?: number;
+  paymentMethod?: "online" | "cash";
   force?: boolean;
 }
 
@@ -27,6 +28,7 @@ export interface BookingFilters {
   vehicleId?: string;
   clientId?: string;
   paymentStatus?: NonNullable<Booking["paymentStatus"]>;
+  source?: NonNullable<Booking["source"]>;
   from?: string;
   to?: string;
   conflict?: boolean;
@@ -229,5 +231,22 @@ export async function createPaymentLink(
   const data = await authedRequest<Booking>(`/bookings/${id}/payment-link`, {
     method: "POST",
   });
+  return ok(data);
+}
+
+export async function markCashPaid(id: string): Promise<ApiResponse<Booking>> {
+  const data = await authedRequest<Booking>(`/bookings/${id}/mark-cash-paid`, {
+    method: "POST",
+  });
+  return ok(data);
+}
+
+export async function deleteBooking(
+  id: string,
+): Promise<ApiResponse<{ id: string; deleted: true }>> {
+  const data = await authedRequest<{ id: string; deleted: true }>(
+    `/bookings/${id}`,
+    { method: "DELETE" },
+  );
   return ok(data);
 }

@@ -1,6 +1,7 @@
 import { authedRequest } from "@/services/api";
 import type {
   Agency,
+  AgencyBookingOption,
   AgencyDocument,
   AgencyDocumentType,
   AgencySettings,
@@ -111,6 +112,8 @@ export interface UpdateAgencySettingsInput {
   deliveryMaxDistanceKm?: number;
   bookingAutoCancelUnpaid?: boolean;
   bookingAutoCancelAfterHours?: number;
+  bookingOptions?: AgencyBookingOption[];
+  cashPaymentsEnabled?: boolean;
 }
 
 export async function updateAgencySettings(
