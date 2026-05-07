@@ -1,24 +1,29 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, FlatList, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { ChevronLeft, Receipt } from 'lucide-react-native';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, FlatList, RefreshControl } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { ChevronLeft, Receipt } from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { SearchBar } from '@/components/ui/SearchBar';
-import { Chip, ChipGroup } from '@/components/ui/Chip';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { useBillingStore } from '@/stores/useBillingStore';
-import type { Invoice, InvoiceStatus } from '@/types/billing';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Chip, ChipGroup } from "@/components/ui/Chip";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/hooks/useTheme";
+import {
+  useInvoices,
+  useInvoicesSummary,
+  invoiceKeys,
+} from "@/hooks/useInvoices";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Invoice, InvoiceStatus } from "@/types/billing";
 
 // ── Status helpers ──────────────────────────────────────────────────────────
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info';
+type BadgeVariant = "success" | "warning" | "danger" | "info";
 
 interface StatusConfig {
   label: string;
@@ -27,14 +32,14 @@ interface StatusConfig {
 
 function getStatusConfig(status: InvoiceStatus): StatusConfig {
   switch (status) {
-    case 'pending':
-      return { label: 'En attente', variant: 'warning' };
-    case 'paid':
-      return { label: 'Pay\u00E9e', variant: 'success' };
-    case 'overdue':
-      return { label: 'En retard', variant: 'danger' };
-    case 'partially-paid':
-      return { label: 'Partiel', variant: 'info' };
+    case "pending":
+      return { label: "En attente", variant: "warning" };
+    case "paid":
+      return { label: "Pay\u00E9e", variant: "success" };
+    case "overdue":
+      return { label: "En retard", variant: "danger" };
+    case "partially-paid":
+      return { label: "Partiel", variant: "info" };
   }
 }
 
@@ -42,19 +47,19 @@ function getStatusConfig(status: InvoiceStatus): StatusConfig {
 
 function formatEuro(amount: number): string {
   return (
-    new Intl.NumberFormat('fr-FR', {
+    new Intl.NumberFormat("fr-FR", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount) + ' \u20AC'
+    }).format(amount) + " \u20AC"
   );
 }
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
@@ -85,7 +90,7 @@ function InvoiceCard({ invoice, index, onPress }: InvoiceCardProps) {
   const theme = useTheme();
   const statusCfg = getStatusConfig(invoice.status);
   const daysOverdue =
-    invoice.status === 'overdue' ? getDaysOverdue(invoice.dueDate) : 0;
+    invoice.status === "overdue" ? getDaysOverdue(invoice.dueDate) : 0;
 
   const handlePress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -130,17 +135,17 @@ function InvoiceCard({ invoice, index, onPress }: InvoiceCardProps) {
           {formatDate(invoice.issuedDate)}
         </Text>
         <Text variant="bodySmall" color={theme.textTertiary} className="mx-1">
-          {'\u2022'}
+          {"\u2022"}
         </Text>
         <Text variant="bodySmall" color={theme.textTertiary}>
-          {'\u00C9'}ch{'\u00E9'}ance: {formatDate(invoice.dueDate)}
+          {"\u00C9"}ch{"\u00E9"}ance: {formatDate(invoice.dueDate)}
         </Text>
       </View>
 
       {/* Overdue warning */}
-      {invoice.status === 'overdue' && daysOverdue > 0 ? (
+      {invoice.status === "overdue" && daysOverdue > 0 ? (
         <Text variant="bodySmall" color={theme.danger} className="mt-1">
-          {daysOverdue} jour{daysOverdue > 1 ? 's' : ''} de retard
+          {daysOverdue} jour{daysOverdue > 1 ? "s" : ""} de retard
         </Text>
       ) : null}
 
@@ -159,31 +164,18 @@ export default function BillingScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const invoices = useBillingStore((s) => s.invoices);
-  const getMonthlyRevenue = useBillingStore((s) => s.getMonthlyRevenue);
-  const getPendingAmount = useBillingStore((s) => s.getPendingAmount);
-  const getOverdueAmount = useBillingStore((s) => s.getOverdueAmount);
+  const queryClient = useQueryClient();
+  const { data: invoices = [] } = useInvoices();
+  const { data: summary } = useInvoicesSummary();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterValue>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Summary values
-  const monthlyRevenue = useMemo(
-    () => getMonthlyRevenue(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [invoices, getMonthlyRevenue],
-  );
-  const pendingAmount = useMemo(
-    () => getPendingAmount(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [invoices, getPendingAmount],
-  );
-  const overdueAmount = useMemo(
-    () => getOverdueAmount(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [invoices, getOverdueAmount],
-  );
+  // Summary values (server returns cents; UI's formatEuro takes whole units)
+  const monthlyRevenue = (summary?.monthlyRevenueCents ?? 0) / 100;
+  const pendingAmount = (summary?.pendingCents ?? 0) / 100;
+  const overdueAmount = (summary?.overdueCents ?? 0) / 100;
 
   // Sort newest first
   const sortedInvoices = useMemo(
@@ -217,9 +209,9 @@ export default function BillingScreen() {
   const counts = useMemo(
     () => ({
       all: searchFiltered.length,
-      pending: searchFiltered.filter((inv) => inv.status === 'pending').length,
-      paid: searchFiltered.filter((inv) => inv.status === 'paid').length,
-      overdue: searchFiltered.filter((inv) => inv.status === 'overdue').length,
+      pending: searchFiltered.filter((inv) => inv.status === "pending").length,
+      paid: searchFiltered.filter((inv) => inv.status === "paid").length,
+      overdue: searchFiltered.filter((inv) => inv.status === "overdue").length,
     }),
     [searchFiltered],
   );
@@ -232,11 +224,15 @@ export default function BillingScreen() {
     setFilter((prev) => (prev === value ? null : value));
   }, []);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() }),
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.summary() }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient]);
 
   const handleCardPress = useCallback(
     (id: string) => {
@@ -267,7 +263,7 @@ export default function BillingScreen() {
             <ChevronLeft size={24} color={theme.textPrimary} strokeWidth={2} />
           </Pressable>
           <Text variant="headlineLarge" className="flex-1">
-            {t('billing.title', { defaultValue: 'Facturation' })}
+            {t("billing.title", { defaultValue: "Facturation" })}
           </Text>
         </View>
 
@@ -287,11 +283,7 @@ export default function BillingScreen() {
               >
                 Revenus du mois
               </Text>
-              <Text
-                variant="titleMedium"
-                color={theme.accent}
-                className="mt-1"
-              >
+              <Text variant="titleMedium" color={theme.accent} className="mt-1">
                 {formatEuro(monthlyRevenue)}
               </Text>
             </View>
@@ -323,11 +315,7 @@ export default function BillingScreen() {
               >
                 En retard
               </Text>
-              <Text
-                variant="titleMedium"
-                color={theme.danger}
-                className="mt-1"
-              >
+              <Text variant="titleMedium" color={theme.danger} className="mt-1">
                 {formatEuro(overdueAmount)}
               </Text>
             </View>
@@ -337,8 +325,8 @@ export default function BillingScreen() {
         {/* Search */}
         <SearchBar
           placeholder={t(
-            'billing.search',
-            'Rechercher client, v\u00E9hicule, r\u00E9f\u00E9rence...',
+            "billing.search",
+            "Rechercher client, v\u00E9hicule, r\u00E9f\u00E9rence...",
           )}
           onSearch={handleSearch}
           className="mb-3"
@@ -353,18 +341,18 @@ export default function BillingScreen() {
           />
           <Chip
             label={`En attente (${counts.pending})`}
-            selected={filter === 'pending'}
-            onPress={() => handleFilterPress('pending')}
+            selected={filter === "pending"}
+            onPress={() => handleFilterPress("pending")}
           />
           <Chip
             label={`Pay\u00E9es (${counts.paid})`}
-            selected={filter === 'paid'}
-            onPress={() => handleFilterPress('paid')}
+            selected={filter === "paid"}
+            onPress={() => handleFilterPress("paid")}
           />
           <Chip
             label={`En retard (${counts.overdue})`}
-            selected={filter === 'overdue'}
-            onPress={() => handleFilterPress('overdue')}
+            selected={filter === "overdue"}
+            onPress={() => handleFilterPress("overdue")}
           />
         </ChipGroup>
       </View>
@@ -387,10 +375,10 @@ export default function BillingScreen() {
     () => (
       <EmptyState
         icon={Receipt}
-        title={t('billing.emptyTitle', 'Aucune facture trouv\u00E9e')}
+        title={t("billing.emptyTitle", "Aucune facture trouv\u00E9e")}
         subtitle={t(
-          'billing.emptySubtitle',
-          'Essayez de modifier votre recherche ou vos filtres.',
+          "billing.emptySubtitle",
+          "Essayez de modifier votre recherche ou vos filtres.",
         )}
         className="mt-16"
       />

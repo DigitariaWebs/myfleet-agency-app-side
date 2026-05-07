@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { View, Pressable, TextInput } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState, useCallback } from "react";
+import { View, Pressable, TextInput } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Receipt,
@@ -14,37 +14,43 @@ import {
   CheckCircle,
   Download,
   Send,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Divider } from '@/components/ui/Divider';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { useToastStore } from '@/components/ui/Toast';
-import { useBillingStore } from '@/stores/useBillingStore';
-import type { Invoice, InvoiceStatus, PaymentMethod } from '@/types/billing';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Divider } from "@/components/ui/Divider";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/hooks/useTheme";
+import { useToastStore } from "@/components/ui/Toast";
+import {
+  useInvoice,
+  useRecordPayment,
+  useSendInvoiceReminder,
+} from "@/hooks/useInvoices";
+import { usePayments } from "@/hooks/usePayments";
+import type { InvoiceStatus } from "@/types/billing";
+import type { PaymentMethod } from "@/types/payment";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatEuro(amount: number): string {
   return (
-    new Intl.NumberFormat('fr-FR', {
+    new Intl.NumberFormat("fr-FR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount) + ' \u20AC'
+    }).format(amount) + " \u20AC"
   );
 }
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
@@ -55,45 +61,48 @@ function getDaysOverdue(dueDate: string): number {
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 }
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info';
+type BadgeVariant = "success" | "warning" | "danger" | "info";
 
 function statusBadgeVariant(status: InvoiceStatus): BadgeVariant {
   const map: Record<InvoiceStatus, BadgeVariant> = {
-    pending: 'warning',
-    paid: 'success',
-    overdue: 'danger',
-    'partially-paid': 'info',
+    pending: "warning",
+    paid: "success",
+    overdue: "danger",
+    "partially-paid": "info",
   };
   return map[status];
 }
 
 function statusLabel(status: InvoiceStatus): string {
   const map: Record<InvoiceStatus, string> = {
-    pending: 'En attente',
-    paid: 'Pay\u00E9e',
-    overdue: 'En retard',
-    'partially-paid': 'Partiellement pay\u00E9e',
+    pending: "En attente",
+    paid: "Pay\u00E9e",
+    overdue: "En retard",
+    "partially-paid": "Partiellement pay\u00E9e",
   };
   return map[status];
 }
 
 function paymentMethodLabel(method: PaymentMethod): string {
   const map: Record<PaymentMethod, string> = {
-    card: 'Carte',
-    cash: 'Esp\u00E8ces',
-    transfer: 'Virement',
+    card: "Carte",
+    cash: "Esp\u00E8ces",
+    transfer: "Virement",
+    other: "Autre",
   };
   return map[method];
 }
 
 function paymentMethodBadgeVariant(
   method: PaymentMethod,
-): 'info' | 'success' | 'accent' {
-  const map: Record<PaymentMethod, 'info' | 'success' | 'accent'> = {
-    card: 'info',
-    cash: 'success',
-    transfer: 'accent',
-  };
+): "info" | "success" | "accent" | "neutral" {
+  const map: Record<PaymentMethod, "info" | "success" | "accent" | "neutral"> =
+    {
+      card: "info",
+      cash: "success",
+      transfer: "accent",
+      other: "neutral",
+    };
   return map[method];
 }
 
@@ -106,14 +115,17 @@ export default function InvoiceDetailScreen() {
   const theme = useTheme();
   const showToast = useToastStore((s) => s.show);
 
-  const invoices = useBillingStore((s) => s.invoices);
-  const recordPayment = useBillingStore((s) => s.recordPayment);
-  const invoice = invoices.find((inv) => inv.id === id);
+  const { data: invoice, isLoading } = useInvoice(id ?? "");
+  const { data: payments = [] } = usePayments(
+    id ? { invoiceId: id } : undefined,
+  );
+  const recordPaymentMutation = useRecordPayment();
+  const sendReminderMutation = useSendInvoiceReminder();
 
   // Payment simulation state
   const [showCardPayment, setShowCardPayment] = useState(false);
   const [showCashPayment, setShowCashPayment] = useState(false);
-  const [cashAmount, setCashAmount] = useState('');
+  const [cashAmount, setCashAmount] = useState("");
   const [cardLoading, setCardLoading] = useState(false);
   const [cardSuccess, setCardSuccess] = useState(false);
 
@@ -122,69 +134,107 @@ export default function InvoiceDetailScreen() {
     setCardLoading(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    setTimeout(() => {
-      recordPayment(invoice.id, invoice.remainingBalance, 'card');
-      setCardLoading(false);
-      setCardSuccess(true);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      setTimeout(() => {
-        setShowCardPayment(false);
-        setCardSuccess(false);
-      }, 2000);
-    }, 2000);
-  }, [invoice, recordPayment]);
+    recordPaymentMutation.mutate(
+      {
+        id: invoice.id,
+        data: { amount: invoice.remainingBalance, method: "card" },
+      },
+      {
+        onSuccess: () => {
+          setCardLoading(false);
+          setCardSuccess(true);
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Success,
+          );
+          setTimeout(() => {
+            setShowCardPayment(false);
+            setCardSuccess(false);
+          }, 2000);
+        },
+        onError: (err) => {
+          setCardLoading(false);
+          showToast({
+            variant: "error",
+            title: "\u00C9chec du paiement",
+            message: err instanceof Error ? err.message : "Erreur inconnue",
+          });
+        },
+      },
+    );
+  }, [invoice, recordPaymentMutation, showToast]);
 
   const handleCashPayment = useCallback(() => {
     if (!invoice) return;
-    const amount = parseFloat(cashAmount.replace(',', '.'));
+    const amount = parseFloat(cashAmount.replace(",", "."));
     if (isNaN(amount) || amount <= 0 || amount > invoice.remainingBalance) {
       showToast({
-        variant: 'error',
-        title: 'Montant invalide',
+        variant: "error",
+        title: "Montant invalide",
         message: `Entrez un montant entre 1 et ${formatEuro(invoice.remainingBalance)}`,
       });
       return;
     }
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    recordPayment(invoice.id, amount, 'cash');
-    setCashAmount('');
-    setShowCashPayment(false);
-    showToast({
-      variant: 'success',
-      title: 'Paiement enregistr\u00E9',
-      message: `${formatEuro(amount)} re\u00E7u en esp\u00E8ces`,
-    });
-  }, [invoice, cashAmount, recordPayment, showToast]);
+    recordPaymentMutation.mutate(
+      { id: invoice.id, data: { amount, method: "cash" } },
+      {
+        onSuccess: () => {
+          setCashAmount("");
+          setShowCashPayment(false);
+          showToast({
+            variant: "success",
+            title: "Paiement enregistr\u00E9",
+            message: `${formatEuro(amount)} re\u00E7u en esp\u00E8ces`,
+          });
+        },
+      },
+    );
+  }, [invoice, cashAmount, recordPaymentMutation, showToast]);
 
   const handleSendReminder = useCallback(() => {
+    if (!invoice) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    showToast({
-      variant: 'info',
-      title: 'Rappel envoy\u00E9',
-      message: `Un rappel de paiement a \u00E9t\u00E9 envoy\u00E9 au client.`,
+    sendReminderMutation.mutate(invoice.id, {
+      onSuccess: () => {
+        showToast({
+          variant: "info",
+          title: "Rappel envoy\u00E9",
+          message: `Un rappel de paiement a \u00E9t\u00E9 envoy\u00E9 au client.`,
+        });
+      },
     });
-  }, [showToast]);
+  }, [invoice, sendReminderMutation, showToast]);
 
   const handleGenerateInvoicePdf = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showToast({
-      variant: 'success',
-      title: 'Facture PDF pr\u00EAte',
-      message: 'La facture PDF est pr\u00EAte avec les informations du client.',
+      variant: "success",
+      title: "Facture PDF pr\u00EAte",
+      message: "La facture PDF est pr\u00EAte avec les informations du client.",
     });
   }, [showToast]);
 
   const handleSendInvoicePdf = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showToast({
-      variant: 'success',
-      title: 'Facture envoy\u00E9e',
-      message: 'La facture PDF a \u00E9t\u00E9 envoy\u00E9e par email au client.',
+      variant: "success",
+      title: "Facture envoy\u00E9e",
+      message:
+        "La facture PDF a \u00E9t\u00E9 envoy\u00E9e par email au client.",
     });
   }, [showToast]);
 
   // ── Not found ───────────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <ScreenWrapper scroll>
+        <View className="flex-1 items-center justify-center py-20">
+          <Text>Chargement…</Text>
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   if (!invoice) {
     return (
@@ -192,12 +242,12 @@ export default function InvoiceDetailScreen() {
         <View className="flex-1 items-center justify-center py-20">
           <EmptyState
             icon={Receipt}
-            title={t('billing.notFound', 'Facture introuvable')}
+            title={t("billing.notFound", "Facture introuvable")}
             subtitle={t(
-              'billing.notFoundDesc',
+              "billing.notFoundDesc",
               "La facture que vous recherchez n'existe pas.",
             )}
-            actionLabel={t('common.back', 'Retour')}
+            actionLabel={t("common.back", "Retour")}
             onAction={() => router.back()}
           />
         </View>
@@ -206,11 +256,11 @@ export default function InvoiceDetailScreen() {
   }
 
   const daysOverdue =
-    invoice.status === 'overdue' ? getDaysOverdue(invoice.dueDate) : 0;
+    invoice.status === "overdue" ? getDaysOverdue(invoice.dueDate) : 0;
   const isPendingOrOverdue =
-    invoice.status === 'pending' ||
-    invoice.status === 'overdue' ||
-    invoice.status === 'partially-paid';
+    invoice.status === "pending" ||
+    invoice.status === "overdue" ||
+    invoice.status === "partially-paid";
 
   return (
     <ScreenWrapper scroll>
@@ -231,15 +281,14 @@ export default function InvoiceDetailScreen() {
       </Animated.View>
 
       {/* ── Overdue Banner ──────────────────────────────────────── */}
-      {invoice.status === 'overdue' && daysOverdue > 0 ? (
+      {invoice.status === "overdue" && daysOverdue > 0 ? (
         <Animated.View
           entering={FadeInDown.duration(400).delay(40)}
           className="rounded-xl p-3 mb-4"
           style={{ backgroundColor: theme.dangerSoft }}
         >
           <Text variant="bodySmall" color={theme.danger} align="center">
-            {daysOverdue} jour{daysOverdue > 1 ? 's' : ''} de retard de
-            paiement
+            {daysOverdue} jour{daysOverdue > 1 ? "s" : ""} de retard de paiement
           </Text>
         </Animated.View>
       ) : null}
@@ -294,7 +343,7 @@ export default function InvoiceDetailScreen() {
           <View className="flex-row justify-between">
             <View>
               <Text variant="bodySmall" color={theme.textTertiary}>
-                Date d&apos;{'\u00E9'}mission
+                Date d&apos;{"\u00E9"}mission
               </Text>
               <Text variant="bodySmall" className="mt-1">
                 {formatDate(invoice.issuedDate)}
@@ -302,7 +351,7 @@ export default function InvoiceDetailScreen() {
             </View>
             <View className="items-end">
               <Text variant="bodySmall" color={theme.textTertiary}>
-                Date d&apos;{'\u00E9'}ch{'\u00E9'}ance
+                Date d&apos;{"\u00E9"}ch{"\u00E9"}ance
               </Text>
               <Text variant="bodySmall" className="mt-1">
                 {formatDate(invoice.dueDate)}
@@ -318,12 +367,16 @@ export default function InvoiceDetailScreen() {
         className="mt-4"
       >
         <Text variant="headlineSmall" className="mb-3">
-          D{'\u00E9'}tail des prestations
+          D{"\u00E9"}tail des prestations
         </Text>
         <Card>
           {/* Header row */}
           <View className="flex-row mb-3">
-            <Text variant="titleSmall" color={theme.textTertiary} className="flex-1">
+            <Text
+              variant="titleSmall"
+              color={theme.textTertiary}
+              className="flex-1"
+            >
               Description
             </Text>
             <Text
@@ -332,7 +385,7 @@ export default function InvoiceDetailScreen() {
               className="w-10"
               align="center"
             >
-              Qt{'\u00E9'}
+              Qt{"\u00E9"}
             </Text>
             <Text
               variant="titleSmall"
@@ -358,38 +411,20 @@ export default function InvoiceDetailScreen() {
           {invoice.lineItems.map((item, idx) => (
             <View key={item.id}>
               <View className="flex-row py-2">
-                <Text
-                  variant="bodySmall"
-                  className="flex-1"
-                  numberOfLines={2}
-                >
+                <Text variant="bodySmall" className="flex-1" numberOfLines={2}>
                   {item.description}
                 </Text>
-                <Text
-                  variant="bodySmall"
-                  className="w-10"
-                  align="center"
-                >
+                <Text variant="bodySmall" className="w-10" align="center">
                   {item.quantity}
                 </Text>
-                <Text
-                  variant="bodySmall"
-                  className="w-16"
-                  align="right"
-                >
+                <Text variant="bodySmall" className="w-16" align="right">
                   {item.unitPrice} \u20AC
                 </Text>
-                <Text
-                  variant="bodySmall"
-                  className="w-20"
-                  align="right"
-                >
+                <Text variant="bodySmall" className="w-20" align="right">
                   {formatEuro(item.total)}
                 </Text>
               </View>
-              {idx < invoice.lineItems.length - 1 ? (
-                <Divider />
-              ) : null}
+              {idx < invoice.lineItems.length - 1 ? <Divider /> : null}
             </View>
           ))}
         </Card>
@@ -401,7 +436,7 @@ export default function InvoiceDetailScreen() {
         className="mt-4"
       >
         <Text variant="headlineSmall" className="mb-3">
-          R{'\u00E9'}capitulatif
+          R{"\u00E9"}capitulatif
         </Text>
         <Card>
           {/* Subtotal */}
@@ -416,7 +451,7 @@ export default function InvoiceDetailScreen() {
           {invoice.deposit > 0 ? (
             <View className="flex-row justify-between mb-2">
               <Text variant="bodySmall" color={theme.textSecondary}>
-                Caution d{'\u00E9'}duite
+                Caution d{"\u00E9"}duite
               </Text>
               <Text variant="bodySmall" color={theme.success}>
                 -{formatEuro(invoice.deposit)}
@@ -440,7 +475,7 @@ export default function InvoiceDetailScreen() {
           {invoice.lateReturnFee > 0 ? (
             <View className="flex-row justify-between mb-2">
               <Text variant="bodySmall" color={theme.textSecondary}>
-                P{'\u00E9'}nalit{'\u00E9'} de retard
+                P{"\u00E9"}nalit{"\u00E9"} de retard
               </Text>
               <Text variant="bodySmall" color={theme.warning}>
                 +{formatEuro(invoice.lateReturnFee)}
@@ -488,7 +523,7 @@ export default function InvoiceDetailScreen() {
           </View>
 
           {/* Payment history */}
-          {invoice.payments.length > 0 ? (
+          {payments.length > 0 ? (
             <View>
               <Text
                 variant="titleSmall"
@@ -497,28 +532,41 @@ export default function InvoiceDetailScreen() {
               >
                 Historique des paiements
               </Text>
-              {invoice.payments.map((payment) => (
-                <View
-                  key={payment.id}
-                  className="flex-row items-center justify-between py-2"
-                >
-                  <View className="flex-row items-center flex-1">
-                    <Text variant="bodySmall" color={theme.textSecondary}>
-                      {formatDate(payment.date)}
-                    </Text>
-                    <Badge
-                      variant={paymentMethodBadgeVariant(payment.method)}
-                      size="sm"
-                      className="ml-2"
+              {payments.map((payment) => {
+                const isRefund = payment.kind === "refund";
+                const dateStr = payment.completedAt ?? payment.createdAt;
+                return (
+                  <View
+                    key={payment.id}
+                    className="flex-row items-center justify-between py-2"
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <Text variant="bodySmall" color={theme.textSecondary}>
+                        {formatDate(dateStr)}
+                      </Text>
+                      <Badge
+                        variant={paymentMethodBadgeVariant(payment.method)}
+                        size="sm"
+                        className="ml-2"
+                      >
+                        {paymentMethodLabel(payment.method)}
+                      </Badge>
+                      {isRefund ? (
+                        <Badge variant="warning" size="sm" className="ml-2">
+                          Remboursement
+                        </Badge>
+                      ) : null}
+                    </View>
+                    <Text
+                      variant="bodySmall"
+                      color={isRefund ? theme.warning : theme.success}
                     >
-                      {paymentMethodLabel(payment.method)}
-                    </Badge>
+                      {isRefund ? "-" : "+"}
+                      {formatEuro(payment.amount)}
+                    </Text>
                   </View>
-                  <Text variant="bodySmall" color={theme.success}>
-                    +{formatEuro(payment.amount)}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ) : null}
 
@@ -571,40 +619,34 @@ export default function InvoiceDetailScreen() {
                     color={theme.success}
                     className="mt-3"
                   >
-                    Paiement r{'\u00E9'}ussi !
+                    Paiement r{"\u00E9"}ussi !
                   </Text>
                   <Text
                     variant="bodySmall"
                     color={theme.textSecondary}
                     className="mt-1"
                   >
-                    {formatEuro(invoice.remainingBalance)} d{'\u00E9'}bit
-                    {'\u00E9'}
+                    {formatEuro(invoice.remainingBalance)} d{"\u00E9"}bit
+                    {"\u00E9"}
                   </Text>
                 </Animated.View>
               ) : (
                 <View>
                   <Text variant="titleSmall" className="mb-3">
-                    Carte enregistr{'\u00E9'}e
+                    Carte enregistr{"\u00E9"}e
                   </Text>
                   <View
                     className="flex-row items-center p-3 rounded-xl mb-3"
                     style={{ backgroundColor: theme.surfaceTertiary }}
                   >
-                    <CreditCard
-                      size={20}
-                      color={theme.textSecondary}
-                    />
+                    <CreditCard size={20} color={theme.textSecondary} />
                     <Text variant="bodyMedium" className="ml-3">
                       **** **** **** 4242
                     </Text>
                   </View>
                   <View className="flex-row justify-between mb-4">
-                    <Text
-                      variant="bodySmall"
-                      color={theme.textSecondary}
-                    >
-                      Montant {'\u00E0'} d{'\u00E9'}biter
+                    <Text variant="bodySmall" color={theme.textSecondary}>
+                      Montant {"\u00E0"} d{"\u00E9"}biter
                     </Text>
                     <Text variant="titleSmall" color={theme.accent}>
                       {formatEuro(invoice.remainingBalance)}
@@ -654,7 +696,7 @@ export default function InvoiceDetailScreen() {
           {showCashPayment ? (
             <Card className="mb-3">
               <Text variant="titleSmall" className="mb-3">
-                Paiement en esp{'\u00E8'}ces
+                Paiement en esp{"\u00E8"}ces
               </Text>
               <View
                 className="flex-row items-center p-3 rounded-xl mb-3"
@@ -669,13 +711,13 @@ export default function InvoiceDetailScreen() {
                   keyboardType="decimal-pad"
                   className="flex-1 ml-3"
                   style={{
-                    fontFamily: 'Poppins_400Regular',
+                    fontFamily: "Poppins_400Regular",
                     fontSize: 14,
                     color: theme.textPrimary,
                   }}
                 />
                 <Text variant="bodySmall" color={theme.textTertiary}>
-                  {'\u20AC'}
+                  {"\u20AC"}
                 </Text>
               </View>
               <View className="flex-row gap-3">
@@ -685,7 +727,7 @@ export default function InvoiceDetailScreen() {
                     fullWidth
                     onPress={() => {
                       setShowCashPayment(false);
-                      setCashAmount('');
+                      setCashAmount("");
                     }}
                   >
                     Annuler
@@ -714,7 +756,7 @@ export default function InvoiceDetailScreen() {
               }}
               className="mb-3"
             >
-              Paiement en esp{'\u00E8'}ces
+              Paiement en esp{"\u00E8"}ces
             </Button>
           )}
 
@@ -731,7 +773,7 @@ export default function InvoiceDetailScreen() {
       ) : null}
 
       {/* ── Paid Actions ────────────────────────────────────────── */}
-      {invoice.status === 'paid' ? (
+      {invoice.status === "paid" ? (
         <Animated.View
           entering={FadeInDown.duration(400).delay(400)}
           className="mt-4"
@@ -743,7 +785,7 @@ export default function InvoiceDetailScreen() {
               leftIcon={Download}
               onPress={handleGenerateInvoicePdf}
             >
-              G{'\u00E9'}n{'\u00E9'}rer facture PDF
+              G{"\u00E9"}n{"\u00E9"}rer facture PDF
             </Button>
             <Button
               variant="secondary"
