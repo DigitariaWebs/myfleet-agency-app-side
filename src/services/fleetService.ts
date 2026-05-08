@@ -217,6 +217,7 @@ export interface CreateVehicleInput {
   mileage: number;
   licensePlate: string;
   dailyRate: number;
+  deposit?: number;
   fuelType: string;
   transmission: string;
   seats: number;
@@ -251,6 +252,7 @@ export interface UpdateVehicleInput {
   mileage?: number;
   licensePlate?: string;
   dailyRate?: number;
+  deposit?: number;
   fuelType?: string;
   transmission?: string;
   seats?: number;

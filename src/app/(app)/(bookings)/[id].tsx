@@ -33,9 +33,6 @@ import {
   ArrowRight,
   RefreshCw,
   ClipboardList,
-  Copy,
-  MessageCircle,
-  Send,
   Timer,
   AlertTriangle,
   MoreVertical,
@@ -1123,8 +1120,8 @@ export default function BookingDetailScreen() {
           </View>
         </Animated.View>
 
-        {/* ── Payment ───────────────────────────────────────────────── */}
-        {booking.paymentStatus && (
+        {/* ── Deposit ───────────────────────────────────────────────── */}
+        {booking.depositStatus && booking.depositStatus !== "none" && (
           <Animated.View
             entering={FadeInDown.duration(400).delay(440)}
             style={{ marginTop: 18, marginHorizontal: 16 }}
@@ -1147,129 +1144,70 @@ export default function BookingDetailScreen() {
                   color={theme.textSecondary}
                   style={{ fontSize: 13 }}
                 >
-                  {t("booking.payment.status.label", "Status")}
+                  {t("booking.deposit.status.label", "Deposit")}
                 </Text>
                 {(() => {
-                  const ps = booking.paymentStatus;
-                  const payTone =
-                    ps === "paid"
+                  const ds = booking.depositStatus;
+                  const tone =
+                    ds === "captured"
                       ? toneColors("success", theme)
-                      : ps === "expired" || ps === "failed"
-                        ? toneColors("danger", theme)
-                        : toneColors("warning", theme);
+                      : ds === "held" || ds === "partially_captured"
+                        ? toneColors("info", theme)
+                        : ds === "released"
+                          ? toneColors("success", theme)
+                          : ds === "failed" || ds === "forfeited"
+                            ? toneColors("danger", theme)
+                            : toneColors("warning", theme);
                   return (
                     <View
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 4,
                         borderRadius: 9999,
-                        backgroundColor: payTone.bg,
+                        backgroundColor: tone.bg,
                       }}
                     >
                       <Text
                         variant="labelSmall"
-                        color={payTone.fg}
+                        color={tone.fg}
                         style={{
                           fontFamily: fontFamilies.semiBold,
                           fontSize: 11,
                         }}
                       >
-                        {t(`booking.payment.status.${ps}`, ps)}
+                        {t(`booking.deposit.status.${ds}`, ds ?? "")}
                       </Text>
                     </View>
                   );
                 })()}
               </View>
 
-              {booking.paymentLink && booking.paymentStatus === "link_sent" && (
-                <View style={{ marginTop: 12 }}>
+              {booking.depositCapturedAmount != null &&
+                booking.depositCapturedAmount > 0 && (
                   <View
-                    style={{
-                      backgroundColor: theme.surfaceTertiary,
-                      borderRadius: 12,
-                      padding: 10,
-                      marginBottom: 10,
-                    }}
+                    className="flex-row items-center justify-between"
+                    style={{ marginTop: 8 }}
                   >
                     <Text
-                      variant="bodySmall"
+                      variant="bodyMedium"
                       color={theme.textSecondary}
-                      numberOfLines={1}
+                      style={{ fontSize: 13 }}
                     >
-                      {booking.paymentLink}
+                      {t("booking.deposit.captured", "Captured")}
+                    </Text>
+                    <Text variant="bodySmall">
+                      {"€"}
+                      {(booking.depositCapturedAmount / 100).toLocaleString(
+                        "fr-FR",
+                      )}
+                      {" / "}
+                      {"€"}
+                      {(booking.deposit / 100).toLocaleString("fr-FR")}
                     </Text>
                   </View>
-                  <View className="flex-row" style={{ gap: 8 }}>
-                    <PayActionPill
-                      icon={Copy}
-                      label={t("booking.payment.copyLink", "Copy")}
-                      theme={theme}
-                      onPress={() => {
-                        void Haptics.impactAsync(
-                          Haptics.ImpactFeedbackStyle.Light,
-                        );
-                        showToast({
-                          variant: "success",
-                          title: t("booking.payment.copyLink", "Link copied"),
-                        });
-                      }}
-                    />
-                    <PayActionPill
-                      icon={MessageCircle}
-                      label="WhatsApp"
-                      theme={theme}
-                      onPress={() => {
-                        void Haptics.impactAsync(
-                          Haptics.ImpactFeedbackStyle.Light,
-                        );
-                        showToast({
-                          variant: "info",
-                          title: t("booking.payment.sendWhatsApp", "WhatsApp"),
-                        });
-                      }}
-                    />
-                    <PayActionPill
-                      icon={Send}
-                      label="Email"
-                      theme={theme}
-                      onPress={() => {
-                        void Haptics.impactAsync(
-                          Haptics.ImpactFeedbackStyle.Light,
-                        );
-                        showToast({
-                          variant: "info",
-                          title: t("booking.payment.sendEmail", "Email"),
-                        });
-                      }}
-                    />
-                  </View>
-                </View>
-              )}
+                )}
 
-              {booking.paymentStatus === "expired" && (
-                <View style={{ marginTop: 12 }}>
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    onPress={() => {
-                      void Haptics.impactAsync(
-                        Haptics.ImpactFeedbackStyle.Medium,
-                      );
-                      showToast({
-                        variant: "success",
-                        title: t(
-                          "booking.payment.resend",
-                          "Payment link resent",
-                        ),
-                      });
-                    }}
-                  >
-                    {t("booking.payment.resend", "Resend Payment Link")}
-                  </Button>
-                </View>
-              )}
-
-              {booking.autoCancelAt && booking.paymentStatus !== "paid" && (
+              {booking.autoCancelAt && booking.depositStatus !== "held" && (
                 <View
                   className="flex-row items-center"
                   style={{
@@ -1681,48 +1619,6 @@ function PriceRow({
         {value}
       </Text>
     </View>
-  );
-}
-
-function PayActionPill({
-  icon: Icon,
-  label,
-  theme,
-  onPress,
-}: {
-  icon: React.ComponentType<{
-    size?: number;
-    color?: string;
-    strokeWidth?: number;
-  }>;
-  label: string;
-  theme: ReturnType<typeof useTheme>;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 9,
-        borderRadius: 9999,
-        backgroundColor: theme.surfaceTertiary,
-        gap: 6,
-        transform: [{ scale: pressed ? 0.97 : 1 }],
-      })}
-    >
-      <Icon size={13} color={theme.textSecondary} strokeWidth={2} />
-      <Text
-        variant="labelSmall"
-        color={theme.textSecondary}
-        style={{ fontFamily: fontFamilies.semiBold, fontSize: 12 }}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 

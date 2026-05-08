@@ -72,11 +72,33 @@ export interface Booking {
   notes: string;
   createdAt: string;
 
-  // Payment fields
-  paymentLink?: string;
-  paymentLinkSentAt?: string;
-  paymentLinkExpiresAt?: string;
-  paymentStatus?: "pending" | "link_sent" | "paid" | "expired" | "failed";
+  // Deposit lifecycle. The deposit is a Stripe manual-capture authorization
+  // (or cash held by the agent). Captured amount produces a payment row on
+  // the damages invoice; released auths just void.
+  depositStatus?:
+    | "none"
+    | "held"
+    | "captured"
+    | "partially_captured"
+    | "released"
+    | "forfeited"
+    | "failed";
+  /** Stripe PaymentIntent id (pi_…) for the deposit auth. */
+  depositPaymentIntentId?: string;
+  /** In cents. How much of the held deposit has actually been captured. */
+  depositCapturedAmount?: number;
+  depositAuthorizedAt?: string;
+  depositCapturedAt?: string;
+  depositReleasedAt?: string;
+  /** Stripe auths expire ~7 days after authorization. */
+  depositExpiresAt?: string;
+  depositFailureReason?: string;
+
+  /** Denormalized pointer to the rental invoice issued at confirmation. */
+  rentalInvoiceId?: string;
+  /** Denormalized pointer to the damages invoice issued at close. */
+  damagesInvoiceId?: string;
+
   /** Selected at booking creation. 'cash' means agent collects cash at pickup. Undefined reads as 'online'. */
   paymentMethod?: "online" | "cash";
   /** Channel that submitted the booking. Undefined treated as 'agency'. */

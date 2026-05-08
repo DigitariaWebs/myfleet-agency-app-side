@@ -40,6 +40,12 @@ function getStatusConfig(status: InvoiceStatus): StatusConfig {
       return { label: "En retard", variant: "danger" };
     case "partially-paid":
       return { label: "Partiel", variant: "info" };
+    case "refund_pending":
+      return { label: "Remb. en attente", variant: "warning" };
+    case "refunded":
+      return { label: "Remboursé", variant: "success" };
+    case "void":
+      return { label: "Annulée", variant: "danger" };
   }
 }
 

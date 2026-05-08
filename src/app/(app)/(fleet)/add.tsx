@@ -73,6 +73,7 @@ export default function AddVehicleScreen() {
   const [transmission, setTransmission] = useState<Transmission | null>(null);
   const [seats, setSeats] = useState("");
   const [dailyRate, setDailyRate] = useState("");
+  const [deposit, setDeposit] = useState("");
   const [features, setFeatures] = useState<string[]>([]);
   const createVehicle = useCreateVehicle();
 
@@ -208,6 +209,7 @@ export default function AddVehicleScreen() {
     setTransmission(sample.transmission);
     setSeats(String(sample.seats));
     setDailyRate(String(sample.dailyRate));
+    setDeposit(String(sample.deposit ?? 0));
     setFieldErrors({});
     showToast({
       variant: "success",
@@ -229,6 +231,7 @@ export default function AddVehicleScreen() {
       transmission: transmission ?? undefined,
       seats,
       dailyRate,
+      deposit: deposit.trim() === "" ? 0 : deposit,
       features,
       images: [],
       quantity: 1,
@@ -335,6 +338,7 @@ export default function AddVehicleScreen() {
     transmission,
     seats,
     dailyRate,
+    deposit,
     features,
     awaitAll,
     snapshot,
@@ -433,6 +437,7 @@ export default function AddVehicleScreen() {
               transmission,
               seats,
               dailyRate,
+              deposit,
               features,
             }}
             setState={{
@@ -447,6 +452,7 @@ export default function AddVehicleScreen() {
               setTransmission,
               setSeats,
               setDailyRate,
+              setDeposit,
               setFeatures,
             }}
             fieldErrors={fieldErrors}

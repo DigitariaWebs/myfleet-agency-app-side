@@ -27,7 +27,7 @@ export interface BookingFilters {
   status?: Booking["status"];
   vehicleId?: string;
   clientId?: string;
-  paymentStatus?: NonNullable<Booking["paymentStatus"]>;
+  depositStatus?: NonNullable<Booking["depositStatus"]>;
   source?: NonNullable<Booking["source"]>;
   from?: string;
   to?: string;
@@ -225,11 +225,45 @@ export async function getVehicleAvailability(
   return ok(data);
 }
 
-export async function createPaymentLink(
+export async function authorizeDeposit(
   id: string,
+  body: {
+    paymentIntentId?: string;
+    paymentMethodId?: string;
+    expiresAt?: string;
+  } = {},
 ): Promise<ApiResponse<Booking>> {
-  const data = await authedRequest<Booking>(`/bookings/${id}/payment-link`, {
+  const data = await authedRequest<Booking>(
+    `/bookings/${id}/deposit/authorize`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  return ok(data);
+}
+
+export async function captureDeposit(
+  id: string,
+  amount?: number,
+): Promise<ApiResponse<Booking>> {
+  const data = await authedRequest<Booking>(`/bookings/${id}/deposit/capture`, {
     method: "POST",
+    body: JSON.stringify(amount != null ? { amount } : {}),
+    headers: { "Content-Type": "application/json" },
+  });
+  return ok(data);
+}
+
+export async function releaseDeposit(
+  id: string,
+  reason?: string,
+): Promise<ApiResponse<Booking>> {
+  const data = await authedRequest<Booking>(`/bookings/${id}/deposit/release`, {
+    method: "POST",
+    body: JSON.stringify(reason ? { reason } : {}),
+    headers: { "Content-Type": "application/json" },
   });
   return ok(data);
 }

@@ -102,6 +102,8 @@ export interface Vehicle {
   licensePlate: string;
   /** In cents (smallest currency unit). */
   dailyRate: number;
+  /** Deposit hold amount required when renting this vehicle, in cents. */
+  deposit: number;
   fuelType: FuelType;
   transmission: Transmission;
   seats: number;

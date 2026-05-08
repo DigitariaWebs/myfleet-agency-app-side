@@ -518,7 +518,10 @@ export default function NewBookingScreen() {
     const deliveryFee = options
       .filter((o) => o.enabled && o.deliveryDetails)
       .reduce((sum, o) => sum + (o.deliveryDetails?.fee ?? 0), 0);
-    const deposit = Math.round(subtotal * 0.4);
+    // Deposit is the vehicle's per-car held amount, not a charge. Server is
+    // the source of truth — the wizard only displays it, and total excludes
+    // it (the deposit is authorized separately at confirmation).
+    const deposit = selectedVehicle.deposit ?? 0;
     const total = subtotal + optionsTotal + deliveryFee;
     return { subtotal, optionsTotal, deliveryFee, deposit, total };
   }, [selectedVehicle, days, options]);
@@ -1801,19 +1804,6 @@ export default function NewBookingScreen() {
             );
           })}
 
-          <Divider className="my-3" />
-
-          {/* Deposit */}
-          <View className="flex-row items-center justify-between mb-2">
-            <Text variant="bodyMedium" color={theme.textSecondary}>
-              {t("bookings.new.deposit", "Deposit")}
-            </Text>
-            <Text variant="bodyMedium">
-              {"\u20AC"}
-              {pricing.deposit}
-            </Text>
-          </View>
-
           {pricing.deliveryFee > 0 && (
             <View className="flex-row items-center justify-between mb-2">
               <Text variant="bodyMedium" color={theme.textSecondary}>
@@ -1827,7 +1817,7 @@ export default function NewBookingScreen() {
 
           <Divider className="my-3" />
 
-          {/* Total */}
+          {/* Total \u2014 does NOT include the deposit (held separately). */}
           <View className="flex-row items-center justify-between">
             <Text variant="headlineMedium">Total</Text>
             <Text variant="headlineMedium" color={theme.accent}>
@@ -1835,6 +1825,34 @@ export default function NewBookingScreen() {
               {pricing.total}
             </Text>
           </View>
+
+          {/* Deposit info \u2014 held authorization, not a charge. */}
+          {pricing.deposit > 0 && (
+            <View
+              className="flex-row items-center justify-between mt-3 rounded-xl px-3 py-2"
+              style={{ backgroundColor: theme.surfaceSecondary }}
+            >
+              <View className="flex-1 pr-3">
+                <Text variant="bodySmall" color={theme.textSecondary}>
+                  {t("bookings.new.depositHeld", "Deposit (held, not charged)")}
+                </Text>
+                <Text
+                  variant="caption"
+                  color={theme.textTertiary}
+                  style={{ fontSize: 11, marginTop: 2 }}
+                >
+                  {t(
+                    "bookings.new.depositHint",
+                    "Authorized at confirmation, released or captured at return.",
+                  )}
+                </Text>
+              </View>
+              <Text variant="bodyMedium" color={theme.textSecondary}>
+                {"\u20AC"}
+                {pricing.deposit}
+              </Text>
+            </View>
+          )}
         </View>
       </Card>
     </Animated.View>

@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  authorizeDeposit,
   cancelBooking,
+  captureDeposit,
   closeBooking,
   createBooking,
-  createPaymentLink,
   deleteBooking,
+  releaseDeposit,
   extendBooking,
   markCashPaid,
   getActiveRentals,
@@ -242,12 +244,51 @@ export function useExtendBooking() {
   });
 }
 
-export function useCreatePaymentLink() {
+export function useAuthorizeDeposit() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await createPaymentLink(id);
-      if (!res.data) throw new Error("Failed to create payment link");
+    mutationFn: async (vars: {
+      id: string;
+      paymentIntentId?: string;
+      paymentMethodId?: string;
+      expiresAt?: string;
+    }) => {
+      const res = await authorizeDeposit(vars.id, {
+        paymentIntentId: vars.paymentIntentId,
+        paymentMethodId: vars.paymentMethodId,
+        expiresAt: vars.expiresAt,
+      });
+      if (!res.data) throw new Error("Failed to authorize deposit");
+      return res.data;
+    },
+    onSuccess: (booking) => {
+      invalidateBookings(qc);
+      setBookingDetail(qc, booking);
+    },
+  });
+}
+
+export function useCaptureDeposit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; amount?: number }) => {
+      const res = await captureDeposit(vars.id, vars.amount);
+      if (!res.data) throw new Error("Failed to capture deposit");
+      return res.data;
+    },
+    onSuccess: (booking) => {
+      invalidateBookings(qc);
+      setBookingDetail(qc, booking);
+    },
+  });
+}
+
+export function useReleaseDeposit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; reason?: string }) => {
+      const res = await releaseDeposit(vars.id, vars.reason);
+      if (!res.data) throw new Error("Failed to release deposit");
       return res.data;
     },
     onSuccess: (booking) => {

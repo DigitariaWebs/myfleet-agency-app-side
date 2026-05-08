@@ -303,12 +303,12 @@ export default function PickupScreen() {
   const [identityVerified, setIdentityVerified] = useState(false);
   // Cash bookings: agent ticks this manually; the toggle is sent to the
   // backend (markCashPaid) when pickup completes.
-  // Online bookings: derived from realBooking.paymentStatus, locked
-  // (Stripe webhook is the source of truth).
+  // Online bookings: derived from the deposit hold — Stripe webhook is the
+  // source of truth and flips depositStatus to 'held' once authorized.
   const [cashPaymentTicked, setCashPaymentTicked] = useState(false);
   const isCashBooking = realBooking?.paymentMethod === "cash";
-  const onlinePaid = realBooking?.paymentStatus === "paid";
-  const paymentReceived = isCashBooking ? cashPaymentTicked : onlinePaid;
+  const onlineReady = realBooking?.depositStatus === "held";
+  const paymentReceived = isCashBooking ? cashPaymentTicked : onlineReady;
   const [keysReady, setKeysReady] = useState(false);
   const [startMileageInput, setStartMileageInput] = useState("");
   const [startFuelLevel, setStartFuelLevel] = useState<number | null>(null);
@@ -461,7 +461,7 @@ export default function PickupScreen() {
     if (
       isCashBooking &&
       cashPaymentTicked &&
-      realBooking?.paymentStatus !== "paid"
+      realBooking?.depositStatus !== "held"
     ) {
       try {
         await markCashPaidMutation.mutateAsync(id);
@@ -831,12 +831,12 @@ export default function PickupScreen() {
               ? t("pickup.checklist.paymentCashHint", {
                   defaultValue: "Cash at pickup — tick once collected",
                 })
-              : onlinePaid
+              : onlineReady
                 ? t("pickup.checklist.paymentOnlinePaid", {
-                    defaultValue: "Online payment confirmed",
+                    defaultValue: "Deposit hold confirmed",
                   })
                 : t("pickup.checklist.paymentOnlineWaiting", {
-                    defaultValue: "Awaiting Stripe confirmation",
+                    defaultValue: "Awaiting deposit authorization",
                   })
           }
           checked={paymentReceived}

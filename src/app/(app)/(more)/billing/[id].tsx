@@ -69,6 +69,9 @@ function statusBadgeVariant(status: InvoiceStatus): BadgeVariant {
     paid: "success",
     overdue: "danger",
     "partially-paid": "info",
+    refund_pending: "warning",
+    refunded: "success",
+    void: "danger",
   };
   return map[status];
 }
@@ -79,6 +82,9 @@ function statusLabel(status: InvoiceStatus): string {
     paid: "Pay\u00E9e",
     overdue: "En retard",
     "partially-paid": "Partiellement pay\u00E9e",
+    refund_pending: "Remboursement en attente",
+    refunded: "Rembours\u00E9",
+    void: "Annul\u00E9e",
   };
   return map[status];
 }
@@ -446,18 +452,6 @@ export default function InvoiceDetailScreen() {
             </Text>
             <Text variant="bodySmall">{formatEuro(invoice.subtotal)}</Text>
           </View>
-
-          {/* Deposit */}
-          {invoice.deposit > 0 ? (
-            <View className="flex-row justify-between mb-2">
-              <Text variant="bodySmall" color={theme.textSecondary}>
-                Caution d{"\u00E9"}duite
-              </Text>
-              <Text variant="bodySmall" color={theme.success}>
-                -{formatEuro(invoice.deposit)}
-              </Text>
-            </View>
-          ) : null}
 
           {/* Damage charges */}
           {invoice.damageCharges > 0 ? (

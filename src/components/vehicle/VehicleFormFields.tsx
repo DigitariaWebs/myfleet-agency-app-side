@@ -70,6 +70,7 @@ export interface VehicleFormState {
   transmission: Transmission | null;
   seats: string;
   dailyRate: string;
+  deposit: string;
   features: string[];
 }
 
@@ -87,6 +88,7 @@ export interface VehicleFormFieldsProps {
     setTransmission: (v: Transmission) => void;
     setSeats: (v: string) => void;
     setDailyRate: (v: string) => void;
+    setDeposit: (v: string) => void;
     setFeatures: (v: string[]) => void;
   };
   fieldErrors: Record<string, string>;
@@ -101,7 +103,7 @@ export interface VehicleFormFieldsProps {
  * sections. Update this whenever you add/remove an Animated.View entering
  * step inside the form.
  */
-export const VEHICLE_FORM_FIELDS_STAGGER_COUNT = 19;
+export const VEHICLE_FORM_FIELDS_STAGGER_COUNT = 20;
 
 export function VehicleFormFields({
   state,
@@ -353,6 +355,22 @@ export function VehicleFormFields({
             error={fieldErrors.dailyRate}
           />
         </View>
+      </Animated.View>
+
+      <Animated.View entering={stagger(i++)} className="mb-3">
+        <Input
+          label={t("fleet.deposit", {
+            defaultValue: `Deposit (${currency})`,
+          })}
+          placeholder="500"
+          value={state.deposit}
+          onChangeText={(v) => {
+            setState.setDeposit(v);
+            clearFieldError("deposit");
+          }}
+          keyboardType="decimal-pad"
+          error={fieldErrors.deposit}
+        />
       </Animated.View>
 
       <Animated.View entering={stagger(i++)} className="mb-2">

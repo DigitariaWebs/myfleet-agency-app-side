@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, ScrollView, FlatList } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Pressable, ScrollView, FlatList } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
   Phone,
@@ -17,59 +17,59 @@ import {
   Edit,
   Flag,
   FlagOff,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { ScreenWrapper } from '@/components/ui/ScreenWrapper';
-import { Text } from '@/components/ui/Text';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Avatar } from '@/components/ui/Avatar';
-import { Divider } from '@/components/ui/Divider';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { useTheme } from '@/hooks/useTheme';
-import { useToastStore } from '@/components/ui/Toast';
-import { useClient, useUpdateClient } from '@/hooks/useClients';
-import { useViolationStore } from '@/stores/useViolationStore';
-import { useBillingStore } from '@/stores/useBillingStore';
-import { mockBookings } from '@/data/bookings';
-import { formatDate, formatCurrency } from '@/utils/format';
-import type { ClientTag } from '@/types/client';
-import type { Booking, BookingStatus } from '@/types/booking';
-import type { Violation, ViolationStatus } from '@/types/violation';
-import type { Invoice, InvoiceStatus } from '@/types/billing';
+import { ScreenWrapper } from "@/components/ui/ScreenWrapper";
+import { Text } from "@/components/ui/Text";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Avatar } from "@/components/ui/Avatar";
+import { Divider } from "@/components/ui/Divider";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/hooks/useTheme";
+import { useToastStore } from "@/components/ui/Toast";
+import { useClient, useUpdateClient } from "@/hooks/useClients";
+import { useViolationStore } from "@/stores/useViolationStore";
+import { useBillingStore } from "@/stores/useBillingStore";
+import { mockBookings } from "@/data/bookings";
+import { formatDate, formatCurrency } from "@/utils/format";
+import type { ClientTag } from "@/types/client";
+import type { Booking, BookingStatus } from "@/types/booking";
+import type { Violation, ViolationStatus } from "@/types/violation";
+import type { Invoice, InvoiceStatus } from "@/types/billing";
 
 // ── Tag helpers ────────────────────────────────────────────────────────────
 
 function getTagVariant(
   tag: ClientTag,
-): 'accent' | 'info' | 'success' | 'neutral' | 'danger' {
+): "accent" | "info" | "success" | "neutral" | "danger" {
   switch (tag) {
-    case 'vip':
-      return 'accent';
-    case 'corporate':
-      return 'info';
-    case 'frequent':
-      return 'success';
-    case 'new':
-      return 'neutral';
-    case 'flagged':
-      return 'danger';
+    case "vip":
+      return "accent";
+    case "corporate":
+      return "info";
+    case "frequent":
+      return "success";
+    case "new":
+      return "neutral";
+    case "flagged":
+      return "danger";
   }
 }
 
 function getTagLabel(tag: ClientTag): string {
   switch (tag) {
-    case 'vip':
-      return 'VIP';
-    case 'corporate':
-      return 'Corporate';
-    case 'frequent':
-      return 'Fréquent';
-    case 'new':
-      return 'Nouveau';
-    case 'flagged':
-      return 'Signalé';
+    case "vip":
+      return "VIP";
+    case "corporate":
+      return "Corporate";
+    case "frequent":
+      return "Fréquent";
+    case "new":
+      return "Nouveau";
+    case "flagged":
+      return "Signalé";
   }
 }
 
@@ -77,33 +77,33 @@ function getTagLabel(tag: ClientTag): string {
 
 function getBookingStatusVariant(
   status: BookingStatus,
-): 'success' | 'warning' | 'info' | 'neutral' | 'danger' {
+): "success" | "warning" | "info" | "neutral" | "danger" {
   switch (status) {
-    case 'active':
-      return 'success';
-    case 'confirmed':
-      return 'info';
-    case 'pending':
-      return 'warning';
-    case 'completed':
-      return 'neutral';
-    case 'cancelled':
-      return 'danger';
+    case "active":
+      return "success";
+    case "confirmed":
+      return "info";
+    case "pending":
+      return "warning";
+    case "completed":
+      return "neutral";
+    case "cancelled":
+      return "danger";
   }
 }
 
 function getBookingStatusLabel(status: BookingStatus): string {
   switch (status) {
-    case 'active':
-      return 'Actif';
-    case 'confirmed':
-      return 'Confirmé';
-    case 'pending':
-      return 'En attente';
-    case 'completed':
-      return 'Terminé';
-    case 'cancelled':
-      return 'Annulé';
+    case "active":
+      return "Actif";
+    case "confirmed":
+      return "Confirmé";
+    case "pending":
+      return "En attente";
+    case "completed":
+      return "Terminé";
+    case "cancelled":
+      return "Annulé";
   }
 }
 
@@ -111,46 +111,46 @@ function getBookingStatusLabel(status: BookingStatus): string {
 
 function getViolationStatusVariant(
   status: ViolationStatus,
-): 'success' | 'warning' | 'info' | 'neutral' | 'danger' {
+): "success" | "warning" | "info" | "neutral" | "danger" {
   switch (status) {
-    case 'paid':
-      return 'success';
-    case 'received':
-      return 'warning';
-    case 'client-identified':
-      return 'info';
-    case 'forwarded':
-      return 'info';
-    case 'disputed':
-      return 'danger';
+    case "paid":
+      return "success";
+    case "received":
+      return "warning";
+    case "client-identified":
+      return "info";
+    case "forwarded":
+      return "info";
+    case "disputed":
+      return "danger";
   }
 }
 
 function getViolationStatusLabel(status: ViolationStatus): string {
   switch (status) {
-    case 'paid':
-      return 'Payé';
-    case 'received':
-      return 'Reçu';
-    case 'client-identified':
-      return 'Identifié';
-    case 'forwarded':
-      return 'Transféré';
-    case 'disputed':
-      return 'Contesté';
+    case "paid":
+      return "Payé";
+    case "received":
+      return "Reçu";
+    case "client-identified":
+      return "Identifié";
+    case "forwarded":
+      return "Transféré";
+    case "disputed":
+      return "Contesté";
   }
 }
 
 function getViolationTypeLabel(type: string): string {
   switch (type) {
-    case 'speeding':
-      return 'Excès de vitesse';
-    case 'parking':
-      return 'Stationnement';
-    case 'redlight':
-      return 'Feu rouge';
+    case "speeding":
+      return "Excès de vitesse";
+    case "parking":
+      return "Stationnement";
+    case "redlight":
+      return "Feu rouge";
     default:
-      return 'Autre';
+      return "Autre";
   }
 }
 
@@ -158,35 +158,47 @@ function getViolationTypeLabel(type: string): string {
 
 function getInvoiceStatusVariant(
   status: InvoiceStatus,
-): 'success' | 'warning' | 'info' | 'neutral' | 'danger' {
+): "success" | "warning" | "info" | "neutral" | "danger" {
   switch (status) {
-    case 'paid':
-      return 'success';
-    case 'pending':
-      return 'warning';
-    case 'overdue':
-      return 'danger';
-    case 'partially-paid':
-      return 'info';
+    case "paid":
+      return "success";
+    case "pending":
+      return "warning";
+    case "overdue":
+      return "danger";
+    case "partially-paid":
+      return "info";
+    case "refund_pending":
+      return "warning";
+    case "refunded":
+      return "success";
+    case "void":
+      return "danger";
   }
 }
 
 function getInvoiceStatusLabel(status: InvoiceStatus): string {
   switch (status) {
-    case 'paid':
-      return 'Payé';
-    case 'pending':
-      return 'En attente';
-    case 'overdue':
-      return 'En retard';
-    case 'partially-paid':
-      return 'Partiel';
+    case "paid":
+      return "Payé";
+    case "pending":
+      return "En attente";
+    case "overdue":
+      return "En retard";
+    case "partially-paid":
+      return "Partiel";
+    case "refund_pending":
+      return "Remb. en attente";
+    case "refunded":
+      return "Remboursé";
+    case "void":
+      return "Annulée";
   }
 }
 
 // ── Tab types ──────────────────────────────────────────────────────────────
 
-type TabKey = 'bookings' | 'violations' | 'invoices' | 'documents';
+type TabKey = "bookings" | "violations" | "invoices" | "documents";
 
 interface TabOption {
   key: TabKey;
@@ -194,10 +206,10 @@ interface TabOption {
 }
 
 const TABS: TabOption[] = [
-  { key: 'bookings', label: 'Réservations' },
-  { key: 'violations', label: 'Infractions' },
-  { key: 'invoices', label: 'Factures' },
-  { key: 'documents', label: 'Documents' },
+  { key: "bookings", label: "Réservations" },
+  { key: "violations", label: "Infractions" },
+  { key: "invoices", label: "Factures" },
+  { key: "documents", label: "Documents" },
 ];
 
 // ── Main Screen ────────────────────────────────────────────────────────────
@@ -214,7 +226,7 @@ export default function ClientDetailScreen() {
   const violations = useViolationStore((s) => s.violations);
   const invoices = useBillingStore((s) => s.invoices);
 
-  const [activeTab, setActiveTab] = useState<TabKey>('bookings');
+  const [activeTab, setActiveTab] = useState<TabKey>("bookings");
 
   // Client bookings
   const clientBookings = useMemo(
@@ -231,7 +243,7 @@ export default function ClientDetailScreen() {
   // Last booking
   const lastBooking = useMemo(() => {
     const completedOrActive = clientBookings.filter(
-      (b) => b.status === 'completed' || b.status === 'active',
+      (b) => b.status === "completed" || b.status === "active",
     );
     return completedOrActive.length > 0 ? completedOrActive[0] : null;
   }, [clientBookings]);
@@ -241,9 +253,9 @@ export default function ClientDetailScreen() {
     () =>
       clientBookings.find(
         (b) =>
-          b.status === 'active' ||
-          b.status === 'confirmed' ||
-          b.status === 'pending',
+          b.status === "active" ||
+          b.status === "confirmed" ||
+          b.status === "pending",
       ) ?? null,
     [clientBookings],
   );
@@ -254,8 +266,7 @@ export default function ClientDetailScreen() {
       violations
         .filter((v) => v.clientId === id)
         .sort(
-          (a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime(),
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         ),
     [violations, id],
   );
@@ -267,35 +278,38 @@ export default function ClientDetailScreen() {
         .filter((inv) => inv.clientId === id)
         .sort(
           (a, b) =>
-            new Date(b.issuedDate).getTime() -
-            new Date(a.issuedDate).getTime(),
+            new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime(),
         ),
     [invoices, id],
   );
 
-  const isFlagged = client?.tags.includes('flagged') ?? false;
+  const isFlagged = client?.tags.includes("flagged") ?? false;
 
   const handleToggleFlag = useCallback(() => {
     if (!client) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const nextTags = isFlagged
-      ? client.tags.filter((t) => t !== 'flagged')
-      : [...client.tags, 'flagged'];
-    const nextFlagReason = isFlagged ? null : 'Signalé manuellement';
+      ? client.tags.filter((t) => t !== "flagged")
+      : [...client.tags, "flagged"];
+    const nextFlagReason = isFlagged ? null : "Signalé manuellement";
     updateClient.mutate(
       { id: client.id, data: { tags: nextTags, flagReason: nextFlagReason } },
       {
         onSuccess: () => {
           showToast({
-            variant: isFlagged ? 'success' : 'warning',
-            title: isFlagged ? 'Signalement retiré' : 'Client signalé',
-            message: `${client.firstName} ${client.lastName} ${isFlagged ? "n'est plus signalé" : 'a été signalé'}.`,
+            variant: isFlagged ? "success" : "warning",
+            title: isFlagged ? "Signalement retiré" : "Client signalé",
+            message: `${client.firstName} ${client.lastName} ${isFlagged ? "n'est plus signalé" : "a été signalé"}.`,
           });
         },
         onError: () => {
-          showToast({ variant: 'error', title: 'Erreur', message: 'Impossible de mettre à jour le client.' });
+          showToast({
+            variant: "error",
+            title: "Erreur",
+            message: "Impossible de mettre à jour le client.",
+          });
         },
-      }
+      },
     );
   }, [client, isFlagged, updateClient, showToast]);
 
@@ -307,12 +321,12 @@ export default function ClientDetailScreen() {
         <View className="flex-1 items-center justify-center py-20">
           <EmptyState
             icon={AlertTriangle}
-            title={t('clients.notFound', 'Client introuvable')}
+            title={t("clients.notFound", "Client introuvable")}
             subtitle={t(
-              'clients.notFoundDesc',
+              "clients.notFoundDesc",
               "Le client que vous recherchez n'existe pas.",
             )}
-            actionLabel={t('common.back', 'Retour')}
+            actionLabel={t("common.back", "Retour")}
             onAction={() => router.back()}
           />
         </View>
@@ -364,8 +378,8 @@ export default function ClientDetailScreen() {
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               showToast({
-                variant: 'info',
-                title: 'Appel simulé',
+                variant: "info",
+                title: "Appel simulé",
                 message: client.phone,
               });
             }}
@@ -373,11 +387,7 @@ export default function ClientDetailScreen() {
             style={{ backgroundColor: theme.surfaceTertiary }}
           >
             <Phone size={16} color={theme.accent} />
-            <Text
-              variant="bodySmall"
-              color={theme.accent}
-              className="ml-2"
-            >
+            <Text variant="bodySmall" color={theme.accent} className="ml-2">
               {client.phone}
             </Text>
           </Pressable>
@@ -386,8 +396,8 @@ export default function ClientDetailScreen() {
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               showToast({
-                variant: 'info',
-                title: 'Email simulé',
+                variant: "info",
+                title: "Email simulé",
                 message: client.email,
               });
             }}
@@ -439,7 +449,8 @@ export default function ClientDetailScreen() {
             <View className="items-center">
               <Euro size={20} color={theme.accent} />
               <Text variant="headlineMedium" className="mt-2">
-                {'\u20AC'}{client.totalSpent}
+                {"\u20AC"}
+                {client.totalSpent}
               </Text>
               <Text
                 variant="bodySmall"
@@ -462,8 +473,8 @@ export default function ClientDetailScreen() {
                 numberOfLines={1}
               >
                 {lastBooking
-                  ? formatDate(lastBooking.startDate, 'short')
-                  : 'Aucune'}
+                  ? formatDate(lastBooking.startDate, "short")
+                  : "Aucune"}
               </Text>
               <Text
                 variant="bodySmall"
@@ -478,14 +489,17 @@ export default function ClientDetailScreen() {
           {/* Réservation active */}
           <Card className="w-[140px]">
             <View className="items-center">
-              <Activity size={20} color={activeBooking ? theme.success : theme.textTertiary} />
+              <Activity
+                size={20}
+                color={activeBooking ? theme.success : theme.textTertiary}
+              />
               <Text
                 variant="bodyMedium"
                 color={activeBooking ? theme.success : theme.textTertiary}
                 className="mt-2"
                 align="center"
               >
-                {activeBooking ? 'Oui' : 'Non'}
+                {activeBooking ? "Oui" : "Non"}
               </Text>
               <Text
                 variant="bodySmall"
@@ -521,7 +535,7 @@ export default function ClientDetailScreen() {
                 className="px-4 py-2.5"
                 style={{
                   borderBottomWidth: 2,
-                  borderBottomColor: isActive ? theme.accent : 'transparent',
+                  borderBottomColor: isActive ? theme.accent : "transparent",
                 }}
               >
                 <Text
@@ -539,16 +553,12 @@ export default function ClientDetailScreen() {
 
       {/* ── Tab content ─────────────────────────────────────────── */}
       <View className="mt-4">
-        {activeTab === 'bookings' && (
-          <BookingsTab bookings={clientBookings} />
-        )}
-        {activeTab === 'violations' && (
+        {activeTab === "bookings" && <BookingsTab bookings={clientBookings} />}
+        {activeTab === "violations" && (
           <ViolationsTab violations={clientViolations} />
         )}
-        {activeTab === 'invoices' && (
-          <InvoicesTab invoices={clientInvoices} />
-        )}
-        {activeTab === 'documents' && <DocumentsTab />}
+        {activeTab === "invoices" && <InvoicesTab invoices={clientInvoices} />}
+        {activeTab === "documents" && <DocumentsTab />}
       </View>
 
       {/* ── Action buttons ──────────────────────────────────────── */}
@@ -562,7 +572,7 @@ export default function ClientDetailScreen() {
           leftIcon={Car}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/(app)/(bookings)/new');
+            router.push("/(app)/(bookings)/new");
           }}
         >
           Nouvelle réservation
@@ -575,9 +585,9 @@ export default function ClientDetailScreen() {
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             showToast({
-              variant: 'info',
-              title: 'Modification',
-              message: 'La modification sera bientôt disponible.',
+              variant: "info",
+              title: "Modification",
+              message: "La modification sera bientôt disponible.",
             });
           }}
         >
@@ -590,7 +600,7 @@ export default function ClientDetailScreen() {
           leftIcon={isFlagged ? FlagOff : Flag}
           onPress={handleToggleFlag}
         >
-          {isFlagged ? 'Retirer le signalement' : 'Signaler'}
+          {isFlagged ? "Retirer le signalement" : "Signaler"}
         </Button>
       </Animated.View>
     </ScreenWrapper>
@@ -622,7 +632,9 @@ function BookingsTab({ bookings }: BookingsTabProps) {
       {bookings.map((booking, index) => (
         <Animated.View
           key={booking.id}
-          entering={FadeInDown.delay(index * 50).duration(400).springify()}
+          entering={FadeInDown.delay(index * 50)
+            .duration(400)
+            .springify()}
         >
           <Card className="mb-3">
             <View className="flex-row items-center justify-between mb-2">
@@ -637,8 +649,8 @@ function BookingsTab({ bookings }: BookingsTabProps) {
               </Badge>
             </View>
             <Text variant="bodySmall" color={theme.textSecondary}>
-              {formatDate(booking.startDate, 'short')} {'\u2192'}{' '}
-              {formatDate(booking.endDate, 'short')}
+              {formatDate(booking.startDate, "short")} {"\u2192"}{" "}
+              {formatDate(booking.endDate, "short")}
             </Text>
             <Text variant="bodySmall" color={theme.accent} className="mt-1">
               {formatCurrency(booking.totalAmount)}
@@ -675,7 +687,9 @@ function ViolationsTab({ violations }: ViolationsTabProps) {
       {violations.map((violation, index) => (
         <Animated.View
           key={violation.id}
-          entering={FadeInDown.delay(index * 50).duration(400).springify()}
+          entering={FadeInDown.delay(index * 50)
+            .duration(400)
+            .springify()}
         >
           <Card className="mb-3">
             <View className="flex-row items-center justify-between mb-2">
@@ -690,7 +704,7 @@ function ViolationsTab({ violations }: ViolationsTabProps) {
               </Badge>
             </View>
             <Text variant="bodySmall" color={theme.textSecondary}>
-              {formatDate(violation.date, 'short')}
+              {formatDate(violation.date, "short")}
             </Text>
             <Text variant="bodySmall" color={theme.accent} className="mt-1">
               {formatCurrency(violation.totalCharge)}
@@ -727,7 +741,9 @@ function InvoicesTab({ invoices }: InvoicesTabProps) {
       {invoices.map((invoice, index) => (
         <Animated.View
           key={invoice.id}
-          entering={FadeInDown.delay(index * 50).duration(400).springify()}
+          entering={FadeInDown.delay(index * 50)
+            .duration(400)
+            .springify()}
         >
           <Card className="mb-3">
             <View className="flex-row items-center justify-between mb-2">
@@ -742,7 +758,8 @@ function InvoicesTab({ invoices }: InvoicesTabProps) {
               </Badge>
             </View>
             <Text variant="bodySmall" color={theme.textSecondary}>
-              {formatDate(invoice.issuedDate, 'short')} {'\u2014'} {invoice.vehicleName}
+              {formatDate(invoice.issuedDate, "short")} {"\u2014"}{" "}
+              {invoice.vehicleName}
             </Text>
             <Text variant="bodySmall" color={theme.accent} className="mt-1">
               {formatCurrency(invoice.totalDue)}

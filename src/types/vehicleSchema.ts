@@ -52,6 +52,11 @@ export const vehicleFormSchema = z.object({
     .number({ message: "Daily rate is required" })
     .int()
     .min(0, "Daily rate must be ≥ 0"),
+  deposit: z.coerce
+    .number({ message: "Deposit must be a number" })
+    .int()
+    .min(0, "Deposit must be ≥ 0")
+    .default(0),
   fuelType: fuelTypeSchema,
   transmission: transmissionSchema,
   seats: z.coerce

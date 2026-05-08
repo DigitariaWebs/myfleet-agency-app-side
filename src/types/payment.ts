@@ -1,6 +1,7 @@
 // Authoritative payment ledger entries. Mirrors server PaymentDto.
-// Both upfront booking charges and post-rental invoice settlements are
-// rows in this collection.
+// Every payment attaches to an invoice (rental or damages). Deposit
+// authorizations live on the booking, not here; only their captures
+// produce payment rows (against the damages invoice).
 
 export type PaymentKind = "charge" | "refund";
 
@@ -18,8 +19,7 @@ export type PaymentProcessor = "stripe" | "manual";
 export interface Payment {
   id: string;
   agencyId: string;
-  bookingId: string | null;
-  invoiceId: string | null;
+  invoiceId: string;
   clientId: string | null;
   kind: PaymentKind;
   parentPaymentId: string | null;

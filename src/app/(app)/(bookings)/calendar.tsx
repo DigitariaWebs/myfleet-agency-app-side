@@ -122,14 +122,20 @@ function operationMeta(type: OperationType): {
   }
 }
 
+function hasDepositIssue(booking: Booking): boolean {
+  return (
+    booking.depositStatus === "failed" ||
+    booking.depositStatus === "none" ||
+    booking.depositStatus === "released" ||
+    booking.depositStatus === "forfeited"
+  );
+}
+
 function hasUrgency(booking: Booking): boolean {
   return Boolean(
     booking.conflict ||
     booking.status === "pending" ||
-    booking.paymentStatus === "expired" ||
-    booking.paymentStatus === "failed" ||
-    booking.paymentStatus === "pending" ||
-    booking.paymentStatus === "link_sent" ||
+    hasDepositIssue(booking) ||
     (booking.status === "confirmed" && !booking.workflow?.contractId),
   );
 }
@@ -138,14 +144,7 @@ function getUrgencyLabels(booking: Booking): string[] {
   const labels: string[] = [];
   if (booking.conflict) labels.push("Conflit");
   if (booking.status === "pending") labels.push("Validation");
-  if (
-    booking.paymentStatus === "expired" ||
-    booking.paymentStatus === "failed" ||
-    booking.paymentStatus === "pending" ||
-    booking.paymentStatus === "link_sent"
-  ) {
-    labels.push("Paiement");
-  }
+  if (hasDepositIssue(booking)) labels.push("Caution");
   if (booking.status === "confirmed" && !booking.workflow?.contractId) {
     labels.push("Contrat");
   }

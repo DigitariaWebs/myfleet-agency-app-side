@@ -79,6 +79,7 @@ export default function EditVehicleScreen() {
   const [transmission, setTransmission] = useState<Transmission | null>(null);
   const [seats, setSeats] = useState("");
   const [dailyRate, setDailyRate] = useState("");
+  const [deposit, setDeposit] = useState("");
   const [features, setFeatures] = useState<string[]>([]);
   const [status, setStatus] = useState<VehicleStatus>("available");
 
@@ -108,6 +109,7 @@ export default function EditVehicleScreen() {
     setTransmission(vehicle.transmission);
     setSeats(String(vehicle.seats));
     setDailyRate(String(vehicle.dailyRate));
+    setDeposit(String(vehicle.deposit ?? 0));
     setFeatures(vehicle.features ?? []);
     setStatus(vehicle.status);
     if (vehicle.images?.length) {
@@ -236,6 +238,7 @@ export default function EditVehicleScreen() {
       transmission: transmission ?? undefined,
       seats,
       dailyRate,
+      deposit: deposit.trim() === "" ? 0 : deposit,
       features,
       images: [],
       quantity: 1,
@@ -351,6 +354,7 @@ export default function EditVehicleScreen() {
     transmission,
     seats,
     dailyRate,
+    deposit,
     features,
     status,
     awaitAll,
@@ -442,6 +446,7 @@ export default function EditVehicleScreen() {
               transmission,
               seats,
               dailyRate,
+              deposit,
               features,
             }}
             setState={{
@@ -456,6 +461,7 @@ export default function EditVehicleScreen() {
               setTransmission,
               setSeats,
               setDailyRate,
+              setDeposit,
               setFeatures,
             }}
             fieldErrors={fieldErrors}
