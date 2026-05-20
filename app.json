@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.progix.myfleet-agency",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos of your fleet vehicles.",
@@ -30,7 +30,7 @@
     },
     "android": {
       "package": "com.progix.myfleet.agency",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "CAMERA",
         "android.permission.CAMERA",
