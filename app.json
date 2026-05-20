@@ -15,7 +15,17 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos of your fleet vehicles.",
         "NSPhotoLibraryUsageDescription": "My Fleet needs photo library access to save inspection photos.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "217.65.144.155": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": false
+            }
+          }
+        }
       }
     },
     "android": {
